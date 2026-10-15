@@ -33,7 +33,7 @@ shipped as #2078).
 │ ▸ Sync          ● │  └────────────────────────────────────────────┘  │
 │   Integrations    │  ┌────────────────────────────────────────────┐  │
 │   Backup & Restore│  │ 🗄 GLANCEvault                     [ off ] │  │
-│   Advanced        │  │   Paused · your connection is kept         │  │
+│                   │  │   Paused · your connection is kept         │  │
 │   About & Help    │  └────────────────────────────────────────────┘  │
 │                   │                                                  │
 └───────────────────┴──────────────────────────────────────────────────┘
@@ -52,15 +52,14 @@ shipped as #2078).
 
 | Topic | Contents | Today |
 |---|---|---|
-| **General** | Language; clock format; first day of week; home timezone; end of day; sounds; weather (on/off, location, unit); daily tips & quotes | Localization, Sound, Weather, Daily Content blocks |
+| **General** | Language; clock format; first day of week; home timezone; end of day; sounds; weather (on/off, location, unit); daily tips & quotes; global shortcuts (desktop, last) | Localization, Sound, Weather, Daily Content, Global Shortcuts blocks |
 | **Appearance** | Theme (Light / Dark / System); default view on load; views on this device; timeline size; tablet view defaults; GLANCE tab default | View Defaults, Tablet View Defaults, timeline size; theme from the header |
-| **Features** | One card each, each with its own switch: Goals & Projects, Routines, Habits, Frames, Multi-user (with the roster), Inbox (auto-archive); an **Experimental** group: JOBO, Aspire | Goals & Projects, Routines, Habit Tracking, Inbox, Experimental, Multi-user blocks |
-| **Notifications** | Everything in today's reminders dialog | The header bell's dialog |
-| **AI** | Provider, key, model, frame nudges, voice | AI Features block |
-| **Sync** | One card each: Cloud Sync (WebDAV / Nextcloud), GLANCEvault, iCloud (Apple only); the sync passphrase as a shared row when any card is on | Cloud Sync block |
+| **Features** | Inbox (auto-archive) and Follow-ups first, then one card each with its own switch: Goals & Projects, Routines, Habits, Multi-user (with the roster); an **Experimental** group last: JOBO, Aspire | Goals & Projects, Routines, Habit Tracking, Inbox, Experimental, Multi-user blocks |
+| **AI Features** | One card: provider, key, model, frame nudges, voice | AI Features block |
+| **Sync** | End-to-end encryption, WebDAV and GLANCEvault (one form, with its Save and Cancel right under it); then Direct Access, iCloud (Apple only), Network proxy (desktop, #2082) and the private-address grants, each saving on its own; Sync diagnostics last | Cloud Sync block |
 | **Integrations** | One card each: Calendars (CalDAV task calendar, ICS feeds, device calendars, file import), Obsidian, Todoist, TRMNL, GLANCE apps (intents), Local Integrations (MCP), Android Automation (Android only) | Calendar Sync, Obsidian, Todoist, TRMNL, GLANCE Integrations, Local Integrations, Automation Intents blocks |
-| **Backup & Restore** | Back up now; restore from file or folder; auto-backup settings | The header save icon's menu and the auto-backup manager |
-| **Advanced** | Global shortcuts (desktop); network proxy (if #2082 lands); diagnostics | Global Shortcuts block |
+| **Notifications** | Cards: Reminders, Weekly Review, hyperGLANCE Sessions (each with its own switch) | The header bell's dialog |
+| **Backup & Restore** | Auto-Backup as one card holding cards for Local Backups and Remote Backups (each with a switch), Folder Backup (web only, its own connect / disconnect) and Backup history (restore and delete); then Export, Restore and Reset as one row | The header save icon's menu and the auto-backup manager |
 | **About & Help** | Version and update check; help; send feedback; privacy policy and terms | Update banner, help modal links |
 
 Multi-user is a card under Features rather than its own topic: it is a mode
@@ -150,6 +149,22 @@ Each channel needs an `enabled` flag that is separate from its configuration:
   pin it with a test.
 - **Integrations**: Obsidian, Todoist, TRMNL, calendars and the rest are audited
   for the same rule in their step.
+
+### Integrations audit (step 2)
+
+Every integration is a card, so the page reads as one list. A card has a
+switch only where off can safely mean pause; the others are **static cards**:
+the same frame, title and status dot, with their on and off inside.
+
+| Integration | Today | Card |
+|---|---|---|
+| TRMNL | `trmnlConfig.enabled` beside the webhook and key; off keeps both | **Card.** Off pauses; on with no webhook opens the form until one is entered |
+| Android Automation | one boolean, no configuration | **Card** |
+| Obsidian | off is Disconnect: `setObsidianConfig(null)` forgets the vault | **Static card** (no switch) for now. A pause needs `enabled: false` with the vault kept, and every reader of `obsidianConfig` (the hook, the plugin bridge, the header dot) audited first, as GLANCEvault was |
+| Calendars | several independent sources (task calendar URL, ICS feeds, device calendars), no single switch | **Static card**: a switch would have to mean "all of them" |
+| Todoist | its own component with its own connect / disconnect | **Static card** around its own connect / disconnect |
+| GLANCE apps (intents) | WebDAV log and GLANCEvault intents, two separate switches | **Static card**, for the same reason as Calendars |
+| Local Integrations (MCP) | its own component with its own kill switch | **Static card**: its switches stay inside, because turning MCP on must go through its consent dialog |
 
 ## Mobile
 

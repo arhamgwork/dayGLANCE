@@ -86,12 +86,11 @@ import CloudSyncSettingsForm from './components/CloudSyncSettingsForm.jsx';
 import SyncPassphraseModal from './components/SyncPassphraseModal.jsx';
 import AutoBackupSettingsForm from './components/AutoBackupSettingsForm.jsx';
 import SettingsModal from './components/SettingsModal.jsx';
-import RemindersSettingsModal from './components/RemindersSettingsModal.jsx';
+import HelpLinks from './components/HelpLinks.jsx';
 import VoiceInputModal from './components/VoiceInputModal.jsx';
 import WeeklyReviewModal from './components/WeeklyReviewModal.jsx';
 import WeeklyReviewReminderCard from './components/WeeklyReviewReminderCard.jsx';
 import IncompleteTasksModal from './components/IncompleteTasksModal.jsx';
-import BackupMenuModal from './components/BackupMenuModal.jsx';
 import ICloudFirstRunModal from './components/ICloudFirstRunModal.jsx';
 import RestoreConfirmModal from './components/RestoreConfirmModal.jsx';
 import AutoBackupManagerModal from './components/AutoBackupManagerModal.jsx';
@@ -151,6 +150,7 @@ import { createDbEngine, resetVaultSyncCursor } from './sync/dbEngine.js';
 import { deriveBlockEnergy } from './utils/energyAxis.js';
 import { registerDbEngine } from './sync/dirtyTracker.js';
 import { isVaultEnabled } from './sync/vaultConfig.js';
+import { readThemePref, systemPrefersDark, resolveDarkMode, restoredThemePref, THEME_PREF_KEY } from './utils/themePref.js';
 import { keepImportedTask } from './sync/payloadExclusions.js';
 import { canEnableMultiUser } from './utils/multiUserGate.js';
 import { encryptData, hasEncryptionReady } from './utils/crypto.js';
@@ -533,10 +533,28 @@ const DayPlanner = () => {
     const saved = localStorage.getItem('day-planner-week-view-mode');
     return saved ? JSON.parse(saved) : 'strict';
   });
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('day-planner-darkmode');
-    return saved ? JSON.parse(saved) : false;
-  });
+  // Theme (utils/themePref.js, #2075): a preference ('light' | 'dark' |
+  // 'system'), and the resolved boolean every reader uses. 'system' follows
+  // the OS live. A device that already had light or dark keeps it.
+  const [themePref, setThemePref] = useState(readThemePref);
+  const [systemDark, setSystemDark] = useState(systemPrefersDark);
+  useEffect(() => {
+    const mq = window.matchMedia?.('(prefers-color-scheme: dark)');
+    if (!mq) return undefined;
+    const onChange = (e) => setSystemDark(e.matches);
+    mq.addEventListener?.('change', onChange);
+    return () => mq.removeEventListener?.('change', onChange);
+  }, []);
+  const darkMode = resolveDarkMode(themePref, systemDark);
+  // The one-click toggles (header button, the D shortcut) choose an explicit
+  // light or dark, leaving 'system', as in lastGLANCE.
+  const setDarkMode = useCallback((value) => setThemePref((prev) => {
+    const current = resolveDarkMode(prev, systemPrefersDark());
+    return (typeof value === 'function' ? value(current) : value) ? 'dark' : 'light';
+  }), []);
+  useEffect(() => {
+    try { localStorage.setItem(THEME_PREF_KEY, themePref); } catch { /* not remembered */ }
+  }, [themePref]);
   const [selectedDate, setSelectedDate] = useState(() => {
     const urlDate = new URLSearchParams(window.location.search).get('date');
     if (urlDate) {
@@ -1112,7 +1130,7 @@ const DayPlanner = () => {
 
   // Settings & Reminders modals
   const [showSettings, setShowSettings] = useState(false);
-  const [collapsedSettings, setCollapsedSettings] = useState({ cloudSync: true, calSync: true, ai: true, obsidian: true, todoist: true, trmnl: true, multiUser: true, intent: true, automationIntents: true, localIntegrations: true });
+  const [collapsedSettings, setCollapsedSettings] = useState({ cloudSync: false, calSync: true, ai: true, obsidian: true, todoist: true, trmnl: true, multiUser: true, intent: true, automationIntents: true, localIntegrations: true });
   const [updateInfo, setUpdateInfo] = useState(null);
   const [updateDismissedVersion, setUpdateDismissedVersion] = useState(() => localStorage.getItem('dayglance-update-dismissed') || null);
   const toggleSettingsSection = (key) => setCollapsedSettings(prev => ({ ...prev, [key]: !prev[key] }));
@@ -4515,6 +4533,7 @@ const DayPlanner = () => {
         unscheduledTasks: JSON.parse(localStorage.getItem('day-planner-unscheduled') || '[]'),
         recycleBin: JSON.parse(localStorage.getItem('day-planner-recycle-bin') || '[]'),
         darkMode: JSON.parse(localStorage.getItem('day-planner-darkmode') || 'false'),
+        themePref: readThemePref(),
         syncUrl: localStorage.getItem('day-planner-sync-url') || '',
         taskCalendarUrl: localStorage.getItem('day-planner-task-calendar-url') || '',
         taskCalendarAuth: JSON.parse(localStorage.getItem('day-planner-task-calendar-auth') || 'null'),
@@ -4585,6 +4604,7 @@ const DayPlanner = () => {
       unscheduledTasks: JSON.parse(localStorage.getItem('day-planner-unscheduled') || '[]'),
       recycleBin: JSON.parse(localStorage.getItem('day-planner-recycle-bin') || '[]'),
       darkMode: JSON.parse(localStorage.getItem('day-planner-darkmode') || 'false'),
+      themePref: readThemePref(),
       syncUrl: localStorage.getItem('day-planner-sync-url') || '',
       taskCalendarUrl: localStorage.getItem('day-planner-task-calendar-url') || '',
       taskCalendarAuth: JSON.parse(localStorage.getItem('day-planner-task-calendar-auth') || 'null'),
@@ -4785,6 +4805,12 @@ const DayPlanner = () => {
     if (data.unscheduledTasks) localStorage.setItem('day-planner-unscheduled', JSON.stringify(data.unscheduledTasks));
     if (data.recycleBin) localStorage.setItem('day-planner-recycle-bin', JSON.stringify(data.recycleBin));
     if (data.darkMode !== undefined) localStorage.setItem('day-planner-darkmode', JSON.stringify(data.darkMode));
+    {
+      // The theme preference comes back with the backup; an older backup that
+      // only carried light or dark restores that as an explicit choice.
+      const pref = restoredThemePref(data);
+      if (pref) localStorage.setItem(THEME_PREF_KEY, pref);
+    }
     if (data.syncUrl !== undefined) localStorage.setItem('day-planner-sync-url', data.syncUrl);
     if (data.taskCalendarUrl !== undefined) localStorage.setItem('day-planner-task-calendar-url', data.taskCalendarUrl);
     if (data.taskCalendarAuth) localStorage.setItem('day-planner-task-calendar-auth', JSON.stringify(data.taskCalendarAuth));
@@ -7953,7 +7979,7 @@ const DayPlanner = () => {
     recycleBin, setRecycleBin,
     completedTaskUids, setCompletedTaskUids,
     dataLoaded, setDataLoaded,
-    darkMode, setDarkMode,
+    darkMode, setDarkMode, themePref, setThemePref,
 
     // ── Time ──────────────────────────────────────────────────────────────────
     currentTime, setCurrentTime,
@@ -8947,7 +8973,6 @@ const DayPlanner = () => {
       )}
 
       {/* Backup Modals */}
-      <BackupMenuModal />
       <RestoreConfirmModal />
       <AutoBackupManagerModal />
 
@@ -9504,8 +9529,6 @@ const DayPlanner = () => {
       {/* Settings Modal */}
       {showSettings && <SettingsModal />}
 
-      {/* Reminders Modal */}
-      <RemindersSettingsModal />
       {/* Incomplete Tasks Modal */}
       <IncompleteTasksModal />
 
@@ -9528,63 +9551,7 @@ const DayPlanner = () => {
             </div>
 
             <div className="px-5 py-4 space-y-5">
-              {/* Docs */}
-              <div>
-                <p className={`text-xs font-semibold uppercase tracking-wide ${textSecondary} mb-2`}>{t('app.documentation')}</p>
-                <a
-                  href="https://docs.dayglance.app"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-blue-500 hover:text-blue-400 transition-colors text-sm font-medium"
-                >
-                  <ExternalLink size={14} />
-                  docs.dayglance.app
-                </a>
-              </div>
-
-              {/* Contact */}
-              <div>
-                <p className={`text-xs font-semibold uppercase tracking-wide ${textSecondary} mb-2`}>{t('app.contactIssues')}</p>
-                <a
-                  href="mailto:support@glance-apps.com"
-                  className="flex items-center gap-2 text-blue-500 hover:text-blue-400 transition-colors text-sm font-medium"
-                >
-                  <ExternalLink size={14} />
-                  support@glance-apps.com
-                </a>
-                <a
-                  href="https://github.com/krelltunez/dayGLANCE/issues"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-blue-500 hover:text-blue-400 transition-colors text-sm font-medium mt-1.5"
-                >
-                  <ExternalLink size={14} />
-                  Report an issue on GitHub
-                </a>
-              </div>
-
-              {/* Legal */}
-              <div>
-                <p className={`text-xs font-semibold uppercase tracking-wide ${textSecondary} mb-2`}>{t('app.legal')}</p>
-                <a
-                  href="https://www.glance-apps.com/dayglance/privacy"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-blue-500 hover:text-blue-400 transition-colors text-sm font-medium"
-                >
-                  <ExternalLink size={14} />
-                  {t('onboarding.privacyPolicy')}
-                </a>
-                <a
-                  href="https://www.glance-apps.com/eula"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-blue-500 hover:text-blue-400 transition-colors text-sm font-medium mt-1.5"
-                >
-                  <ExternalLink size={14} />
-                  {t('onboarding.termsOfUse')}
-                </a>
-              </div>
+              <HelpLinks textSecondary={textSecondary} />
 
               {/* Getting Started toggle */}
               <div className={`pt-4 border-t ${borderClass}`}>

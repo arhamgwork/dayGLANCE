@@ -91,14 +91,16 @@ const READ_TIER_OPTIONS = [
  *    header. (Previously this component was mounted whole at the bottom of
  *    the mobile panel, stranding a desktop-shaped section in a page of row
  *    cards.)
+ *  - "card": the same bare content inside a desktop Settings card, which
+ *    carries the title.
  */
-const LocalIntegrationsSettings = ({ variant }) => {
+const LocalIntegrationsSettings = ({ variant, onActiveChange }) => {
   const { t } = useTranslation();
   const {
     collapsedSettings, toggleSettingsSection,
     darkMode, borderClass, textPrimary, textSecondary,
   } = useDayPlannerCtx();
-  const isPage = variant === 'page';
+  const isPage = variant === 'page' || variant === 'card';
 
   const api = typeof window !== 'undefined' ? window.electronAPI?.localIntegrations : undefined;
   const [snapshot, setSnapshot] = useState(null);
@@ -175,6 +177,11 @@ const LocalIntegrationsSettings = ({ variant }) => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Whether Stream Deck or the MCP server is on, for the Settings card's dot.
+  // Computed before the early return so the hook order never changes.
+  const active = !!snapshot && (snapshot.config.streamDeck.enabled || snapshot.config.mcp.readTier !== 'off');
+  useEffect(() => { onActiveChange?.(active); }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!api || !snapshot) return null;
 

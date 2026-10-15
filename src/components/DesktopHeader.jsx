@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Bell, BookOpen, ChevronLeft, ChevronRight, Cloud,
-  HelpCircle, Moon, RefreshCw, Save, Settings, Sun,
+  BookOpen, ChevronLeft, ChevronRight, Cloud,
+  HelpCircle, Moon, RefreshCw, Settings, Sun,
 } from 'lucide-react';
 import { dateToString, formatDateRange } from '../utils/taskUtils.js';
 import { formatLocalizedDate, localizedWeekdays } from '../utils/localeFormatting.js';
@@ -40,13 +40,12 @@ const DesktopHeader = () => {
   const {
     calSyncStatus, calSyncLastSynced, calSyncConfigured,
     isSyncing,
-    setShowBackupMenu,
     cloudSyncConfig, cloudSyncStatus, cloudSyncLastSynced,
     vaultEnabled, vaultStatus, vaultLastSynced, vaultSyncNow,
     obsidianConfig, obsidianSyncStatus, obsidianSyncError, obsidianLastSynced, obsidianVaultAccess,
     cloudSyncDownload, syncAll, performObsidianSync,
   } = useSyncCtx();
-  const { setShowRemindersSettings, activeReminders, desktopSpace = 'calendar' } = useFeaturesCtx();
+  const { desktopSpace = 'calendar' } = useFeaturesCtx();
   const { t, i18n } = useTranslation();
   // The header is the same in both spaces (height, left widgets, right icon
   // cluster); only the centre swaps: date navigation in the Calendar space,
@@ -297,26 +296,6 @@ const DesktopHeader = () => {
           )}
           <McpBoltButton mcp={mcp} darkMode={darkMode} open={mcpOpen} onToggle={() => setMcpOpen(v => !v)} variant="cluster" />
           <button
-            onClick={() => setShowSettings(true)}
-            className={`relative p-2 ${darkMode ? 'bg-gray-700' : 'bg-stone-200'} rounded-lg ${hoverBg}`}
-            title={t('common.settings')}
-          >
-            <Settings size={18} className={textSecondary} />
-            {updateInfo && (
-              <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 ${darkMode ? 'border-gray-800' : 'border-white'} bg-red-500`} />
-            )}
-          </button>
-          <button
-            onClick={() => setShowRemindersSettings(true)}
-            className={`relative p-2 ${darkMode ? 'bg-gray-700' : 'bg-stone-200'} rounded-lg ${hoverBg}`}
-            title={t('reminders.fallback')}
-          >
-            <Bell size={18} className={textSecondary} />
-            {activeReminders.length > 0 && (
-              <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 ${darkMode ? 'border-gray-800' : 'border-white'} bg-amber-500 animate-pulse`} />
-            )}
-          </button>
-          <button
             onClick={() => setShowDayDial(true)}
             className={`p-2 ${darkMode ? 'bg-gray-700' : 'bg-stone-200'} rounded-lg ${hoverBg}`}
             title={`${t('settings.viewCalendarDay')} (O)`}
@@ -331,11 +310,14 @@ const DesktopHeader = () => {
             {darkMode ? <Sun size={18} className={textSecondary} /> : <Moon size={18} className={textSecondary} />}
           </button>
           <button
-            onClick={() => setShowBackupMenu(true)}
-            className={`p-2 ${darkMode ? 'bg-gray-700' : 'bg-stone-200'} rounded-lg ${hoverBg}`}
-            title={t('backup.title')}
+            onClick={() => setShowSettings(true)}
+            className={`relative p-2 ${darkMode ? 'bg-gray-700' : 'bg-stone-200'} rounded-lg ${hoverBg}`}
+            title={t('common.settings')}
           >
-            <Save size={18} className={textSecondary} />
+            <Settings size={18} className={textSecondary} />
+            {updateInfo && (
+              <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 ${darkMode ? 'border-gray-800' : 'border-white'} bg-red-500`} />
+            )}
           </button>
           <button
             onClick={() => setShowHelpModal(true)}

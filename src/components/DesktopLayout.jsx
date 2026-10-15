@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import TimelineZoomFlash from './TimelineZoomFlash.jsx';
 import {
-  Bell, BookOpen, ChevronLeft, ChevronRight, Cloud,
+  BookOpen, ChevronLeft, ChevronRight, Cloud,
   Eye, HelpCircle, Inbox, Moon,
-  RefreshCw, Save, Settings, Sun, Trash2, X,
+  RefreshCw, Settings, Sun, Trash2, X,
 } from 'lucide-react';
 import { dateToString, extractWikilinks, formatDateRange } from '../utils/taskUtils.js';
 import { formatLocalizedDate, localizedWeekdays } from '../utils/localeFormatting.js';
@@ -635,28 +635,6 @@ const DesktopLayout = () => {
               </button>
             )}
             <button
-              onClick={() => setShowSettings(true)}
-              className={`relative p-2 ${darkMode ? 'bg-gray-700' : 'bg-stone-200'} rounded-lg hover:bg-black/5 active:bg-black/10 dark:hover:bg-white/5 dark:active:bg-white/10 transition-colors`}
-              title={t('common.settings')}
-              aria-label={t('common.settings')}
-            >
-              <Settings size={18} className={textSecondary} />
-              {(updateInfo || Intl.DateTimeFormat().resolvedOptions().timeZone !== homeTimezone) && (
-                <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 ${darkMode ? 'border-gray-800' : 'border-white'} ${updateInfo ? 'bg-red-500' : 'bg-amber-500'}`} />
-              )}
-            </button>
-            <button
-              onClick={() => setShowRemindersSettings(true)}
-              className={`relative p-2 ${darkMode ? 'bg-gray-700' : 'bg-stone-200'} rounded-lg hover:bg-black/5 active:bg-black/10 dark:hover:bg-white/5 dark:active:bg-white/10 transition-colors`}
-              title={t('reminders.fallback')}
-              aria-label={t('reminders.fallback')}
-            >
-              <Bell size={18} className={textSecondary} />
-              {activeReminders.length > 0 && (
-                <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 ${darkMode ? 'border-gray-800' : 'border-white'} bg-amber-500 animate-pulse`} />
-              )}
-            </button>
-            <button
               onClick={() => setShowDayDial(true)}
               className={`p-2 ${darkMode ? 'bg-gray-700' : 'bg-stone-200'} rounded-lg hover:bg-black/5 active:bg-black/10 dark:hover:bg-white/5 dark:active:bg-white/10 transition-colors`}
               title={t('settings.viewCalendarDay')}
@@ -673,12 +651,15 @@ const DesktopLayout = () => {
               {darkMode ? <Sun size={18} className={textSecondary} /> : <Moon size={18} className={textSecondary} />}
             </button>
             <button
-              onClick={() => setShowBackupMenu(true)}
-              className={`p-2 ${darkMode ? 'bg-gray-700' : 'bg-stone-200'} rounded-lg hover:bg-black/5 active:bg-black/10 dark:hover:bg-white/5 dark:active:bg-white/10 transition-colors`}
-              title={t('backup.title')}
-              aria-label={t('backup.title')}
+              onClick={() => setShowSettings(true)}
+              className={`relative p-2 ${darkMode ? 'bg-gray-700' : 'bg-stone-200'} rounded-lg hover:bg-black/5 active:bg-black/10 dark:hover:bg-white/5 dark:active:bg-white/10 transition-colors`}
+              title={t('common.settings')}
+              aria-label={t('common.settings')}
             >
-              <Save size={18} className={textSecondary} />
+              <Settings size={18} className={textSecondary} />
+              {(updateInfo || Intl.DateTimeFormat().resolvedOptions().timeZone !== homeTimezone) && (
+                <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 ${darkMode ? 'border-gray-800' : 'border-white'} ${updateInfo ? 'bg-red-500' : 'bg-amber-500'}`} />
+              )}
             </button>
             <button
               onClick={() => setShowHelpModal(true)}
