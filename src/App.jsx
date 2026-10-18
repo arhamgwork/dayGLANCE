@@ -6576,9 +6576,11 @@ const DayPlanner = () => {
 
     // Day label
     const dayLabel = tomorrow.toLocaleDateString(i18n.language, { weekday: 'long' });
+    const dateLabel = tomorrow.toLocaleDateString(i18n.language, { weekday: 'long', month: 'short', day: 'numeric' });
 
     return {
       dayLabel,
+      dateLabel,
       taskCount: userTasks.length,
       eventCount: calendarEvents.length,
       deadlineCount: deadlines.length,
