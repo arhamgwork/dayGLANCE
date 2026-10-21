@@ -26,6 +26,38 @@ export const FRAME_WINDOW = { daysBefore: 7, daysAfter: 34 };
  */
 export const DEVICE_EVENT_WINDOW = { daysBefore: 1, daysAfter: 6 };
 
+/**
+ * What the Android shell needs to read the device calendar itself
+ * (dayglance-android/.../launcher/LauncherDeviceEvents.kt): the calendars
+ * shown, the user's edits to device events, and the window. The provider
+ * re-reads the calendar on every query with these, so an event added in
+ * another app reaches the launcher while this app is closed, which no
+ * snapshot can do. Its rows must equal the ones built here from the same
+ * events; dayglance-ios/TestFixtures/launcherDeviceEvents.vectors.json holds
+ * both sides to that.
+ *
+ * Overrides keep only the fields nativeResultsToTasks applies, with the colour
+ * resolved to hex (a device event's own colour still wins, as in taskRow).
+ */
+export function launcherDeviceCalendar({ filter = [], overrides = {} } = {}) {
+  const out = {};
+  for (const [id, o] of Object.entries(overrides || {})) {
+    if (!o || typeof o !== 'object') continue;
+    const entry = {};
+    for (const key of ['date', 'startTime', 'duration', 'title', 'notes']) {
+      if (o[key] !== undefined) entry[key] = o[key];
+    }
+    if (o.color !== undefined) entry.colorHex = taskColorToHex(o.color);
+    out[String(id)] = entry;
+  }
+  return {
+    filter: Array.isArray(filter) ? filter.map(String) : [],
+    overrides: out,
+    daysBefore: DEVICE_EVENT_WINDOW.daysBefore,
+    daysAfter: DEVICE_EVENT_WINDOW.daysAfter,
+  };
+}
+
 const timeToMinutes = (time) => {
   if (!time || typeof time !== 'string') return null;
   const [h, m] = time.split(':').map(Number);
@@ -34,6 +66,8 @@ const timeToMinutes = (time) => {
 
 const RECURRING_ID = /^recurring-(.+)-\d{4}-\d{2}-\d{2}$/;
 
+// A device event's row is also built by the Android provider's own read
+// (launcherDeviceCalendar below); a change to the fields regenerates the shared fixture.
 function taskRow(t, source) {
   const isEvent = !!t.imported && !t.isTaskCalendar;
   const recurring = typeof t.id === 'string' ? RECURRING_ID.exec(t.id) : null;
@@ -92,6 +126,9 @@ const keep = (t, isVisibleForUser) => t && !t.archived && !t.isExample && isVisi
  *   is drawing) over DEVICE_EVENT_WINDOW. Null: the app's own `_native` rows, whatever they cover.
  * @param {boolean} [input.carryDeviceEvents]  this snapshot could not read the device calendar
  *   (the headless refresh): the shell keeps the previous snapshot's native rows.
+ * @param {?{filter:string[], overrides:object}} [input.deviceCalendar]  the calendar filter and
+ *   'day-planner-native-time-overrides', for the shell's own read (launcherDeviceCalendar).
+ *   Null on a device without a device calendar.
  */
 export function buildLauncherSnapshot({
   now, todayStr,
@@ -105,6 +142,7 @@ export function buildLauncherSnapshot({
   sunTimes = getSunTimes,
   deviceEvents = null,
   carryDeviceEvents = false,
+  deviceCalendar = null,
 }) {
   const seen = new Set();
   const rows = [];
@@ -222,6 +260,7 @@ export function buildLauncherSnapshot({
     dayShape,
     weather: weatherRows,
     ...(carryDeviceEvents ? { carryDeviceEvents: true } : {}),
+    ...(deviceCalendar ? { deviceCalendar: launcherDeviceCalendar(deviceCalendar) } : {}),
     handledWrites: handledWrites.map(h => ({ clientId: h.clientId, taskId: h.taskId ?? null, action: h.action, at: h.at })),
   };
 }

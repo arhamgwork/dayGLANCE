@@ -197,11 +197,19 @@ Activity, to answer the launcher's REFRESH while the app's process is dead
   `useSaveOnChange`, the day windows, the JOBO ledger), both sync tiers with
   the app's own payload and apply (`hooks/useSyncEngineData.js`), and the
   launcher snapshot and heartbeat push. Nothing else initialises: no
-  calendar fetch, Obsidian, reminders, weather, widgets, intents or UI. It is
+  calendar fetch, Obsidian, reminders, widgets, intents or UI. It is
   never `<App headless />`: a feature that must not run headlessly is one the
   root does not import, not one that checks a flag. The native
   `HeadlessBridge` is the same allowlist (`HEADLESS_BRIDGE_METHODS` in
   `headlessMode.js`); keep the two lists equal.
+- **The forecast is the one named exception.** The dial's weather ring reads
+  it, and a phone left with the app closed for days would otherwise show the
+  temperatures of the day it was last opened. One read-only request for the
+  stored coordinates (`utils/weatherForecast.js`, the same request and
+  reading `useWeather` makes), started with the sync, awaited by the
+  snapshot, writing no storage and no state. A failure is no forecast, and
+  the shell keeps the last one. It is not a precedent: anything else a
+  headless run should fetch is argued for here first.
 - **The headless root loads every synced slice the way the app does.** The
   payload sends each slice with a fresh `lastModified`, so a slice read with a
   different default here would be pushed to every device as an edit. Slices

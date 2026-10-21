@@ -20,7 +20,8 @@ same trigger (every data change while the app runs), and pushes through
 { version: 1, updatedAt, timezone, today,
   tasks:    [{ id, title, date, startTime, duration, isAllDay, completed, completedAt,
                colorHex, priority, notes, projectId, deadline, source: "dayglance"|"calendar",
-               energy, clientId, recurringId }],   // scheduled, Inbox (date null), recurring occurrences
+               energy, clientId, recurringId, native }],   // scheduled, Inbox (date null), recurring occurrences;
+                                                // native: a device-calendar event, read live, never stored
   goals:    [{ id, title, description, colorHex, targetDate, status }],
   projects: [{ id, title, goalId, colorHex, description, status }],
   routines: [{ id, name, startTime, duration, isAllDay, completed }],   // today's
@@ -30,7 +31,9 @@ same trigger (every data change while the app runs), and pushes through
               dialAlarm: { on, fromMin } },              // the dial's alarm-mark prefs
   weather:  [{ id: date, date, unit: "fahrenheit"|"celsius",
                hours: [{ hour, temp, code, uv }] }],      // one row per forecast date, as the dial's ring reads it
-  handledWrites: [{ clientId, taskId, action, at }] }
+  handledWrites: [{ clientId, taskId, action, at }],
+  deviceCalendar: { filter, overrides, daysBefore, daysAfter },   // how the provider reads the calendar itself (below)
+  carryDeviceEvents: true }                       // headless only: this snapshot could not read the calendar
 ```
 
 `LauncherProvider` (`dayglance-android/.../launcher/`) serves it read-only at
@@ -40,6 +43,28 @@ version, updatedAt, timezone, today, handledWrites). Each cursor has `_id`,
 `id` and `json` columns, the row as JSON. Every push calls `notifyChange` on
 the authority, so a `ContentObserver` registered on any collection URI sees
 every change. `insert`, `update` and `delete` throw.
+
+**Device-calendar events are read by the provider, not the snapshot.** The
+calendar is the OS's, so an event added in another app changes nothing the app
+pushes, and the app may be closed for days. On every `tasks` query the provider
+reads the calendar itself over the window around today
+(`launcher/LauncherDeviceEvents.kt`), with the snapshot's `deviceCalendar`: the
+calendars the user shows (`filter`, empty for all) and the user's edits to
+device events (`overrides`, by event id, colour resolved to hex). Those rows
+replace the snapshot's `native` ones, and a change to the calendar notifies
+the authority (after 1.5 s of quiet, for as long as the process lives), so the
+launcher re-reads. The launcher also re-reads on every return to Home. Without
+the calendar permission, or before a snapshot carries `deviceCalendar`, the
+snapshot's own rows are served (in a headless snapshot, the previous one's,
+carried by `LauncherWrites.withCarried`).
+
+The provider's rows must equal the ones the snapshot builds from the same
+events, or an event would change shape depending on who read it.
+`dayglance-ios/TestFixtures/launcherDeviceEvents.vectors.json` is generated
+from the web layer (`src/utils/launcherDeviceEvents.fixture.test.js`, with
+`GEN_FIXTURE=1`) and `LauncherDeviceEventsTest` holds the Kotlin to it, the
+restore keywords included. A change to `nativeEventToTask`, `taskRow` or the
+energy keywords regenerates the fixture and then needs the Kotlin to match.
 
 ## Freshness: the heartbeat and REFRESH
 
@@ -75,8 +100,9 @@ the web side; the rules in CLAUDE.md, "Headless refresh"). An expedited,
 network-constrained WorkManager job boots the web bundle in a WebView with
 no Activity, at `index.html?headless=refresh&clientId=…`, where the headless
 root runs one cycle of every configured tier with the app's own payload and
-apply, pushes the snapshot (keeping the last snapshot's weather, which it
-does not fetch) and the heartbeat, and reports. Then:
+apply, fetches the forecast for the stored location (one read-only request,
+started with the sync; when it fails the shell keeps the last snapshot's
+weather), pushes the snapshot and the heartbeat, and reports. Then:
 
 - `ran` / `failed` come from the web layer as on the alive path, with
   `liveness: dead` and `headless: true` on the entry;

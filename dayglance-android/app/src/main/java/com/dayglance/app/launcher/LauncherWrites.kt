@@ -32,14 +32,15 @@ object LauncherWrites {
     /**
      * [incoming] with what a headless run cannot produce taken from [previous]. Pure.
      *
-     *  - Weather: a headless run fetches no forecast, so an absent or empty
+     *  - Weather: a headless run's forecast request can fail, so an absent or empty
      *    collection keeps the previous one; the weather ring would otherwise go
      *    blank until the app next opened.
      *  - Device-calendar events: when the snapshot says `carryDeviceEvents`, it
      *    could not read the calendar. The previous snapshot's `native` task rows
      *    from yesterday on are kept, skipping any id the incoming one has. A sync
-     *    never changes these (the OS calendar does), so carrying them is exact
-     *    until the app next reads the calendar.
+     *    never changes these (the OS calendar does). The provider replaces them
+     *    with its own read whenever it holds the calendar permission
+     *    ([LauncherDeviceEvents]); this carry is what it serves otherwise.
      */
     fun withCarried(incoming: String, previous: String?): String {
         if (previous == null) return incoming
