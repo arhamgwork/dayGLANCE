@@ -169,3 +169,89 @@ describe('calendarFilter persistence — tray guard', () => {
     );
   });
 });
+
+// #2138: App's initializer reads the notes before anything else runs, and this
+// effect fires on mount. An unreadable notes value used to come back as {} and
+// be written straight over the stored copy.
+describe('useLocalStoragePersist leaves unreadable daily notes alone', () => {
+  let store;
+  beforeEach(async () => {
+    effects.length = 0;
+    store = { 'day-planner-daily-notes': '{"2026-10-18": {"content": "half' };
+    globalThis.localStorage = {
+      setItem: vi.fn((k, v) => { store[k] = v; }),
+      getItem: vi.fn((k) => store[k] ?? null),
+      removeItem: vi.fn(),
+    };
+    globalThis.window = {};
+  });
+  afterEach(() => { delete globalThis.localStorage; delete globalThis.window; });
+
+  it('does not write {} over notes that failed to load, and resumes once they are replaced', async () => {
+    // Fresh instances of both, so the hook and the test share one registry.
+    vi.resetModules();
+    const { default: persist } = await import('./useLocalStoragePersist.js');
+    const { loadDailyNotes } = await import('../utils/dailyNotesStore.js');
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    // No IndexedDB under node: the notes stay in localStorage, where the load
+    // records the unreadable value as a failure (utils/loadFailures.js).
+    await loadDailyNotes();
+    const dailyNotes = {};
+    persist(baseProps({ dailyNotes }));
+    mount();
+    expect(store['day-planner-daily-notes']).toBe('{"2026-10-18": {"content": "half');
+
+    // A sync apply writes valid notes; the effect may persist again.
+    store['day-planner-daily-notes'] = '{}';
+    change(dailyNotes);
+    expect(globalThis.localStorage.setItem).toHaveBeenCalledWith('day-planner-daily-notes', '{}');
+  });
+});
+
+// #2139: a quota error thrown from an effect reached the app-wide
+// ErrorBoundary and replaced the whole app with the crash screen.
+describe('useLocalStoragePersist at quota', () => {
+  beforeEach(() => {
+    effects.length = 0;
+    globalThis.localStorage = {
+      setItem: vi.fn(() => { throw Object.assign(new Error('quota'), { name: 'QuotaExceededError' }); }),
+      getItem: vi.fn(() => null),
+      removeItem: vi.fn(),
+    };
+    globalThis.window = {};
+  });
+  afterEach(() => { delete globalThis.localStorage; delete globalThis.window; vi.restoreAllMocks(); });
+
+  it('no persist effect throws, and the full store is recorded for the banner', async () => {
+    vi.resetModules();
+    const { default: persist } = await import('./useLocalStoragePersist.js');
+    const { getWriteFailures } = await import('../utils/storageWrites.js');
+    const { loadDailyNotes } = await import('../utils/dailyNotesStore.js');
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await loadDailyNotes();
+    persist(baseProps());
+    expect(mount).not.toThrow();
+    expect(getWriteFailures()).toContain('day-planner-daily-notes');
+  });
+});
+
+// #2141: the notes load asynchronously, and the map in state before that is
+// not the user's. Nothing is written, or stamped, until they have loaded.
+describe('useLocalStoragePersist before the notes have loaded', () => {
+  beforeEach(() => {
+    effects.length = 0;
+    globalThis.localStorage = { setItem: vi.fn(), getItem: vi.fn(() => null), removeItem: vi.fn() };
+    globalThis.window = {};
+  });
+  afterEach(() => { delete globalThis.localStorage; delete globalThis.window; });
+
+  it('writes and stamps nothing for the notes', async () => {
+    vi.resetModules();
+    const { default: persist } = await import('./useLocalStoragePersist.js');
+    persist(baseProps({ dailyNotes: {} }));
+    mount();
+    const keys = globalThis.localStorage.setItem.mock.calls.map(([k]) => k);
+    expect(keys).not.toContain('day-planner-daily-notes');
+    expect(keys).not.toContain('day-planner-local-edit-at');
+  });
+});

@@ -706,7 +706,9 @@
     "beta": "测试版",
     "calDAVSyncHint": "如需同步完成状态，请填写 CalDAV 日历集合 URL（不含 ?export）。在 Nextcloud 中，URL 里的日历 ID 可能与显示名称不同。",
     "deviceCalendarDescription": "日历事件来自此设备上的账户。请在下方“设备日历”中选择要显示的日历。",
-    "deviceCalendarFilterHint": "取消勾选即可隐藏日历；全部勾选或全部不选都会显示所有日历。",
+    "deviceCalendarFilterHint": "取消勾选某个日历即可隐藏其事件；全部取消勾选可隐藏所有设备日历。",
+    "deviceCalendarsShowAll": "全部显示",
+    "deviceCalendarsHideAll": "全部隐藏",
     "glanceEncryptEvents": "加密意图事件",
     "glanceEncryptionEnabledHint": "使用你的云同步口令。只需设置一次，之后的会话中会保持启用。",
     "glanceEncryptionRequiredHint": "请先启用云同步加密。",
@@ -776,7 +778,10 @@
     "theme": "主题",
     "themeSystem": "跟随系统",
     "glanceWebdavLog": "WebDAV 事件日志",
-    "aiNeedsKey": "请先在上方添加 API 密钥，才能开启这些功能。"
+    "aiNeedsKey": "请先在上方添加 API 密钥，才能开启这些功能。",
+    "binAutoEmpty": "自动清空回收站",
+    "binAutoEmptyAfter": "{{days}} 天后",
+    "binAutoEmptyHint": "删除时间超过此期限的任务将被永久移除，所有同步的设备都会生效。"
   },
   "dailyNotes": {
     "quickNotes": "快速笔记",
@@ -1366,7 +1371,19 @@
     "importedCalendarEvents": "导入的日历事件",
     "title": "存储空间明细",
     "todoistReceipts": "Todoist 待处理操作",
-    "total": "本地存储：{{used}} / 约 5 MB（{{percent}}%）"
+    "total": "本地存储：{{used}} / 约 5 MB（{{percent}}%）",
+    "loadFailedTitle": "部分已保存的数据无法读取。",
+    "loadFailedBody": "dayGLANCE 不会覆盖这些数据，因此对这些数据的更改目前不会被保存。请下载一份副本、恢复备份，或丢弃这些数据。",
+    "loadFailedDownload": "下载副本",
+    "loadFailedDiscard": "丢弃",
+    "loadFailedDiscardConfirm": "要丢弃无法读取的数据吗？当前数据将覆盖保存，且无法撤销。如果之后可能需要，请先下载一份副本。",
+    "seeWhatIsUsingSpace": "查看占用空间的内容",
+    "projectionPending": "使用一周后会显示预测。",
+    "projectionFlat": "本地存储用量没有增长。",
+    "projectionWarningFull": "本地存储已使用超过 80%。请在设置中打开“存储空间明细”，查看占用情况。",
+    "projectionDays_other": "按当前速度，本地存储大约 {{count}} 天后用满。",
+    "projectionMonths_other": "按当前速度，本地存储大约 {{count}} 个月后用满。",
+    "projectionWarningSoon_other": "本地存储即将用满：按当前速度，大约 {{count}} 天后用满。请在设置中打开“存储空间明细”，查看占用情况。"
   },
   "weeklyReview": {
     "tasksDone": "已完成任务",

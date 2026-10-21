@@ -706,7 +706,9 @@
     "beta": "Beta",
     "calDAVSyncHint": "Para sincronizar tarefas concluídas de volta: utilize o URL da coleção CalDAV (sem ?export). No Nextcloud, o ID do calendário no URL pode ser diferente do nome apresentado.",
     "deviceCalendarDescription": "Os eventos são lidos das contas do dispositivo. Utilize a secção Calendários do dispositivo abaixo para escolher os calendários a apresentar.",
-    "deviceCalendarFilterHint": "Desmarque um calendário para o ocultar. Se estiverem todos marcados ou desmarcados, será apresentado tudo.",
+    "deviceCalendarFilterHint": "Desmarque um calendário para ocultar os respetivos eventos. Desmarque todos para ocultar todos os calendários do dispositivo.",
+    "deviceCalendarsShowAll": "Mostrar todos",
+    "deviceCalendarsHideAll": "Ocultar todos",
     "glanceEncryptEvents": "Cifrar eventos de intents",
     "glanceEncryptionEnabledHint": "Utiliza a sua frase-passe de sincronização na nuvem. Configure uma vez; permanece ativa entre sessões.",
     "glanceEncryptionRequiredHint": "Ative primeiro a cifra da sincronização na nuvem.",
@@ -776,7 +778,10 @@
     "theme": "Tema",
     "themeSystem": "Sistema",
     "glanceWebdavLog": "Registo de eventos WebDAV",
-    "aiNeedsKey": "Adicione uma chave de API acima para os ativar."
+    "aiNeedsKey": "Adicione uma chave de API acima para os ativar.",
+    "binAutoEmpty": "Esvaziar a reciclagem automaticamente",
+    "binAutoEmptyAfter": "Ao fim de {{days}} dias",
+    "binAutoEmptyHint": "As tarefas eliminadas há mais tempo são removidas definitivamente em todos os dispositivos que sincroniza."
   },
   "dailyNotes": {
     "quickNotes": "Notas rápidas",
@@ -1366,7 +1371,22 @@
     "importedCalendarEvents": "Eventos de calendário importados",
     "title": "Detalhes do armazenamento",
     "todoistReceipts": "Operações pendentes do Todoist",
-    "total": "Armazenamento local: {{used}} / ~5 MB ({{percent}}%)"
+    "total": "Armazenamento local: {{used}} / ~5 MB ({{percent}}%)",
+    "loadFailedTitle": "Não foi possível ler alguns dados guardados.",
+    "loadFailedBody": "O dayGLANCE não os vai substituir, por isso as alterações a esses dados não estão a ser guardadas. Transfira uma cópia, restaure uma cópia de segurança ou descarte-os.",
+    "loadFailedDownload": "Transferir uma cópia",
+    "loadFailedDiscard": "Descartar",
+    "loadFailedDiscardConfirm": "Descartar os dados ilegíveis? Os seus dados atuais serão guardados por cima, e isto não pode ser anulado. Transfira primeiro uma cópia, se puder precisar dela.",
+    "seeWhatIsUsingSpace": "Ver o que está a ocupar espaço",
+    "projectionPending": "Uma previsão aparece após uma semana de utilização.",
+    "projectionFlat": "O armazenamento local não está a crescer.",
+    "projectionWarningFull": "O armazenamento local está mais de 80% cheio. Abra “Detalhes do armazenamento” nas Definições para ver o que o ocupa.",
+    "projectionDays_one": "Ao ritmo atual, o armazenamento local fica cheio dentro de cerca de {{count}} dia.",
+    "projectionMonths_one": "Ao ritmo atual, o armazenamento local fica cheio dentro de cerca de {{count}} mês.",
+    "projectionWarningSoon_one": "O armazenamento local está a encher: ao ritmo atual, fica cheio dentro de cerca de {{count}} dia. Abra “Detalhes do armazenamento” nas Definições para ver o que o ocupa.",
+    "projectionDays_other": "Ao ritmo atual, o armazenamento local fica cheio dentro de cerca de {{count}} dias.",
+    "projectionMonths_other": "Ao ritmo atual, o armazenamento local fica cheio dentro de cerca de {{count}} meses.",
+    "projectionWarningSoon_other": "O armazenamento local está a encher: ao ritmo atual, fica cheio dentro de cerca de {{count}} dias. Abra “Detalhes do armazenamento” nas Definições para ver o que o ocupa."
   },
   "weeklyReview": {
     "tasksDone": "Tarefas concluídas",

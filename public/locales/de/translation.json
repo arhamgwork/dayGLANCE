@@ -706,7 +706,9 @@
     "beta": "Beta",
     "calDAVSyncHint": "Zum Zurücksynchronisieren abgeschlossener Aufgaben: die URL der CalDAV-Kalendersammlung (ohne ?export). In Nextcloud kann die Kalender-ID in der URL vom Anzeigenamen abweichen.",
     "deviceCalendarDescription": "Kalenderereignisse werden aus den Konten Ihres Geräts gelesen. Wählen Sie unten im Bereich „Gerätekalender“ aus, welche Kalender angezeigt werden sollen.",
-    "deviceCalendarFilterHint": "Deaktivieren Sie einen Kalender, um ihn auszublenden. Wenn alle aktiviert oder alle deaktiviert sind, wird alles angezeigt.",
+    "deviceCalendarFilterHint": "Deaktivieren Sie einen Kalender, um seine Termine auszublenden. Deaktivieren Sie alle, um alle Gerätekalender auszublenden.",
+    "deviceCalendarsShowAll": "Alle anzeigen",
+    "deviceCalendarsHideAll": "Alle ausblenden",
     "glanceEncryptEvents": "Intent-Ereignisse verschlüsseln",
     "glanceEncryptionEnabledHint": "Verwendet Ihre Cloud-Synchronisierungs-Passphrase. Einmal einrichten; bleibt sitzungsübergreifend aktiv.",
     "glanceEncryptionRequiredHint": "Aktivieren Sie zuerst die Verschlüsselung der Cloud-Synchronisierung.",
@@ -776,7 +778,10 @@
     "theme": "Design",
     "themeSystem": "System",
     "glanceWebdavLog": "WebDAV-Ereignisprotokoll",
-    "aiNeedsKey": "Fügen Sie oben einen API-Schlüssel hinzu, um diese einzuschalten."
+    "aiNeedsKey": "Fügen Sie oben einen API-Schlüssel hinzu, um diese einzuschalten.",
+    "binAutoEmpty": "Papierkorb automatisch leeren",
+    "binAutoEmptyAfter": "Nach {{days}} Tagen",
+    "binAutoEmptyHint": "Aufgaben, die vor längerer Zeit gelöscht wurden, werden endgültig entfernt – auf allen Geräten, die du synchronisierst."
   },
   "dailyNotes": {
     "quickNotes": "Kurznotizen",
@@ -1366,7 +1371,22 @@
     "importedCalendarEvents": "Importierte Kalenderereignisse",
     "title": "Speicherbelegung",
     "todoistReceipts": "Ausstehende Todoist-Vorgänge",
-    "total": "Lokaler Speicher: {{used}} / ca. 5 MB ({{percent}} %)"
+    "total": "Lokaler Speicher: {{used}} / ca. 5 MB ({{percent}} %)",
+    "loadFailedTitle": "Einige gespeicherte Daten konnten nicht gelesen werden.",
+    "loadFailedBody": "dayGLANCE überschreibt sie nicht, daher werden Änderungen an diesen Daten nicht gespeichert. Lade eine Kopie herunter, stelle ein Backup wieder her oder verwirf sie.",
+    "loadFailedDownload": "Kopie herunterladen",
+    "loadFailedDiscard": "Verwerfen",
+    "loadFailedDiscardConfirm": "Die unlesbaren Daten verwerfen? Deine aktuellen Daten werden darüber gespeichert, und das lässt sich nicht rückgängig machen. Lade vorher eine Kopie herunter, falls du sie brauchen könntest.",
+    "seeWhatIsUsingSpace": "Speicherbelegung ansehen",
+    "projectionPending": "Eine Prognose erscheint nach einer Woche Nutzung.",
+    "projectionFlat": "Der lokale Speicher wächst nicht.",
+    "projectionWarningFull": "Der lokale Speicher ist zu über 80 % voll. Unter Einstellungen → „Speicherbelegung“ siehst du, was ihn belegt.",
+    "projectionDays_one": "Bei gleichbleibender Nutzung ist der lokale Speicher in etwa {{count}} Tag voll.",
+    "projectionMonths_one": "Bei gleichbleibender Nutzung ist der lokale Speicher in etwa {{count}} Monat voll.",
+    "projectionWarningSoon_one": "Der lokale Speicher füllt sich: Bei gleichbleibender Nutzung ist er in etwa {{count}} Tag voll. Unter Einstellungen → „Speicherbelegung“ siehst du, was ihn belegt.",
+    "projectionDays_other": "Bei gleichbleibender Nutzung ist der lokale Speicher in etwa {{count}} Tagen voll.",
+    "projectionMonths_other": "Bei gleichbleibender Nutzung ist der lokale Speicher in etwa {{count}} Monaten voll.",
+    "projectionWarningSoon_other": "Der lokale Speicher füllt sich: Bei gleichbleibender Nutzung ist er in etwa {{count}} Tagen voll. Unter Einstellungen → „Speicherbelegung“ siehst du, was ihn belegt."
   },
   "weeklyReview": {
     "tasksDone": "Erledigte Aufgaben",

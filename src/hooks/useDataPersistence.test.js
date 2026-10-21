@@ -88,7 +88,7 @@ describe('loadData normalization write-back', () => {
     const useDataPersistence = await loadHookAs('main');
     const { props } = makeProps();
 
-    useDataPersistence(props).loadData();
+    await useDataPersistence(props).loadData();
 
     // All four write sites fire. Without this the normalization is lost and
     // stampTaskTimestamps re-stamps lastModified on every task at next load.
@@ -116,7 +116,7 @@ describe('loadData normalization write-back', () => {
     };
     globalThis.localStorage.getItem = vi.fn((k) => store[k] ?? null);
 
-    useDataPersistence(props).loadData();
+    await useDataPersistence(props).loadData();
 
     const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
     const expected = {
@@ -135,7 +135,7 @@ describe('loadData normalization write-back', () => {
     const useDataPersistence = await loadHookAs('tray');
     const { props } = makeProps();
 
-    useDataPersistence(props).loadData();
+    await useDataPersistence(props).loadData();
 
     // The tray holds a snapshot as of its last reload; persisting from it would
     // overwrite fresher main-window data (useSaveOnChange.js:5).
@@ -147,7 +147,7 @@ describe('loadData normalization write-back', () => {
     const useDataPersistence = await loadHookAs('tray');
     const { props, setters } = makeProps();
 
-    useDataPersistence(props).loadData();
+    await useDataPersistence(props).loadData();
 
     // setTasks takes an updater; run it to see the value the tray would render.
     const tasksUpdater = setters.setTasks.mock.calls[0][0];
@@ -443,5 +443,357 @@ describe('saveData records where a slipped task landed', () => {
     useDataPersistence(saveProps({ tasks: [settled], setTasks: props.setTasks })).saveData();
 
     expect(props.setTasks).not.toHaveBeenCalled();
+  });
+});
+
+// ── #2138: an unreadable bucket is not an empty one ─────────────────────────
+// A throw anywhere in loadData used to be read as "no data": state stayed
+// empty, dataLoaded went true, and the next save wrote the empty state over
+// every bucket the load had not reached. Each bucket now loads on its own, and
+// one that cannot be read is protected from the save pass until it is
+// repaired or discarded (utils/loadFailures.js).
+describe('loadData isolates an unreadable bucket (#2138)', () => {
+  let store;
+  let setItem;
+  const saveProps = (over = {}) => ({
+    ...makeProps().props,
+    tasks: [], unscheduledTasks: [], recycleBin: [], recurringTasks: [], todayRoutines: [],
+    darkMode: false, syncUrl: '', taskCalendarUrl: '', syncRetentionDays: 0,
+    completedTaskUids: new Set(), routineDefinitions: {}, routinesDate: '',
+    removedTodayRoutineIds: {}, habits: [], habitLogs: {}, habitsEnabled: false,
+    routinesEnabled: false, gtdFrames: [], goals: [], projects: [], areas: [],
+    goalsProjectsEnabled: false, unscheduledOrderTimestamp: null,
+    ...over,
+  });
+  const writtenKeys = () => setItem.mock.calls.map(([key]) => key);
+  const quota = () => Object.assign(new Error('quota'), { name: 'QuotaExceededError' });
+
+  beforeEach(() => {
+    store = {
+      ...STORE,
+      'day-planner-habit-logs': JSON.stringify({ h1: { '2026-10-18': 3 } }),
+      'day-planner-goals': JSON.stringify([{ id: 'g1', title: 'Goal' }]),
+      'day-planner-daily-notes': JSON.stringify({ '2026-10-18': { content: 'note' } }),
+    };
+    setItem = vi.fn((key, value) => { store[key] = value; });
+    globalThis.localStorage = {
+      getItem: vi.fn((k) => store[k] ?? null),
+      setItem,
+      removeItem: vi.fn(),
+    };
+  });
+  afterEach(() => { delete globalThis.localStorage; delete globalThis.window; });
+
+  const load = async () => {
+    // Not named use*: this calls the hook as a plain function, like the tests above.
+    const persistence = await loadHookAs('main');
+    const failures = await import('../utils/loadFailures.js');
+    const { props, setters } = makeProps();
+    await persistence(props).loadData();
+    return { persistence, failures, setters };
+  };
+
+  it('a quota error on the normalization write-back no longer aborts the load', async () => {
+    setItem.mockImplementation((key) => { if (key === 'day-planner-tasks') throw quota(); });
+    const { failures, setters } = await load();
+
+    expect(setters.setTasks.mock.calls[0][0]([])).toMatchObject([{ id: 't1' }]);
+    expect(setters.setUnscheduledTasks).toHaveBeenCalledWith([expect.objectContaining({ id: 'u1' })]);
+    expect(setters.setHabits).toHaveBeenCalled();
+    expect(setters.setGoals).toHaveBeenCalledWith([{ id: 'g1', title: 'Goal' }]);
+    expect(setters.setDailyNotes).toHaveBeenCalled();
+    expect(setters.setDataLoaded).toHaveBeenCalledWith(true);
+    // The data was readable; nothing is protected.
+    expect(failures.getLoadFailures()).toEqual([]);
+  });
+
+  it('a corrupt bucket does not stop the ones after it, and is not saved over', async () => {
+    store['day-planner-habits'] = '{not json';
+    const { persistence, failures, setters } = await load();
+
+    expect(setters.setTasks).toHaveBeenCalled();
+    expect(setters.setHabits).not.toHaveBeenCalled();
+    expect(setters.setHabitLogs).toHaveBeenCalled();
+    expect(setters.setGoals).toHaveBeenCalled();
+    expect(failures.getLoadFailures().map(f => f.key)).toEqual(['day-planner-habits']);
+
+    setItem.mockClear();
+    persistence(saveProps()).saveData();
+    expect(writtenKeys()).not.toContain('day-planner-habits');
+    expect(writtenKeys()).toContain('day-planner-tasks');
+    expect(store['day-planner-habits']).toBe('{not json');
+  });
+
+  it('corrupt tasks leave task state alone and the stored copy untouched', async () => {
+    store['day-planner-tasks'] = '[{"id":"t1",';
+    const { persistence, setters } = await load();
+
+    expect(setters.setTasks).not.toHaveBeenCalled();
+    expect(setters.setUnscheduledTasks).toHaveBeenCalled();
+    expect(setters.setDataLoaded).toHaveBeenCalledWith(true);
+
+    persistence(saveProps()).saveData();
+    expect(store['day-planner-tasks']).toBe('[{"id":"t1",');
+  });
+
+  it('the protection lifts once valid data replaces the unreadable value', async () => {
+    store['day-planner-tasks'] = '[{"id":"t1",';
+    const { persistence, failures } = await load();
+
+    // A sync apply or a restore writes storage and state together.
+    store['day-planner-tasks'] = JSON.stringify([{ id: 't9', lastModified: '2026-10-18T00:00:00Z' }]);
+    persistence(saveProps({ tasks: [{ id: 't9', lastModified: '2026-10-18T00:00:00Z' }] })).saveData();
+
+    expect(failures.getLoadFailures()).toEqual([]);
+    expect(JSON.parse(store['day-planner-tasks'])).toMatchObject([{ id: 't9' }]);
+  });
+
+  it('discarding releases the bucket to the save pass', async () => {
+    store['day-planner-habits'] = '{not json';
+    const { persistence, failures } = await load();
+
+    failures.discardLoadFailures();
+    persistence(saveProps()).saveData();
+    expect(store['day-planner-habits']).toBe('[]');
+  });
+
+  it('an absent key is no data, not a failure', async () => {
+    delete store['day-planner-goals'];
+    const { failures, setters } = await load();
+    expect(setters.setGoals).not.toHaveBeenCalled();
+    expect(failures.getLoadFailures()).toEqual([]);
+  });
+});
+
+// ── #2139: a full store is recorded, not just toasted once ──────────────────
+describe('saveData at quota', () => {
+  afterEach(() => { delete globalThis.localStorage; delete globalThis.window; vi.restoreAllMocks(); });
+
+  it('records the rejected key for the persistent banner and still writes the rest', async () => {
+    const written = {};
+    globalThis.localStorage = {
+      getItem: vi.fn(() => null),
+      setItem: vi.fn((k, v) => {
+        if (k === 'day-planner-habit-logs') throw Object.assign(new Error('quota'), { name: 'QuotaExceededError' });
+        written[k] = v;
+      }),
+      removeItem: vi.fn(),
+    };
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const persistence = await loadHookAs('main');
+    const { getWriteFailures } = await import('../utils/storageWrites.js');
+    const { props } = makeProps();
+    const save = persistence({
+      ...props,
+      tasks: [], unscheduledTasks: [], recycleBin: [], recurringTasks: [], todayRoutines: [],
+      darkMode: false, syncUrl: '', taskCalendarUrl: '', syncRetentionDays: 0,
+      completedTaskUids: new Set(), routineDefinitions: {}, routinesDate: '',
+      removedTodayRoutineIds: {}, habits: [], habitLogs: {}, habitsEnabled: false,
+      routinesEnabled: false, gtdFrames: [], goals: [], projects: [], areas: [],
+      goalsProjectsEnabled: false, unscheduledOrderTimestamp: null,
+      t: (k) => k,
+    }).saveData;
+
+    expect(save).not.toThrow();
+    expect(getWriteFailures()).toEqual(['day-planner-habit-logs']);
+    expect(props.setUndoToast).toHaveBeenCalledTimes(1);
+    expect(written).toHaveProperty('day-planner-goals');
+  });
+});
+
+// ── #2140: one edit writes the buckets it changed, not all of them ──────────
+describe('saveData writes only the buckets that changed', () => {
+  let store;
+  let setItem;
+  const base = () => ({
+    ...makeProps().props,
+    tasks: [{ id: 't1', title: 'Task', date: '2026-10-19', lastModified: '2026-10-18T00:00:00.000Z' }],
+    unscheduledTasks: [], recycleBin: [], recurringTasks: [], todayRoutines: [],
+    darkMode: false, syncUrl: '', taskCalendarUrl: '', syncRetentionDays: 0,
+    completedTaskUids: new Set(), routineDefinitions: {}, routinesDate: '2026-10-19',
+    removedTodayRoutineIds: {}, habits: [], habitLogs: {}, habitsEnabled: false,
+    routinesEnabled: false, gtdFrames: [], goals: [], projects: [], areas: [],
+    goalsProjectsEnabled: false, unscheduledOrderTimestamp: null,
+    t: (k) => k,
+  });
+  const BOOKKEEPING = ['day-planner-cloud-sync-local-modified', 'day-planner-local-edit-at'];
+  const dataWrites = () => setItem.mock.calls.map(([k]) => k).filter(k => !BOOKKEEPING.includes(k));
+
+  beforeEach(() => {
+    store = {};
+    setItem = vi.fn((k, v) => { store[k] = v; });
+    globalThis.localStorage = { getItem: vi.fn((k) => store[k] ?? null), setItem, removeItem: vi.fn() };
+  });
+  afterEach(() => { delete globalThis.localStorage; delete globalThis.window; vi.restoreAllMocks(); });
+
+  it('a pass with nothing changed writes no data bucket', async () => {
+    const persistence = await loadHookAs('main');
+    const props = base();
+    persistence(props).saveData();
+    expect(dataWrites().length).toBeGreaterThan(20);
+
+    setItem.mockClear();
+    persistence(props).saveData();
+    expect(dataWrites()).toEqual([]);
+  });
+
+  it('changing one slice writes that bucket alone', async () => {
+    const persistence = await loadHookAs('main');
+    const props = base();
+    persistence(props).saveData();
+
+    setItem.mockClear();
+    persistence({ ...props, habits: [{ id: 'h1', name: 'Water' }] }).saveData();
+    expect(dataWrites()).toEqual(['day-planner-habits']);
+  });
+
+  it('a completed task rewrites tasks, stamped, and nothing else', async () => {
+    const persistence = await loadHookAs('main');
+    const props = base();
+    persistence(props).saveData();
+
+    setItem.mockClear();
+    persistence({ ...props, tasks: [{ ...props.tasks[0], completed: true }] }).saveData();
+    expect(dataWrites()).toEqual(['day-planner-tasks']);
+    expect(JSON.parse(store['day-planner-tasks'])[0].lastModified).not.toBe('2026-10-18T00:00:00.000Z');
+  });
+
+  it('a key changed behind the pass is rewritten from state, as before', async () => {
+    const persistence = await loadHookAs('main');
+    const props = base();
+    persistence(props).saveData();
+
+    store['day-planner-goals'] = JSON.stringify([{ id: 'stray' }]);
+    setItem.mockClear();
+    persistence(props).saveData();
+    expect(dataWrites()).toEqual(['day-planner-goals']);
+    expect(store['day-planner-goals']).toBe('[]');
+  });
+
+  it('a write that failed is tried again on the next pass', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const persistence = await loadHookAs('main');
+    const props = base();
+    let full = true;
+    setItem.mockImplementation((k, v) => {
+      if (full && k === 'day-planner-habit-logs') throw Object.assign(new Error('quota'), { name: 'QuotaExceededError' });
+      store[k] = v;
+    });
+    persistence(props).saveData();
+    expect(store).not.toHaveProperty('day-planner-habit-logs');
+
+    full = false;
+    setItem.mockClear();
+    persistence(props).saveData();
+    expect(dataWrites()).toEqual(['day-planner-habit-logs']);
+  });
+});
+
+// ── Referential self-heal at boot (#2137) ───────────────────────────────────
+// A row that outlives its target is invisible state: the Inbox hides "project
+// tasks" whose project is gone, and a project whose goal is gone belongs to
+// neither the goal's list nor the standalone one. The boot pass repairs data
+// written before the delete-time cascades existed. Only a TOMBSTONE may make a
+// reference dangling — never an id missing from a list this device happens to
+// hold (a new device, a vault pull that carried tasks but not projects, a
+// payload from a client with Goals & Projects off).
+describe('loadData drops references to deleted projects and goals (#2137)', () => {
+  const goneProjectStore = () => ({
+    'day-planner-tasks': JSON.stringify([{ id: 't1', projectId: 'gone' }, { id: 't2', projectId: 'live' }]),
+    'day-planner-unscheduled': JSON.stringify([{ id: 'u1', projectId: 'gone' }]),
+    'day-planner-recycle-bin': JSON.stringify([{ id: 'b1', projectId: 'gone', deletedAt: 'x' }]),
+    'day-planner-recurring-tasks': JSON.stringify([{ id: 'r1', projectId: 'gone' }]),
+    'day-planner-projects': JSON.stringify([
+      { id: 'live', goalId: 'gone-goal', updatedAt: 'old' },
+      { id: 'p2', goalId: 'live-goal', updatedAt: 'old' },
+    ]),
+    'day-planner-goals': JSON.stringify([{ id: 'live-goal' }]),
+    'day-planner-deleted-project-ids': JSON.stringify({ gone: '2026-10-18T13:30:15.460Z' }),
+    'day-planner-deleted-goal-ids': JSON.stringify({ 'gone-goal': '2026-10-18T21:30:15.460Z' }),
+  });
+  let store;
+  let setItem;
+
+  beforeEach(() => {
+    store = goneProjectStore();
+    setItem = vi.fn((key, value) => { store[key] = value; });
+    globalThis.localStorage = {
+      getItem: vi.fn((k) => store[k] ?? null),
+      setItem,
+      removeItem: vi.fn(),
+    };
+  });
+  afterEach(() => {
+    delete globalThis.localStorage;
+    delete globalThis.window;
+  });
+
+  const load = async () => {
+    // The hook has no React state of its own; call it as the plain function the
+    // tests above do (aliased so the hooks lint rule knows it is not rendered).
+    const loadHook = await loadHookAs('main');
+    const { props, setters } = makeProps();
+    await loadHook(props).loadData();
+    return { setters };
+  };
+
+  it('detaches tasks, templates and bin entries from a tombstoned project', async () => {
+    const { setters } = await load();
+
+    const tasks = setters.setTasks.mock.calls[0][0]([]);
+    expect(tasks.find(t => t.id === 't1')).not.toHaveProperty('projectId');
+    expect(tasks.find(t => t.id === 't2').projectId).toBe('live');
+    expect(setters.setUnscheduledTasks.mock.calls[0][0][0]).not.toHaveProperty('projectId');
+    expect(setters.setRecycleBin.mock.calls[0][0][0]).not.toHaveProperty('projectId');
+    expect(setters.setRecurringTasks.mock.calls[0][0][0]).not.toHaveProperty('projectId');
+  });
+
+  it('makes the tombstoned goal\'s projects standalone without re-stamping them', async () => {
+    const { setters } = await load();
+
+    const projects = setters.setProjects.mock.calls[0][0];
+    expect(projects.find(p => p.id === 'live')).not.toHaveProperty('goalId');
+    expect(projects.find(p => p.id === 'live').updatedAt).toBe('old');
+    expect(projects.find(p => p.id === 'p2').goalId).toBe('live-goal');
+  });
+
+  it('persists the repaired copies before state is set, so the save pass sees no edit', async () => {
+    await load();
+
+    const written = Object.fromEntries(setItem.mock.calls);
+    expect(JSON.parse(written['day-planner-tasks']).find(t => t.id === 't1')).not.toHaveProperty('projectId');
+    expect(JSON.parse(written['day-planner-recurring-tasks'])[0]).not.toHaveProperty('projectId');
+    expect(JSON.parse(written['day-planner-recycle-bin'])[0]).not.toHaveProperty('projectId');
+    expect(JSON.parse(written['day-planner-projects'])[0]).not.toHaveProperty('goalId');
+  });
+
+  it('does not detach an id that is merely absent from the local project list', async () => {
+    // A partial snapshot: tasks arrived, projects did not. No tombstone says the
+    // project is deleted, so the reference must survive.
+    store = {
+      'day-planner-tasks': JSON.stringify([{ id: 't1', projectId: 'not-pulled-yet' }]),
+      'day-planner-unscheduled': JSON.stringify([{ id: 'u1', projectId: 'not-pulled-yet' }]),
+    };
+    const { setters } = await load();
+    const tasks = setters.setTasks.mock.calls[0][0]([]);
+    expect(tasks[0].projectId).toBe('not-pulled-yet');
+    expect(setters.setUnscheduledTasks.mock.calls[0][0][0].projectId).toBe('not-pulled-yet');
+    expect(setters.setProjects).not.toHaveBeenCalled();
+  });
+
+  it('does not reparent projects when the goal list is absent', async () => {
+    store = {
+      'day-planner-projects': JSON.stringify([{ id: 'p1', goalId: 'not-pulled-yet', updatedAt: 'old' }]),
+    };
+    const { setters } = await load();
+    expect(setters.setProjects).toHaveBeenCalledWith([{ id: 'p1', goalId: 'not-pulled-yet', updatedAt: 'old' }]);
+  });
+
+  it('a corrupt tombstone map means no information, not "everything is deleted"', async () => {
+    store['day-planner-deleted-project-ids'] = '{not json';
+    const { setters } = await load();
+    const tasks = setters.setTasks.mock.calls[0][0]([]);
+    expect(tasks.find(t => t.id === 't1').projectId).toBe('gone');
+    expect(setters.setDataLoaded).toHaveBeenCalledWith(true);
   });
 });

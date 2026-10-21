@@ -16,6 +16,7 @@ class LauncherSnapshotRowsTest {
          "projects":[],
          "routines":[{"id":"r1","name":"Stretch","completed":false}],
          "frames":[{"id":"f1:2026-10-19","frameId":"f1","date":"2026-10-19"}],
+         "weather":[{"id":"2026-10-19","date":"2026-10-19","unit":"fahrenheit","hours":[{"hour":9,"temp":55,"code":0,"uv":2.3}]}],
          "dayShape":{"dayStartMin":420,"dayStopMin":1350,"sunriseMin":432,"sunsetMin":1104,"use24HourClock":false},
          "handledWrites":[{"clientId":"w-1","taskId":"t1","action":"create"}]}
     """.trimIndent()
@@ -27,6 +28,9 @@ class LauncherSnapshotRowsTest {
         assertEquals("Call dentist", JSONObject(rows[1].json).getString("title"))
         assertTrue(JSONObject(rows[1].json).isNull("date"))
         assertEquals(0, LauncherSnapshotRows.rows(snapshot, "projects")!!.size)
+        val weather = LauncherSnapshotRows.rows(snapshot, "weather")!!.single()
+        assertEquals("2026-10-19", weather.id)
+        assertEquals(55, JSONObject(weather.json).getJSONArray("hours").getJSONObject(0).getInt("temp"))
     }
 
     @Test
@@ -38,6 +42,27 @@ class LauncherSnapshotRowsTest {
         assertEquals(1, meta.getInt("version"))
         assertEquals("2026-10-19", meta.getString("today"))
         assertEquals("w-1", meta.getJSONArray("handledWrites").getJSONObject(0).getString("clientId"))
+    }
+
+    @Test
+    fun `meta carries the heartbeat, the refresh log and liveness, even without a snapshot`() {
+        val hb = """{"checkedAt":1760000100000,"syncedAt":"2026-10-19T08:00:00.000Z"}"""
+        val log = """[{"clientId":"r1","requestedAt":1,"outcome":"queued","liveness":"alive"}]"""
+        val meta = JSONObject(LauncherSnapshotRows.rows(snapshot, "meta", hb, log, true)!!.single().json)
+        assertEquals(1760000000000L, meta.getLong("updatedAt"))
+        assertEquals(1760000100000L, meta.getLong("checkedAt"))
+        assertEquals("2026-10-19T08:00:00.000Z", meta.getString("syncedAt"))
+        assertTrue(meta.getBoolean("rendererAlive"))
+        assertTrue(!meta.has("headlessRunning"))
+        assertEquals("queued", meta.getJSONArray("refreshLog").getJSONObject(0).getString("outcome"))
+        val headless = JSONObject(LauncherSnapshotRows.rows(snapshot, "meta", hb, log, false, headlessRunning = true)!!.single().json)
+        assertTrue(headless.getBoolean("headlessRunning"))
+        assertTrue(!headless.getBoolean("rendererAlive"))
+        // A heartbeat before any snapshot still answers.
+        val bare = JSONObject(LauncherSnapshotRows.rows(null, "meta", hb, null, false)!!.single().json)
+        assertEquals(1760000100000L, bare.getLong("checkedAt"))
+        assertTrue(!bare.has("updatedAt"))
+        assertEquals(0, LauncherSnapshotRows.rows(null, "meta", null, null, null)!!.size)
     }
 
     @Test
