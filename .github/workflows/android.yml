@@ -1,0 +1,69 @@
+name: Android
+
+# Compiles the Android shell and runs its JVM unit tests on every PR that can
+# affect it. Kotlin changes used to reach a real compiler only on a developer's
+# machine; this is where a typo or a broken manifest is caught instead.
+#
+# Debug builds only: no keystore, no web assets (the release-only asset guard in
+# app/build.gradle.kts does not run). Both distribution flavors are unit-tested,
+# since `play` and `github` compile different BuildConfig values.
+#
+# The unit tests also read dayglance-ios/TestFixtures (the shared widget snapshot
+# fixture), so a change there runs this too.
+on:
+  pull_request:
+    paths:
+      - 'dayglance-android/**'
+      - 'dayglance-ios/TestFixtures/**'
+      - '.github/workflows/android.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'dayglance-android/**'
+      - 'dayglance-ios/TestFixtures/**'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: android-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: dayglance-android
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # Accepts the SDK licences, so the Android Gradle plugin can fetch the
+      # platform and build tools compileSdk names.
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          # The default list asks for the legacy `tools` package, which current
+          # cmdline-tools no longer carry; AGP fetches the platform it needs.
+          packages: platform-tools
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build and unit-test
+        run: ./gradlew --stacktrace :app:assembleGithubDebug :app:testPlayDebugUnitTest :app:testGithubDebugUnitTest
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-test-reports
+          path: dayglance-android/app/build/reports/tests/
+          if-no-files-found: ignore
