@@ -1,0 +1,557 @@
+{
+  "_comment": "Device-calendar events as the launcher snapshot (src/utils/launcherSnapshot.js) and the Android provider (launcher/LauncherDeviceEvents.kt) must both turn them into rows. Inputs are hand-written; deviceCalendar and rows are generated from the JS: GEN_FIXTURE=1 npx vitest run src/utils/launcherDeviceEvents.fixture.test.js",
+  "restoreKeywords": [
+    "health",
+    "gym",
+    "workout",
+    "exercise",
+    "run",
+    "running",
+    "walk",
+    "yoga",
+    "meditate",
+    "meditation",
+    "breakfast",
+    "lunch",
+    "dinner",
+    "meal",
+    "eat",
+    "break",
+    "rest",
+    "nap",
+    "sleep",
+    "recharge",
+    "recovery",
+    "relax",
+    "relaxation",
+    "unwind",
+    "chill"
+  ],
+  "cases": [
+    {
+      "name": "a week of events: filter, recurrences, multi-day, midnight, edits, tasks, keywords",
+      "today": "2026-10-21",
+      "filter": [
+        "1",
+        "2"
+      ],
+      "overrides": {
+        "105": {
+          "startTime": "15:30",
+          "duration": 45,
+          "title": "Dentist (moved)"
+        },
+        "106": {
+          "color": "bg-emerald-500"
+        },
+        "999": {
+          "date": "2026-10-22"
+        }
+      },
+      "events": {
+        "2026-10-20": [
+          {
+            "id": "101",
+            "title": "Standup",
+            "start": "2026-10-20T09:00:00",
+            "end": "2026-10-20T09:15:00",
+            "allDay": false,
+            "notes": "",
+            "location": "",
+            "calendarId": "1",
+            "calendarName": "Work",
+            "color": "#039BE5"
+          },
+          {
+            "id": "102",
+            "title": "Late call",
+            "start": "2026-10-19T23:30:00",
+            "end": "2026-10-20T00:30:00",
+            "allDay": false,
+            "notes": "",
+            "location": "",
+            "calendarId": "1",
+            "calendarName": "Work",
+            "color": "#039BE5"
+          },
+          {
+            "id": "103",
+            "title": "Conference",
+            "start": "2026-10-19",
+            "end": "2026-10-22",
+            "allDay": true,
+            "notes": "",
+            "location": "",
+            "calendarId": "2",
+            "calendarName": "Personal",
+            "color": "#7986CB"
+          }
+        ],
+        "2026-10-21": [
+          {
+            "id": "101",
+            "title": "Standup",
+            "start": "2026-10-21T09:00:00",
+            "end": "2026-10-21T09:15:00",
+            "allDay": false,
+            "notes": "",
+            "location": "",
+            "calendarId": "1",
+            "calendarName": "Work",
+            "color": "#039BE5"
+          },
+          {
+            "id": "103",
+            "title": "Conference",
+            "start": "2026-10-19",
+            "end": "2026-10-22",
+            "allDay": true,
+            "notes": "",
+            "location": "",
+            "calendarId": "2",
+            "calendarName": "Personal",
+            "color": "#7986CB"
+          },
+          {
+            "id": "104",
+            "title": "Lunch with Sam",
+            "start": "2026-10-21T12:00:00",
+            "end": "2026-10-21T13:00:00",
+            "allDay": false,
+            "notes": "",
+            "location": "",
+            "calendarId": "2",
+            "calendarName": "Personal",
+            "color": "#7986CB"
+          },
+          {
+            "id": "105",
+            "title": "Dentist",
+            "start": "2026-10-21T14:00:00",
+            "end": "2026-10-21T15:00:00",
+            "allDay": false,
+            "notes": "Bring the form",
+            "location": "Main St",
+            "calendarId": "2",
+            "calendarName": "Personal",
+            "color": "#7986CB"
+          },
+          {
+            "id": "107",
+            "title": "Diwali",
+            "start": "2026-10-21",
+            "end": "2026-10-21",
+            "allDay": true,
+            "notes": "",
+            "location": "",
+            "calendarId": "3",
+            "calendarName": "Holidays",
+            "color": "#0B8043"
+          },
+          {
+            "id": "108",
+            "title": "Night shift",
+            "start": "2026-10-21T23:00:00",
+            "end": "2026-10-22T07:00:00",
+            "allDay": false,
+            "notes": "",
+            "location": "",
+            "calendarId": "1",
+            "calendarName": "Work",
+            "color": "#039BE5"
+          }
+        ],
+        "2026-10-22": [
+          {
+            "id": "103",
+            "title": "Conference",
+            "start": "2026-10-19",
+            "end": "2026-10-22",
+            "allDay": true,
+            "notes": "",
+            "location": "",
+            "calendarId": "2",
+            "calendarName": "Personal",
+            "color": "#7986CB"
+          },
+          {
+            "id": "108",
+            "title": "Night shift",
+            "start": "2026-10-21T23:00:00",
+            "end": "2026-10-22T07:00:00",
+            "allDay": false,
+            "notes": "",
+            "location": "",
+            "calendarId": "1",
+            "calendarName": "Work",
+            "color": "#039BE5"
+          },
+          {
+            "id": "task-106",
+            "title": "Pay rent #home",
+            "start": "2026-10-22",
+            "end": "2026-10-22",
+            "allDay": true,
+            "notes": "",
+            "location": "",
+            "calendarId": "2",
+            "calendarName": "Personal",
+            "color": ""
+          },
+          {
+            "id": "106",
+            "title": "Walk the dog",
+            "start": "2026-10-22T07:00:00",
+            "end": "2026-10-22T07:30:00",
+            "allDay": false,
+            "notes": "",
+            "location": "",
+            "calendarId": "2",
+            "calendarName": "Personal",
+            "color": ""
+          }
+        ],
+        "2026-10-27": [
+          {
+            "id": "109",
+            "title": "Trip",
+            "start": "2026-10-27",
+            "end": "2026-10-30",
+            "allDay": true,
+            "notes": "",
+            "location": "",
+            "calendarId": "1",
+            "calendarName": "Work",
+            "color": "#039BE5"
+          }
+        ]
+      },
+      "deviceCalendar": {
+        "filter": [
+          "1",
+          "2"
+        ],
+        "overrides": {
+          "105": {
+            "startTime": "15:30",
+            "duration": 45,
+            "title": "Dentist (moved)"
+          },
+          "106": {
+            "colorHex": "#10b981"
+          },
+          "999": {
+            "date": "2026-10-22"
+          }
+        },
+        "daysBefore": 1,
+        "daysAfter": 6
+      },
+      "rows": [
+        {
+          "id": "native-cal-101-2026-10-20",
+          "title": "Standup",
+          "date": "2026-10-20",
+          "startTime": "09:00",
+          "duration": 15,
+          "isAllDay": false,
+          "completed": false,
+          "completedAt": null,
+          "colorHex": "#039BE5",
+          "priority": 0,
+          "notes": "",
+          "projectId": null,
+          "deadline": null,
+          "source": "calendar",
+          "energy": "effort",
+          "clientId": null,
+          "recurringId": null,
+          "native": true
+        },
+        {
+          "id": "native-cal-103-2026-10-20",
+          "title": "Conference",
+          "date": "2026-10-20",
+          "startTime": null,
+          "duration": 60,
+          "isAllDay": true,
+          "completed": false,
+          "completedAt": null,
+          "colorHex": "#7986CB",
+          "priority": 0,
+          "notes": "",
+          "projectId": null,
+          "deadline": null,
+          "source": "calendar",
+          "energy": "effort",
+          "clientId": null,
+          "recurringId": null,
+          "native": true
+        },
+        {
+          "id": "native-cal-101-2026-10-21",
+          "title": "Standup",
+          "date": "2026-10-21",
+          "startTime": "09:00",
+          "duration": 15,
+          "isAllDay": false,
+          "completed": false,
+          "completedAt": null,
+          "colorHex": "#039BE5",
+          "priority": 0,
+          "notes": "",
+          "projectId": null,
+          "deadline": null,
+          "source": "calendar",
+          "energy": "effort",
+          "clientId": null,
+          "recurringId": null,
+          "native": true
+        },
+        {
+          "id": "native-cal-103-2026-10-21",
+          "title": "Conference",
+          "date": "2026-10-21",
+          "startTime": null,
+          "duration": 60,
+          "isAllDay": true,
+          "completed": false,
+          "completedAt": null,
+          "colorHex": "#7986CB",
+          "priority": 0,
+          "notes": "",
+          "projectId": null,
+          "deadline": null,
+          "source": "calendar",
+          "energy": "effort",
+          "clientId": null,
+          "recurringId": null,
+          "native": true
+        },
+        {
+          "id": "native-cal-104-2026-10-21",
+          "title": "Lunch with Sam",
+          "date": "2026-10-21",
+          "startTime": "12:00",
+          "duration": 60,
+          "isAllDay": false,
+          "completed": false,
+          "completedAt": null,
+          "colorHex": "#7986CB",
+          "priority": 0,
+          "notes": "",
+          "projectId": null,
+          "deadline": null,
+          "source": "calendar",
+          "energy": "restore",
+          "clientId": null,
+          "recurringId": null,
+          "native": true
+        },
+        {
+          "id": "native-cal-105-2026-10-21",
+          "title": "Dentist (moved)",
+          "date": "2026-10-21",
+          "startTime": "15:30",
+          "duration": 45,
+          "isAllDay": false,
+          "completed": false,
+          "completedAt": null,
+          "colorHex": "#7986CB",
+          "priority": 0,
+          "notes": "Bring the form",
+          "projectId": null,
+          "deadline": null,
+          "source": "calendar",
+          "energy": "effort",
+          "clientId": null,
+          "recurringId": null,
+          "native": true
+        },
+        {
+          "id": "native-cal-108-2026-10-21",
+          "title": "Night shift",
+          "date": "2026-10-21",
+          "startTime": "23:00",
+          "duration": 15,
+          "isAllDay": false,
+          "completed": false,
+          "completedAt": null,
+          "colorHex": "#039BE5",
+          "priority": 0,
+          "notes": "",
+          "projectId": null,
+          "deadline": null,
+          "source": "calendar",
+          "energy": "effort",
+          "clientId": null,
+          "recurringId": null,
+          "native": true
+        },
+        {
+          "id": "native-cal-103-2026-10-22",
+          "title": "Conference",
+          "date": "2026-10-22",
+          "startTime": null,
+          "duration": 60,
+          "isAllDay": true,
+          "completed": false,
+          "completedAt": null,
+          "colorHex": "#7986CB",
+          "priority": 0,
+          "notes": "",
+          "projectId": null,
+          "deadline": null,
+          "source": "calendar",
+          "energy": "effort",
+          "clientId": null,
+          "recurringId": null,
+          "native": true
+        },
+        {
+          "id": "native-cal-task-106-2026-10-22",
+          "title": "Pay rent #home",
+          "date": "2026-10-22",
+          "startTime": null,
+          "duration": 60,
+          "isAllDay": true,
+          "completed": false,
+          "completedAt": null,
+          "colorHex": "#3b82f6",
+          "priority": 0,
+          "notes": "",
+          "projectId": null,
+          "deadline": null,
+          "source": "dayglance",
+          "energy": "effort",
+          "clientId": null,
+          "recurringId": null,
+          "native": true
+        },
+        {
+          "id": "native-cal-106-2026-10-22",
+          "title": "Walk the dog",
+          "date": "2026-10-22",
+          "startTime": "07:00",
+          "duration": 30,
+          "isAllDay": false,
+          "completed": false,
+          "completedAt": null,
+          "colorHex": "#10b981",
+          "priority": 0,
+          "notes": "",
+          "projectId": null,
+          "deadline": null,
+          "source": "calendar",
+          "energy": "restore",
+          "clientId": null,
+          "recurringId": null,
+          "native": true
+        },
+        {
+          "id": "native-cal-109-2026-10-27",
+          "title": "Trip",
+          "date": "2026-10-27",
+          "startTime": null,
+          "duration": 60,
+          "isAllDay": true,
+          "completed": false,
+          "completedAt": null,
+          "colorHex": "#039BE5",
+          "priority": 0,
+          "notes": "",
+          "projectId": null,
+          "deadline": null,
+          "source": "calendar",
+          "energy": "effort",
+          "clientId": null,
+          "recurringId": null,
+          "native": true
+        }
+      ]
+    },
+    {
+      "name": "every calendar hidden",
+      "today": "2026-10-21",
+      "filter": [
+        "__none__"
+      ],
+      "overrides": {},
+      "events": {
+        "2026-10-21": [
+          {
+            "id": "101",
+            "title": "Standup",
+            "start": "2026-10-21T09:00:00",
+            "end": "2026-10-21T09:15:00",
+            "allDay": false,
+            "notes": "",
+            "location": "",
+            "calendarId": "1",
+            "calendarName": "Work",
+            "color": "#039BE5"
+          }
+        ]
+      },
+      "deviceCalendar": {
+        "filter": [
+          "__none__"
+        ],
+        "overrides": {},
+        "daysBefore": 1,
+        "daysAfter": 6
+      },
+      "rows": []
+    },
+    {
+      "name": "an empty filter shows every calendar",
+      "today": "2026-10-21",
+      "filter": [],
+      "overrides": {},
+      "events": {
+        "2026-10-21": [
+          {
+            "id": "107",
+            "title": "Diwali",
+            "start": "2026-10-21",
+            "end": "2026-10-21",
+            "allDay": true,
+            "notes": "",
+            "location": "",
+            "calendarId": "3",
+            "calendarName": "Holidays",
+            "color": "#0B8043"
+          }
+        ]
+      },
+      "deviceCalendar": {
+        "filter": [],
+        "overrides": {},
+        "daysBefore": 1,
+        "daysAfter": 6
+      },
+      "rows": [
+        {
+          "id": "native-cal-107-2026-10-21",
+          "title": "Diwali",
+          "date": "2026-10-21",
+          "startTime": null,
+          "duration": 60,
+          "isAllDay": true,
+          "completed": false,
+          "completedAt": null,
+          "colorHex": "#0B8043",
+          "priority": 0,
+          "notes": "",
+          "projectId": null,
+          "deadline": null,
+          "source": "calendar",
+          "energy": "effort",
+          "clientId": null,
+          "recurringId": null,
+          "native": true
+        }
+      ]
+    }
+  ]
+}

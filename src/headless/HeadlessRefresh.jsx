@@ -49,7 +49,7 @@ import { expandRecurringTasks } from '../utils/expandRecurringTasks.js';
 import { computeRecurringExpansionRange } from '../utils/recurringExpansionRange.js';
 import { frameInstancesForDate } from '../utils/frameInstances.js';
 import { isTaskVisibleForUser, isOwnedBy } from '../utils/userScope.js';
-import { readWeekStartDay } from '../utils/storedSlices.js';
+import { readWeekStartDay, readCalendarFilter, readNativeTimeOverrides } from '../utils/storedSlices.js';
 import { getStoredWeatherCoords } from '../utils/solar.js';
 import { fetchHourlyForecast } from '../utils/weatherForecast.js';
 import { loadAlarmPrefs } from '../utils/dialPrefs.js';
@@ -283,9 +283,12 @@ export default function HeadlessRefresh({
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           updatedAt: Date.now(),
           handledWrites: readLauncherLedger(),
-          // No device-calendar read in a headless run (the allowlist): the shell
-          // keeps the previous snapshot's events, which a sync cannot change anyway.
+          // No device-calendar read in a headless run (the allowlist): the
+          // provider reads the calendar itself with these, and without the
+          // permission keeps the previous snapshot's events, which a sync
+          // cannot change anyway.
           carryDeviceEvents: true,
+          deviceCalendar: { filter: readCalendarFilter(), overrides: readNativeTimeOverrides() },
         });
         if (shouldAbort()) return finish(HEADLESS_OUTCOMES.ABORTED, { reason: 'app opened' });
         bridge()?.updateLauncherSnapshot?.(JSON.stringify(snapshot));

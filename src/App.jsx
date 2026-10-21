@@ -13,7 +13,7 @@ import { taskSuggestSystemPrompt, taskSuggestUserPrompt, frameNudgeSystemPrompt,
 import { checkForUpdate } from './versionCheck.js';
 import { getStorageUsage, formatBytes } from './utils/storage.js';
 import { tombstoneCutoff, pruneCompletedTaskUids } from './sync/tombstoneRetention.js';
-import { readMinimizedSections, readUse24HourClock, readWeekStartDay, readBucketConfig, readDailyNotes, readMultiUserEnabled, readUsers, readMeUserSyncId } from './utils/storedSlices.js';
+import { readMinimizedSections, readUse24HourClock, readWeekStartDay, readBucketConfig, readDailyNotes, readMultiUserEnabled, readUsers, readMeUserSyncId, readCalendarFilter, readNativeTimeOverrides } from './utils/storedSlices.js';
 import { isTaskVisibleForUser, isOwnedBy } from './utils/userScope.js';
 import { preserveStickyFields } from './utils/preserveStickyFields.js';
 import { rescueUnsyncedTasks } from './utils/rescueUnsyncedTasks.js';
@@ -780,9 +780,7 @@ const DayPlanner = () => {
   // Android device calendars — populated on first load when running in the native WebView
   const [availableCalendars, setAvailableCalendars] = useState([]);
   // IDs of calendars to include; empty array = show all, [CALENDAR_FILTER_NONE] = show none
-  const [calendarFilter, setCalendarFilter] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('day-planner-calendar-filter') || '[]'); } catch { return []; }
-  });
+  const [calendarFilter, setCalendarFilter] = useState(readCalendarFilter);
   // When a native calendar source is present (mobile bridge or macOS EventKit),
   // calendar events come from there — only the task calendar URL matters for sync.
   const calSyncConfigured = hasNativeCalendar() ? !!taskCalendarUrl : !!(syncUrl || taskCalendarUrl || hasActiveIcsCalendars(icsCalendars));
@@ -6948,6 +6946,9 @@ const DayPlanner = () => {
       // The device calendar over a fixed window around today, not just the
       // days on screen (the widget's fetch; utils/launcherSnapshot.js).
       deviceEvents: widgetNative,
+      // What the shell needs to re-read the calendar on every launcher query,
+      // so an event added elsewhere shows while this app is closed.
+      deviceCalendar: hasNativeCalendar() ? { filter: calendarFilter, overrides: readNativeTimeOverrides() } : null,
     });
     const fingerprint = launcherSnapshotFingerprint(snapshot);
     if (fingerprint === lastLauncherSnapshotRef.current) {
@@ -6967,7 +6968,7 @@ const DayPlanner = () => {
     dataLoaded, isResizing, tasks, unscheduledTasks, expandedRecurringTasks,
     projects, goals, goalsProjectsEnabled, isVisibleForUser,
     todayRoutines, routineCompletions, routinesEnabled, weather, weatherTempUnit,
-    getFrameInstancesForDate, getDayWindow, use24HourClock, currentTime, widgetNative,
+    getFrameInstancesForDate, getDayWindow, use24HourClock, currentTime, widgetNative, calendarFilter,
   ]);
 
   // ── Native Android widget snapshot sync ──────────────────────────────────

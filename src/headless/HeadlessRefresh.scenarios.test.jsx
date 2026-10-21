@@ -82,6 +82,8 @@ const seedStorage = (ls, { cloud = true, vault = false, encrypted = false } = {}
   ls.setItem('dayglance-users', JSON.stringify([{ id: 'me', syncId: 'me', name: 'Me', updatedAt: '2026-10-01T00:00:00.000Z' }]));
   ls.setItem('day-planner-weather-temp-unit', 'celsius');
   ls.setItem('day-planner-gtd-frames', JSON.stringify([]));
+  ls.setItem('day-planner-calendar-filter', JSON.stringify(['cal-1']));
+  ls.setItem('day-planner-native-time-overrides', JSON.stringify({ 'ev-9': { title: 'Moved' } }));
   if (cloud) ls.setItem('day-planner-cloud-sync-config', JSON.stringify({ enabled: true, provider: 'webdav', webdavUrl: 'https://dav.example', syncFolder: 'GLANCE/dayglance', encryptionEnabled: encrypted }));
   if (vault) ls.setItem('dayglance-vault-config', JSON.stringify({ enabled: true, vaultUrl: 'https://vault.example', vaultToken: 'tok', accountId: 'acc' }));
 };
@@ -161,6 +163,8 @@ describe('HeadlessRefresh', () => {
     const snapshot = calls.updateLauncherSnapshot[0];
     // It cannot read the device calendar, and says so: the shell keeps the last events.
     expect(snapshot.carryDeviceEvents).toBe(true);
+    // …and tells the provider how to read it itself: the stored filter and edits.
+    expect(snapshot.deviceCalendar).toMatchObject({ filter: ['cal-1'], overrides: { 'ev-9': { title: 'Moved' } } });
     expect(snapshot.tasks.map((t) => t.title)).toEqual(expect.arrayContaining(['Local task', 'From the other device']));
     // The heartbeat carries the tier's completed cycle, and the outcome is logged.
     const heartbeat = calls.touchLauncherHeartbeat.at(-1);

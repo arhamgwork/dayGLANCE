@@ -147,6 +147,11 @@ export function extendCalendarFilter(filter, newIds) {
  * @param event  Native event JSON, optionally tagged with `_queryDate` (the day
  *               it was fetched for) so multi-day all-day events land on the
  *               correct day.
+ *
+ * Mirrored by the Android launcher provider's own calendar read
+ * (launcher/LauncherDeviceEvents.kt), with nativeResultsToTasks below; a
+ * change here regenerates launcherDeviceEvents.vectors.json
+ * (utils/launcherDeviceEvents.fixture.test.js) and the Kotlin follows.
  */
 export const nativeEventToTask = (event) => {
   const isAllDay = event.allDay;
