@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 import { isTrayMode } from '../utils/trayMode.js';
+import { isNativeApp } from '../native.js';
 import { storeWeatherCoords } from '../utils/solar.js';
 import { formatLocalizedDate } from '../utils/localeFormatting.js';
 import { writeItem } from '../utils/storageWrites.js';
@@ -62,8 +63,15 @@ const useWeather = () => {
       // no header to show weather in at all. So the geocode below runs
       // whenever a location is set; only the forecast call is skipped when
       // the header weather is off.
+      //
+      // On the native apps the forecast is fetched whenever a location is set,
+      // whatever that switch says: a phone's settings do not show the switch
+      // (only the location), so a stored "off" from an earlier version could
+      // never be turned back on there, and the dial's weather ring, the
+      // widget and the GLANCElauncher all read this forecast. The switch
+      // still decides the header on desktop and tablet.
       const enabled = localStorage.getItem('day-planner-weather-enabled');
-      const showWeather = enabled === null || !!JSON.parse(enabled);
+      const showWeather = isNativeApp() || enabled === null || !!JSON.parse(enabled);
 
       const zip = localStorage.getItem('day-planner-weather-zip') || '';
       const tempUnit = localStorage.getItem('day-planner-weather-temp-unit') || 'fahrenheit';

@@ -6945,6 +6945,9 @@ const DayPlanner = () => {
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       updatedAt: Date.now(),
       handledWrites: readLauncherLedger(),
+      // The device calendar over a fixed window around today, not just the
+      // days on screen (the widget's fetch; utils/launcherSnapshot.js).
+      deviceEvents: widgetNative,
     });
     const fingerprint = launcherSnapshotFingerprint(snapshot);
     if (fingerprint === lastLauncherSnapshotRef.current) {
@@ -6964,7 +6967,7 @@ const DayPlanner = () => {
     dataLoaded, isResizing, tasks, unscheduledTasks, expandedRecurringTasks,
     projects, goals, goalsProjectsEnabled, isVisibleForUser,
     todayRoutines, routineCompletions, routinesEnabled, weather, weatherTempUnit,
-    getFrameInstancesForDate, getDayWindow, use24HourClock, currentTime,
+    getFrameInstancesForDate, getDayWindow, use24HourClock, currentTime, widgetNative,
   ]);
 
   // ── Native Android widget snapshot sync ──────────────────────────────────

@@ -159,6 +159,8 @@ describe('HeadlessRefresh', () => {
     // …and the snapshot was built from the settled state, with the pulled task.
     expect(calls.updateLauncherSnapshot).toHaveLength(1);
     const snapshot = calls.updateLauncherSnapshot[0];
+    // It cannot read the device calendar, and says so: the shell keeps the last events.
+    expect(snapshot.carryDeviceEvents).toBe(true);
     expect(snapshot.tasks.map((t) => t.title)).toEqual(expect.arrayContaining(['Local task', 'From the other device']));
     // The heartbeat carries the tier's completed cycle, and the outcome is logged.
     const heartbeat = calls.touchLauncherHeartbeat.at(-1);

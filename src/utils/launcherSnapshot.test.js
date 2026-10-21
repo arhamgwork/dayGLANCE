@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildLauncherSnapshot, launcherSnapshotFingerprint, FRAME_WINDOW } from './launcherSnapshot.js';
+import { buildLauncherSnapshot, launcherSnapshotFingerprint, FRAME_WINDOW, DEVICE_EVENT_WINDOW } from './launcherSnapshot.js';
 
 // The GLANCElauncher's read model (utils/launcherSnapshot.js), built from plain
 // inputs the way the widget snapshot is. These pin what the launcher relies on:
@@ -49,6 +49,36 @@ describe('buildLauncherSnapshot', () => {
     }));
     expect(snap.tasks.map(t => [t.id, t.source])).toEqual([['e1', 'calendar'], ['c1', 'dayglance'], ['r1', 'dayglance']]);
     expect(snap.tasks[2].energy).toBe('restore');
+  });
+
+  it('takes device events from the fixed-window fetch over the event window, not just the days on screen', () => {
+    const ev = (id, date, extra = {}) => ({ id, title: id, date, startTime: '09:00', duration: 30, imported: true, _native: true, ...extra });
+    // The app's own list holds only the day on screen, and a stale copy of one event.
+    const tasks = [ev('n-stale', TODAY, { title: 'stale view copy' }), { id: 't1', title: 'Mine', date: TODAY }];
+    const deviceEvents = {
+      dates: new Set(['2026-10-17', '2026-10-18', TODAY, '2026-10-20', '2026-10-25', '2026-10-26']),
+      byDate: {
+        '2026-10-17': [ev('n-old', '2026-10-17')],
+        '2026-10-18': [ev('n-yday', '2026-10-18')],
+        [TODAY]: [ev('n-today', TODAY)],
+        '2026-10-20': [ev('n-tmrw', '2026-10-20')],
+        '2026-10-25': [ev('n-edge', '2026-10-25')],
+        '2026-10-26': [ev('n-far', '2026-10-26')],
+      },
+    };
+    expect(DEVICE_EVENT_WINDOW).toEqual({ daysBefore: 1, daysAfter: 6 });
+    const snap = buildLauncherSnapshot(base({ tasks, deviceEvents }));
+    expect(snap.tasks.map(t => t.id)).toEqual(['t1', 'n-yday', 'n-today', 'n-tmrw', 'n-edge']);
+    expect(snap.tasks.find(t => t.id === 'n-today')).toMatchObject({ source: 'calendar', native: true });
+    expect(snap.tasks.find(t => t.id === 't1').native).toBe(false);
+    expect(snap.carryDeviceEvents).toBeUndefined();
+    // Before the fetch lands, the app's own native rows are kept as they are.
+    const before = buildLauncherSnapshot(base({ tasks }));
+    expect(before.tasks.map(t => t.id)).toEqual(['n-stale', 't1']);
+  });
+
+  it('a headless snapshot asks the shell to carry the device events it cannot read', () => {
+    expect(buildLauncherSnapshot(base({ carryDeviceEvents: true })).carryDeviceEvents).toBe(true);
   });
 
   it('lists goals and projects only while the feature is on', () => {
