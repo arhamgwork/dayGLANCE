@@ -654,6 +654,7 @@ export function registerWriteTools(server: McpServer, deps: WriteToolDeps): void
         title: z.string().describe('Project title. Required, non-empty.'),
         goal_id: z.string().optional().describe('The parent goal. Omit for a standalone project.'),
         description: z.string().optional().describe('The notes box of the project.'),
+        deadline: z.string().optional().describe('Local calendar date, strict YYYY-MM-DD — the project\'s own due date. Independent of its tasks\' deadlines.'),
         ...assigneeIdsArg,
         idempotency_key: IDEMPOTENCY_ARG,
       }),
@@ -686,6 +687,7 @@ export function registerWriteTools(server: McpServer, deps: WriteToolDeps): void
         description: z.string().optional().describe(DESCRIPTION_ARG),
         description_base: z.string().optional().describe(DESCRIPTION_BASE_ARG),
         goal_id: z.string().optional().describe('Move the project under this goal.'),
+        deadline: z.string().optional().describe('Local calendar date, strict YYYY-MM-DD — the project\'s own due date. Name "deadline" in clear_fields to remove it.'),
         status: z.string().optional().describe(STATUS_ARG),
         ...assigneeIdsArg,
         clear_fields: z.array(z.string()).optional().describe(

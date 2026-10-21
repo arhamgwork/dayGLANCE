@@ -155,6 +155,7 @@ export interface CreateProjectPlan {
   title: string;
   goalId?: string;
   description?: string;
+  deadline?: string;
   assigneeSyncIds?: string[];
 }
 
@@ -163,6 +164,7 @@ export function planCreateProject(args: Record<string, unknown>, multiUser: bool
   const description = optionalString(args['description'], 'description'); if (isReject(description)) return description;
   let goalId: string | undefined;
   if (args['goal_id'] !== undefined) { const g = nonEmpty(args['goal_id'], 'goal_id'); if (isReject(g)) return g; goalId = g; }
+  const deadline = optionalDate(args['deadline'], 'deadline'); if (isReject(deadline)) return deadline;
   const assigneeSyncIds = optionalIds(args['assignee_ids'], 'assignee_ids', multiUser); if (isReject(assigneeSyncIds)) return assigneeSyncIds;
   return {
     ok: true,
@@ -170,16 +172,17 @@ export function planCreateProject(args: Record<string, unknown>, multiUser: bool
       title,
       ...(goalId ? { goalId } : {}),
       ...(description !== undefined ? { description } : {}),
+      ...(deadline ? { deadline } : {}),
       ...(assigneeSyncIds ? { assigneeSyncIds } : {}),
     },
   };
 }
 
-export const PROJECT_CLEARABLE = ['description', 'goal', 'assignees'] as const;
+export const PROJECT_CLEARABLE = ['description', 'goal', 'assignees', 'deadline'] as const;
 
 export interface UpdateProjectPlan {
   projectId: string;
-  set: { title?: string; description?: string; descriptionBase?: string; goalId?: string; status?: 'active' | 'completed'; assigneeSyncIds?: string[] };
+  set: { title?: string; description?: string; descriptionBase?: string; goalId?: string; status?: 'active' | 'completed'; deadline?: string; assigneeSyncIds?: string[] };
   clear: string[];
 }
 
@@ -193,17 +196,20 @@ export function planUpdateProject(args: Record<string, unknown>, multiUser: bool
   const base = descriptionBase(args, set); if (isReject(base)) return base;
   if (base) set.descriptionBase = base;
   if (args['goal_id'] !== undefined) { const g = nonEmpty(args['goal_id'], 'goal_id'); if (isReject(g)) return g; set.goalId = g; }
+  const deadline = optionalDate(args['deadline'], 'deadline'); if (isReject(deadline)) return deadline;
+  if (deadline) set.deadline = deadline;
   const status = optionalStatus(args['status']); if (isReject(status)) return status;
   if (status) set.status = status;
   const assigneeSyncIds = optionalIds(args['assignee_ids'], 'assignee_ids', multiUser); if (isReject(assigneeSyncIds)) return assigneeSyncIds;
   if (assigneeSyncIds) set.assigneeSyncIds = assigneeSyncIds;
 
   const both = [
-    ['description', set.description !== undefined], ['goal', set.goalId !== undefined], ['assignees', set.assigneeSyncIds !== undefined],
+    ['description', set.description !== undefined], ['goal', set.goalId !== undefined],
+    ['assignees', set.assigneeSyncIds !== undefined], ['deadline', set.deadline !== undefined],
   ].find(([name, isSet]) => isSet && clear.includes(name as string));
   if (both) return reject(`${both[0]} is both set and named in clear_fields. Set it or clear it, not both.`);
   if (Object.keys(set).length === 0 && clear.length === 0) {
-    return reject('Nothing to change: pass at least one field to set (title, description, goal_id, status, assignee_ids) or name one in clear_fields.');
+    return reject('Nothing to change: pass at least one field to set (title, description, goal_id, status, deadline, assignee_ids) or name one in clear_fields.');
   }
   return { ok: true, plan: { projectId, set, clear } };
 }

@@ -724,6 +724,21 @@ describe('goals, projects and subtasks over MCP (2026-10-04)', () => {
     const a = handleMcpWrite(state(), makeSetters(), { method: 'update_project', params: { projectId: 'p1', set: { status: 'archived' } } });
     expect(a).toMatchObject({ ok: false, error: { code: 'validation' } });
   });
+  it('create_project and update_project carry the project deadline, and undo names the absent field', () => {
+    const setters = makeSetters();
+    const c = handleMcpWrite(state(), setters, { method: 'create_project', params: { projectId: 'p-dated', title: 'Roof', deadline: '2026-12-01' } });
+    expect(c.data.project).toMatchObject({ id: 'p-dated', deadline: '2026-12-01' });
+    const u = handleMcpWrite(state(), setters, { method: 'update_project', params: { projectId: 'p1', set: { deadline: '2026-12-01' } } });
+    expect(u.data.project.deadline).toBe('2026-12-01');
+    expect(u.undo).toEqual({
+      summary: 'Edited project “Backend” (deadline)',
+      op: { kind: 'restore_project_fields', projectId: 'p1', before: {}, absentBefore: ['deadline'] },
+    });
+    const dated = { ...state(), projects: [{ id: 'p1', title: 'Backend', status: 'active', deadline: '2026-12-01' }] };
+    const cleared = handleMcpWrite(dated, makeSetters(), { method: 'update_project', params: { projectId: 'p1', clear: ['deadline'] } });
+    expect('deadline' in cleared.data.project).toBe(false);
+    expect(cleared.undo.op).toMatchObject({ before: { deadline: '2026-12-01' } });
+  });
   it('add_subtask and update_subtask answer with the host entity plus the subtask, and reverse per subtask', () => {
     const setters = makeSetters();
     const a = handleMcpWrite(state(), setters, { method: 'add_subtask', params: { taskId: 'b1', subtaskId: 's2', title: 'Hang door' } });

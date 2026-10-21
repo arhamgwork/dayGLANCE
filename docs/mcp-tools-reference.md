@@ -180,8 +180,8 @@ Each goal: `id`, `title`, `status`, `description`, `start_date`, `target_date` (
 `progress_percent`, `projects`, plus when present `area_id` and `area_name`, `assignee_ids`
 (multi-user), and `obsidian_note` (`{ path, name, missing }`). Each project: `id`, `title`,
 `status`, `description`, `progress_percent` (null when nothing is measurable), `tasks_done`,
-`tasks_total`, plus when present `goal_id`, `assignee_ids`, `obsidian_note`. Standalone projects
-are listed under `standalone_projects`.
+`tasks_total`, plus when present `goal_id`, `deadline` (the project's own due date, `YYYY-MM-DD`),
+`assignee_ids`, `obsidian_note`. Standalone projects are listed under `standalone_projects`.
 
 **A goal or project with `obsidian_note` keeps its description in that note's opening section**
 (companion spec §4.3). This tool reads it from the note: such an entity carries
@@ -433,6 +433,7 @@ assignees at creation and follows neither afterwards (the form's inheritance).
 | `title` | string | yes | |
 | `goal_id` | string | no | Omit for standalone. Unknown → `not_found`. |
 | `description` | string | no | The project's notes box. |
+| `deadline` | string | no | Local `YYYY-MM-DD` — the project's own due date. Independent of its tasks' deadlines. |
 | `assignee_ids` | string[] | no | **Multi-user only.** Overrides the inheritance. |
 | `idempotency_key` | string | no | |
 
@@ -446,9 +447,10 @@ Field editor for projects, same contract.
 | `description` | string | no | On a project with `obsidian_note`, the opening section of that note (see below). |
 | `description_base` | string | no | As on `dayglance_update_goal`. |
 | `goal_id` | string | no | Move under another goal. `"goal"` in `clear_fields` makes it standalone. |
+| `deadline` | string | no | Local `YYYY-MM-DD` — the project's own due date. `"deadline"` in `clear_fields` removes it. |
 | `status` | `'active'` \| `'completed'` | no | `'archived'` → `validation`. Completing requires every task in the project to be completed. |
 | `assignee_ids` | string[] | no | **Multi-user only.** |
-| `clear_fields` | string[] | no | `"description"`, `"goal"`, `"assignees"` (multi-user). |
+| `clear_fields` | string[] | no | `"description"`, `"goal"`, `"assignees"` (multi-user), `"deadline"`. |
 | `idempotency_key` | string | no | |
 
 **Descriptions in linked notes.** For a goal or project with `obsidian_note`, `description` on

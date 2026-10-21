@@ -185,7 +185,7 @@ export function applyUpdateGoal(state, { goalId, set = {}, clear = [], nowIso })
  * the goal's colour and assignees at creation (ProjectForm's inheritance),
  * and never follows them afterwards.
  */
-export function applyCreateProject(state, { projectId, title, goalId, description, assigneeSyncIds, nowIso }) {
+export function applyCreateProject(state, { projectId, title, goalId, description, deadline, assigneeSyncIds, nowIso }) {
   const trimmed = typeof title === 'string' ? title.trim() : '';
   if (!trimmed) return err(WRITE_ERROR_CODES.VALIDATION, 'title must be a non-empty string');
   const existing = (state.projects ?? []).find((p) => p && p.id === projectId);
@@ -208,6 +208,9 @@ export function applyCreateProject(state, { projectId, title, goalId, descriptio
     status: 'active',
     color: goal?.color || PROJECT_FALLBACK_COLOR,
     ...(goal ? { goalId: goal.id } : {}),
+    // The project's own due date, validated by the main process (dates strict
+    // YYYY-MM-DD) like the goal form's target date.
+    ...(deadline ? { deadline } : {}),
     ...(inherited?.length ? { assignedUserSyncIds: inherited } : {}),
     createdAt: nowIso,
     updatedAt: nowIso,
@@ -251,6 +254,7 @@ export function applyUpdateProject(state, { projectId, set = {}, clear = [], now
   if (set.title !== undefined) { next.title = set.title; touch('title'); }
   if (set.description !== undefined) { next.description = set.description; touch('description'); }
   if (goal) { next.goalId = goal.id; touch('goalId'); }
+  if (set.deadline !== undefined) { next.deadline = set.deadline; touch('deadline'); }
   if (set.status !== undefined) { next.status = set.status; touch('status'); }
   if (assignees.ids !== undefined) { next.assignedUserSyncIds = assignees.ids; touch('assignedUserSyncIds'); }
   for (const field of clear) {
@@ -258,6 +262,7 @@ export function applyUpdateProject(state, { projectId, set = {}, clear = [], now
     // Detaching from a goal removes the key, as handleSaveGoal's cascade does.
     else if (field === 'goal') { delete next.goalId; touch('goalId'); }
     else if (field === 'assignees') { delete next.assignedUserSyncIds; touch('assignedUserSyncIds'); }
+    else if (field === 'deadline') { delete next.deadline; touch('deadline'); }
   }
   if (touched.length === 0) return { ok: true, replayed: true, project, touched: [] };
   next.updatedAt = nowIso;

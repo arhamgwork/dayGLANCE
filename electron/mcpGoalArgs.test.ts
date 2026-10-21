@@ -68,6 +68,19 @@ describe('planCreateProject / planUpdateProject', () => {
     expect(planCreateProject({ title: 'X', goal_id: ' ' }, false)).toMatchObject({ ok: false });
     expect(planUpdateProject({ project_id: 'p1' }, false)).toMatchObject({ ok: false });
   });
+
+  it('carries the project\'s own deadline on create and update, clears it by name, and keeps dates strict', () => {
+    expect(planCreateProject({ title: 'Roof', deadline: '2026-12-01' }, false))
+      .toEqual({ ok: true, plan: { title: 'Roof', deadline: '2026-12-01' } });
+    expect(planUpdateProject({ project_id: 'p1', deadline: '2026-12-01' }, false))
+      .toEqual({ ok: true, plan: { projectId: 'p1', set: { deadline: '2026-12-01' }, clear: [] } });
+    expect(planUpdateProject({ project_id: 'p1', clear_fields: ['deadline'] }, false))
+      .toEqual({ ok: true, plan: { projectId: 'p1', set: {}, clear: ['deadline'] } });
+    // Same strict wire date every other tool takes, and set-and-clear at once is refused.
+    expect(planCreateProject({ title: 'Roof', deadline: '2026-12-1' }, false)).toMatchObject({ ok: false });
+    expect(planUpdateProject({ project_id: 'p1', deadline: 'soon' }, false)).toMatchObject({ ok: false });
+    expect(planUpdateProject({ project_id: 'p1', deadline: '2026-12-01', clear_fields: ['deadline'] }, false)).toMatchObject({ ok: false });
+  });
 });
 
 describe('planAddSubtask / planUpdateSubtask', () => {

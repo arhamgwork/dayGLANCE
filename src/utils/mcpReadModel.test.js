@@ -9,6 +9,7 @@ import {
   weekDatesFor,
   buildWeek,
   buildUsers,
+  projectItem,
   handleMcpRequest,
 } from './mcpReadModel.js';
 
@@ -482,5 +483,14 @@ describe('the read gaps closed 2026-10-04: imported events, assignees, inbox dur
     expect(r.data.lists[0].items[0]).toEqual({ id: 'k1', type: 'task', title: 'Learn Welsh', completed: false, duration_minutes: 30, bucket_id: 'b1' });
     // Default headings stand in when the config has none.
     expect(handleMcpRequest({ unscheduledTasks: [] }, { method: 'list_bucket_list' }).data.lists.map((l) => l.heading)).toEqual(['Anytime', 'Someday']);
+  });
+});
+
+describe('projectItem — the project\'s own deadline on the wire', () => {
+  const project = { id: 'p1', title: 'Roof', status: 'active' };
+
+  it('carries deadline (YYYY-MM-DD) when the project has one, and no key when it does not', () => {
+    expect(projectItem({ ...project, deadline: '2026-12-01' })).toMatchObject({ id: 'p1', deadline: '2026-12-01' });
+    expect(projectItem(project)).not.toHaveProperty('deadline');
   });
 });

@@ -117,6 +117,11 @@ describe('applyCreateProject', () => {
     expect(applyCreateProject(state(), { projectId: 'x', title: 'T', goalId: 'nope', nowIso: NOW })).toMatchObject({ ok: false, error: { code: 'not_found' } });
     expect(applyCreateProject(state(), { projectId: 'p1', title: 'Other', nowIso: NOW })).toMatchObject({ ok: true, replayed: true, project: { id: 'p1', title: 'Backend' } });
   });
+  it('carries the project\'s own deadline when given, and leaves the key absent when not', () => {
+    const dated = applyCreateProject(state(), { projectId: 'p-dated', title: 'Roof', deadline: '2026-12-01', nowIso: NOW });
+    expect(dated.project).toMatchObject({ id: 'p-dated', title: 'Roof', deadline: '2026-12-01' });
+    expect('deadline' in applyCreateProject(state(), { projectId: 'p-plain', title: 'Plain', nowIso: NOW }).project).toBe(false);
+  });
 });
 
 describe('applyUpdateProject', () => {
@@ -141,6 +146,15 @@ describe('applyUpdateProject', () => {
     expect(linked.error.message).toContain('Projects/Roof');
     expect(applyUpdateProject(state(), { projectId: 'nope', set: { title: 'x' }, nowIso: NOW })).toMatchObject({ ok: false, error: { code: 'not_found' } });
     expect(applyUpdateProject(state(), { projectId: 'p1', set: { goalId: 'nope' }, nowIso: NOW })).toMatchObject({ ok: false, error: { code: 'not_found' } });
+  });
+  it('sets and clears the project\'s own deadline, reporting the touched key for undo', () => {
+    const set = applyUpdateProject(state(), { projectId: 'p1', set: { deadline: '2026-12-01' }, nowIso: NOW });
+    expect(set.project.deadline).toBe('2026-12-01');
+    expect(set.touched).toContain('deadline');
+    const dated = state({ projects: [{ id: 'p1', title: 'Backend', status: 'active', deadline: '2026-12-01' }] });
+    const cleared = applyUpdateProject(dated, { projectId: 'p1', clear: ['deadline'], nowIso: NOW });
+    expect('deadline' in cleared.project).toBe(false);
+    expect(cleared.touched).toContain('deadline');
   });
 });
 
@@ -174,5 +188,17 @@ describe('applyGoalProjectUndoOps', () => {
     expect(r.projects).toEqual([{ id: 'p1', title: 'Backend', status: 'active', goalId: 'g1', updatedAt: NOW }]);
     expect(r.undone).toBe(4);
     expect(r.skipped).toBe(2);
+  });
+
+  it('undo restores a project deadline, and deletes one the edit introduced', () => {
+    const s = state({ projects: [{ id: 'p1', title: 'Backend', status: 'active', deadline: '2027-01-01' }] });
+    const restored = applyGoalProjectUndoOps(s, [
+      { kind: 'restore_project_fields', projectId: 'p1', before: { deadline: '2026-12-01' } },
+    ], { nowIso: NOW });
+    expect(restored.projects[0].deadline).toBe('2026-12-01');
+    const removed = applyGoalProjectUndoOps(s, [
+      { kind: 'restore_project_fields', projectId: 'p1', before: {}, absentBefore: ['deadline'] },
+    ], { nowIso: NOW });
+    expect('deadline' in removed.projects[0]).toBe(false);
   });
 });
