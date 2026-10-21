@@ -264,6 +264,9 @@ export default function HeadlessRefresh({
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         updatedAt: Date.now(),
         handledWrites: readLauncherLedger(),
+        // No device-calendar read in a headless run (the allowlist): the shell
+        // keeps the previous snapshot's events, which a sync cannot change anyway.
+        carryDeviceEvents: true,
       });
       if (shouldAbort()) return finish(HEADLESS_OUTCOMES.ABORTED, { reason: 'app opened' });
       bridge()?.updateLauncherSnapshot?.(JSON.stringify(snapshot));

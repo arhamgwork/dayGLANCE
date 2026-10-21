@@ -67,10 +67,10 @@ class HeadlessBridge(
 
     // ── The launcher push ─────────────────────────────────────────────────────
 
-    /** The snapshot, keeping the last one's weather: a headless run fetches no forecast. */
+    /** The snapshot, keeping the last one's weather and device events: a headless run reads neither. */
     @JavascriptInterface
     fun updateLauncherSnapshot(snapshotJson: String) =
-        LauncherWrites.updateSnapshot(context, store, snapshotJson, carryWeather = true)
+        LauncherWrites.updateSnapshot(context, store, snapshotJson, headless = true)
 
     @JavascriptInterface
     fun touchLauncherHeartbeat(json: String) = LauncherWrites.touchHeartbeat(context, store, json)
