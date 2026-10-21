@@ -32,7 +32,7 @@ object LauncherWrites {
     /**
      * [incoming] with what a headless run cannot produce taken from [previous]. Pure.
      *
-     *  - Weather: a headless run fetches no forecast, so an absent or empty
+     *  - Weather: a headless run's forecast request can fail, so an absent or empty
      *    collection keeps the previous one; the weather ring would otherwise go
      *    blank until the app next opened.
      *  - Device-calendar events: when the snapshot says `carryDeviceEvents`, it

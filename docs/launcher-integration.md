@@ -75,8 +75,9 @@ the web side; the rules in CLAUDE.md, "Headless refresh"). An expedited,
 network-constrained WorkManager job boots the web bundle in a WebView with
 no Activity, at `index.html?headless=refresh&clientId=…`, where the headless
 root runs one cycle of every configured tier with the app's own payload and
-apply, pushes the snapshot (keeping the last snapshot's weather, which it
-does not fetch) and the heartbeat, and reports. Then:
+apply, fetches the forecast for the stored location (one read-only request,
+started with the sync; when it fails the shell keeps the last snapshot's
+weather), pushes the snapshot and the heartbeat, and reports. Then:
 
 - `ran` / `failed` come from the web layer as on the alive path, with
   `liveness: dead` and `headless: true` on the entry;

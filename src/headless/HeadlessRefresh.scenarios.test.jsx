@@ -177,6 +177,39 @@ describe('HeadlessRefresh', () => {
     root.unmount();
   });
 
+  it('fetches the forecast for the stored location and pushes it in the snapshot', async () => {
+    seedStorage(ls);
+    ls.setItem('day-planner-weather-coords', JSON.stringify({ lat: 39.74, lon: -104.99 }));
+    const { bridge, calls } = fakeBridge();
+    globalThis.window.DayGlanceNative = bridge;
+    const fetchForecast = vi.fn(async () => ({ '2026-10-19': { 9: { temp: 12, code: 1, uv: 3 } } }));
+    const root = await mount({ bridge: () => bridge, createFileEngine: scriptedFileEngine().factory, createVaultEngine: () => null, fetchForecast, now: () => new Date('2026-10-19T12:00:00') });
+    await until(() => calls.headlessDone.length > 0);
+
+    // One request, for the stored coordinates in the user's unit; not the
+    // geocode (the coordinates are already resolved) and nothing else.
+    expect(fetchForecast).toHaveBeenCalledTimes(1);
+    expect(fetchForecast.mock.calls[0][0]).toMatchObject({ coords: { lat: 39.74, lon: -104.99 }, tempUnit: 'celsius' });
+    const snapshot = calls.updateLauncherSnapshot[0];
+    expect(snapshot.weather).toEqual([expect.objectContaining({ date: '2026-10-19', unit: 'celsius', hours: [expect.objectContaining({ hour: 9, temp: 12 })] })]);
+    expect(calls.headlessDone[0]).toMatchObject({ outcome: 'ran' });
+    root.unmount();
+  });
+
+  it('a failed forecast is no forecast: the run still reports ran and the shell keeps the last one', async () => {
+    seedStorage(ls);
+    ls.setItem('day-planner-weather-coords', JSON.stringify({ lat: 39.74, lon: -104.99 }));
+    const { bridge, calls } = fakeBridge();
+    globalThis.window.DayGlanceNative = bridge;
+    const fetchForecast = vi.fn(async () => { throw new Error('offline'); });
+    const root = await mount({ bridge: () => bridge, createFileEngine: scriptedFileEngine().factory, createVaultEngine: () => null, fetchForecast, now: () => new Date('2026-10-19T12:00:00') });
+    await until(() => calls.headlessDone.length > 0);
+
+    expect(calls.updateLauncherSnapshot[0].weather).toEqual([]);
+    expect(calls.headlessDone[0]).toMatchObject({ outcome: 'ran' });
+    root.unmount();
+  });
+
   it('runs the vault tier too, and the heartbeat takes the latest completed cycle', async () => {
     seedStorage(ls, { vault: true });
     const { bridge, calls } = fakeBridge();

@@ -6,6 +6,7 @@ import { storeWeatherCoords } from '../utils/solar.js';
 import { formatLocalizedDate } from '../utils/localeFormatting.js';
 import { writeItem } from '../utils/storageWrites.js';
 import { readWeatherZip, readWeatherTempUnit } from '../utils/storedSlices.js';
+import { forecastUrl, hourlyByDateFrom } from '../utils/weatherForecast.js';
 
 const getWeatherCondition = (code) => {
   if (code === 0) return 'Clear';
@@ -137,31 +138,12 @@ const useWeather = () => {
 
       tz = tz || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-      const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&hourly=temperature_2m,weather_code,uv_index&temperature_unit=${tempUnit}&timezone=${encodeURIComponent(tz)}&forecast_days=6`);
+      const response = await fetch(forecastUrl({ lat: latitude, lon: longitude, tempUnit, timezone: tz }));
       const data = await response.json();
 
       if (data.current && data.daily) {
-        // Hour-grained temps/codes by local date, for the Day Dial's weather
-        // ring: { 'YYYY-MM-DD': { 0: {temp, code, uv}, ..., 23: {...} } }.
-        // Only dates the forecast covers exist as keys — the dial treats a
-        // missing date as "no data" and drops the layer for it.
-        //
-        // uv_index is the cloud-adjusted figure, not the clear-sky one, so an
-        // overcast day genuinely reads lower; the dial's daylight band uses
-        // it to scale intensity, and it is the only term there that knows
-        // about the sky (haze, cloud, thin air at altitude) rather than about
-        // where the sun is.
-        const hourlyByDate = {};
-        if (data.hourly?.time) {
-          data.hourly.time.forEach((iso, i) => {
-            const [dateStr, hh] = iso.split('T');
-            (hourlyByDate[dateStr] ??= {})[parseInt(hh, 10)] = {
-              temp: Math.round(data.hourly.temperature_2m[i]),
-              code: data.hourly.weather_code[i],
-              uv: data.hourly.uv_index?.[i],
-            };
-          });
-        }
+        // The dial's weather ring reads this (utils/weatherForecast.js).
+        const hourlyByDate = hourlyByDateFrom(data);
 
         // Build forecast array for next 5 days (starting from tomorrow)
         const forecast = [];
