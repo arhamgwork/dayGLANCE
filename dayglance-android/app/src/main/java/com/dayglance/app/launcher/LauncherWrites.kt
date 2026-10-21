@@ -66,6 +66,9 @@ object LauncherWrites {
             val clientId = entry.optString("clientId")
             if (clientId.isEmpty()) return
             entry.put("finishedAt", System.currentTimeMillis())
+            // The receiver's reason ("process not running: headless run scheduled")
+            // describes the request, not the outcome; a report without one replaces it.
+            if (!entry.has("reason")) entry.put("reason", JSONObject.NULL)
             store.updateLauncherRefresh(clientId, entry)
             context.contentResolver.notifyChange(LauncherProvider.CONTENT_URI, null)
         } catch (e: Exception) {
