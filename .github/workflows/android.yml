@@ -49,6 +49,10 @@ jobs:
       # platform and build tools compileSdk names.
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # The default list asks for the legacy `tools` package, which current
+          # cmdline-tools no longer carry; AGP fetches the platform it needs.
+          packages: platform-tools
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
