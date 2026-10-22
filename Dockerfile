@@ -40,6 +40,7 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # directory layout is preserved so proxy-server.mjs's ../api/ import resolves.
 COPY docker/proxy-server.mjs /app/docker/proxy-server.mjs
 COPY api/_ssrfGuard.mjs /app/api/_ssrfGuard.mjs
+COPY api/_readBody.mjs /app/api/_readBody.mjs
 COPY docker/start.sh /start.sh
 RUN chmod +x /start.sh
 

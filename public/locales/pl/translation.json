@@ -45,6 +45,7 @@
       "PASSPHRASE_REQUIRED": "Podaj swoje hasło synchronizacji, aby kontynuować.",
       "PRECONDITION_FAILED": "Inne urządzenie zaktualizowało dane wcześniej. Ponowna próba.",
       "QUOTA_EXCEEDED": "Serwer synchronizacji osiągnął limit dla tego konta. Zmiany są zapisane na tym urządzeniu, a synchronizacja zostanie ponowiona automatycznie. Poproś osobę administrującą serwerem synchronizacji o zwiększenie limitu.",
+      "PAYLOAD_TOO_LARGE": "Plik synchronizacji{{size}} jest za duży dla serwera synchronizacji lub stojącego przed nim proxy (413), więc nic nie zostało wysłane. Zmiany są zapisane na tym urządzeniu, a zmiany z innych urządzeń nadal docierają. Wysyłanie jest ponawiane co 30 minut; poproś osobę administrującą serwerem synchronizacji o zwiększenie limitu wysyłania.",
       "KEY_MISMATCH": "Nieprawidłowe hasło synchronizacji. Musi dokładnie odpowiadać hasłu użytemu na Twoich pozostałych urządzeniach.",
       "VERIFIER_UNSUPPORTED": "Twój serwer GLANCEvault wymaga aktualizacji, aby obsługiwać tę wersję aplikacji (weryfikacja klucza).",
       "ACCOUNT_ID_REQUIRED": "W GLANCEvault brakuje identyfikatora konta. Wprowadź ponownie swoje dane GLANCEvault (adres URL, token urządzenia i identyfikator konta) w ustawieniach synchronizacji w chmurze.",
