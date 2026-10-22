@@ -1666,7 +1666,9 @@ const DayPlanner = () => {
       : prev);
   }, [meUserSyncId, setGtdFrames]);
 
-  const [taskContextMenu, setTaskContextMenu] = useState(null); // { x, y, taskId, isRecurring, isImported, isAllDay, dateStr }
+  // { x, y, taskId, isRecurring, isImported, isAllDay, dateStr, onEdit?, onNotes? }: a
+  // surface with its own editor or notes panel passes them (SchedTaskCard, #2132).
+  const [taskContextMenu, setTaskContextMenu] = useState(null);
   const [timelineContextMenu, setTimelineContextMenu] = useState(null); // { x, y, dateStr, timeMinutes }
   const [hgContextMenu, setHgContextMenu] = useState(null); // { x, y, projectId, date, isCompleted }
   const [hgAdjustModal, setHgAdjustModal] = useState(null); // { projectId, date, time, duration }
@@ -9339,7 +9341,9 @@ const DayPlanner = () => {
                 <button
                   className={`w-full text-left px-3 py-2 text-sm ${textPrimary} ${hoverBg} transition-colors flex items-center gap-2`}
                   onClick={() => {
-                    if (ctxTask) openMobileEditTask(ctxTask, isInbox);
+                    // A surface with its own editor (the Project Planner) hands it over.
+                    if (taskContextMenu.onEdit) taskContextMenu.onEdit();
+                    else if (ctxTask) openMobileEditTask(ctxTask, isInbox);
                     setTaskContextMenu(null);
                   }}
                 >
@@ -9354,7 +9358,9 @@ const DayPlanner = () => {
                   <button
                     className={`w-full text-left px-3 py-2 text-sm ${textPrimary} ${hoverBg} transition-colors flex items-center gap-2`}
                     onClick={() => {
-                      setExpandedNotesTaskId(prev => prev === taskId ? null : taskId);
+                      // A card with its own notes panel (SCHED, the planner) opens that.
+                      if (taskContextMenu.onNotes) taskContextMenu.onNotes();
+                      else setExpandedNotesTaskId(prev => prev === taskId ? null : taskId);
                       setTaskContextMenu(null);
                     }}
                   >
@@ -9366,7 +9372,8 @@ const DayPlanner = () => {
                 <button
                   className={`w-full text-left px-3 py-2 text-sm ${textPrimary} ${hoverBg} transition-colors flex items-center gap-2`}
                   onClick={() => {
-                    setExpandedNotesTaskId(prev => prev === taskId ? null : taskId);
+                    if (taskContextMenu.onNotes) taskContextMenu.onNotes();
+                    else setExpandedNotesTaskId(prev => prev === taskId ? null : taskId);
                     setTaskContextMenu(null);
                   }}
                 >

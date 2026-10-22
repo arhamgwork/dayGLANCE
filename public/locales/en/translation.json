@@ -904,6 +904,8 @@
     "clearDeadline": "Clear deadline",
     "descriptionPlaceholder": "Add description…",
     "doubleClickToEdit": "Double-click to edit",
+    "renameTask": "Task title",
+    "clickToRename": "Click to rename",
     "fromObsidian": "From Obsidian",
     "holdToEditHint": "(hold to edit)",
     "obsidianRecurrenceManaged": "Recurring in Obsidian: this task's recurrence is managed by the Tasks plugin; completing it here won't create the next instance",
@@ -2100,6 +2102,8 @@
     "showNotesSidebar": "Show task notes",
     "hideNotesSidebar": "Hide task notes",
     "selectForNotes": "Select a task to see its notes here.",
+    "resizeNotes": "Resize notes",
+    "resizeNotesHint": "Drag to resize · double-click to reset",
     "notesKeysHint": "↑ ↓ move between tasks · ← → switch lists · Enter or double-click to edit the task · E to edit the note"
   },
   "bucket": {

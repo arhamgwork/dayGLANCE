@@ -904,6 +904,8 @@
     "clearDeadline": "Borrar fecha límite",
     "descriptionPlaceholder": "Añadir descripción…",
     "doubleClickToEdit": "Doble clic para editar",
+    "renameTask": "Título de la tarea",
+    "clickToRename": "Haz clic para cambiar el nombre",
     "fromObsidian": "Desde Obsidian",
     "holdToEditHint": "(mantén pulsado para editar)",
     "obsidianRecurrenceManaged": "Recurrente en Obsidian: la recurrencia de esta tarea la gestiona el complemento Tasks; completarla aquí no creará la siguiente instancia",
@@ -2100,6 +2102,8 @@
     "showNotesSidebar": "Mostrar notas de la tarea",
     "hideNotesSidebar": "Ocultar notas de la tarea",
     "selectForNotes": "Selecciona una tarea para ver aquí sus notas.",
+    "resizeNotes": "Cambiar el ancho de las notas",
+    "resizeNotesHint": "Arrastra para cambiar el ancho · doble clic para restablecer",
     "notesKeysHint": "↑ ↓ moverse entre tareas · ← → cambiar de lista · Intro o doble clic para editar la tarea · E para editar la nota"
   },
   "bucket": {

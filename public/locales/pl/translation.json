@@ -923,6 +923,8 @@
     "clearDeadline": "Wyczyść termin",
     "descriptionPlaceholder": "Dodaj opis…",
     "doubleClickToEdit": "Kliknij dwukrotnie, aby edytować",
+    "renameTask": "Tytuł zadania",
+    "clickToRename": "Kliknij, aby zmienić nazwę",
     "fromObsidian": "Z Obsidian",
     "holdToEditHint": "(przytrzymaj, aby edytować)",
     "obsidianRecurrenceManaged": "Powtarzane w Obsidian: powtarzanie tego zadania jest zarządzane przez wtyczkę Tasks; ukończenie go tutaj nie utworzy następnego wystąpienia",
@@ -2199,6 +2201,8 @@
     "showNotesSidebar": "Pokaż notatki zadania",
     "hideNotesSidebar": "Ukryj notatki zadania",
     "selectForNotes": "Wybierz zadanie, aby zobaczyć tu jego notatki.",
+    "resizeNotes": "Zmień szerokość notatek",
+    "resizeNotesHint": "Przeciągnij, aby zmienić szerokość · kliknij dwukrotnie, aby przywrócić",
     "notesKeysHint": "↑ ↓ przechodzenie między zadaniami · ← → zmiana listy · Enter lub dwuklik, aby edytować zadanie · E, aby edytować notatkę"
   },
   "bucket": {

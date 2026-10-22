@@ -904,6 +904,8 @@
     "clearDeadline": "Frist löschen",
     "descriptionPlaceholder": "Beschreibung hinzufügen…",
     "doubleClickToEdit": "Zum Bearbeiten doppelklicken",
+    "renameTask": "Aufgabentitel",
+    "clickToRename": "Zum Umbenennen klicken",
     "fromObsidian": "Aus Obsidian",
     "holdToEditHint": "(zum Bearbeiten gedrückt halten)",
     "obsidianRecurrenceManaged": "Wiederkehrend in Obsidian: die Wiederholung dieser Aufgabe wird vom Tasks-Plugin verwaltet; beim Abschließen hier wird keine nächste Instanz erstellt",
@@ -2100,6 +2102,8 @@
     "showNotesSidebar": "Aufgabennotizen einblenden",
     "hideNotesSidebar": "Aufgabennotizen ausblenden",
     "selectForNotes": "Wähle eine Aufgabe, um hier ihre Notizen zu sehen.",
+    "resizeNotes": "Notizbreite ändern",
+    "resizeNotesHint": "Ziehen zum Ändern der Breite · Doppelklick zum Zurücksetzen",
     "notesKeysHint": "↑ ↓ zwischen Aufgaben wechseln · ← → Liste wechseln · Enter oder Doppelklick zum Bearbeiten der Aufgabe · E zum Bearbeiten der Notiz"
   },
   "bucket": {

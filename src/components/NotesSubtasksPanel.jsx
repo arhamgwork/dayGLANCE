@@ -569,6 +569,9 @@ const NotesSubtasksPanel = ({
               onBlur={handleNotesBlur}
               // A caret moved by click or arrow key opens or closes the picker.
               onSelect={(e) => updatePicker(e.currentTarget)}
+              // While the picker is open, Escape closes it, not what holds the
+              // note (the Goals space's chain yields to it: the planner, #2132).
+              data-owns-escape={picker ? true : undefined}
               ref={noteFieldRef('own')}
               placeholder={t('task.notesFormattingPlaceholder')}
               aria-label={t('task.notes')}

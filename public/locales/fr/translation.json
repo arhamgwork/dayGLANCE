@@ -904,6 +904,8 @@
     "clearDeadline": "Effacer l’échéance",
     "descriptionPlaceholder": "Ajouter une description…",
     "doubleClickToEdit": "Double-cliquez pour modifier",
+    "renameTask": "Titre de la tâche",
+    "clickToRename": "Cliquez pour renommer",
     "fromObsidian": "Depuis Obsidian",
     "holdToEditHint": "(maintenez appuyé pour modifier)",
     "obsidianRecurrenceManaged": "Récurrence dans Obsidian: la récurrence de cette tâche est gérée par l’extension Tasks ; la terminer ici ne créera pas l’occurrence suivante",
@@ -2100,6 +2102,8 @@
     "showNotesSidebar": "Afficher les notes de la tâche",
     "hideNotesSidebar": "Masquer les notes de la tâche",
     "selectForNotes": "Sélectionnez une tâche pour voir ses notes ici.",
+    "resizeNotes": "Redimensionner les notes",
+    "resizeNotesHint": "Faites glisser pour redimensionner · double-cliquez pour réinitialiser",
     "notesKeysHint": "↑ ↓ passer d’une tâche à l’autre · ← → changer de liste · Entrée ou double-clic pour modifier la tâche · E pour modifier la note"
   },
   "bucket": {
