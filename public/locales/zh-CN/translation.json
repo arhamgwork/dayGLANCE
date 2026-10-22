@@ -791,6 +791,8 @@
     "tasks": "任务"
   },
   "task": {
+    "createdOn": "创建于 {{when}}",
+    "completedOn": "完成于 {{when}}",
     "contextNotesSubtasks": "备注 / 子任务",
     "contextGenerateSubtasks": "生成子任务（AI）",
     "contextMoveTomorrow": "移至明天",

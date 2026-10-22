@@ -791,6 +791,8 @@
     "tasks": "Tasks"
   },
   "task": {
+    "createdOn": "Created {{when}}",
+    "completedOn": "Completed {{when}}",
     "contextNotesSubtasks": "Notes / subtasks",
     "contextGenerateSubtasks": "Generate subtasks (AI)",
     "contextMoveTomorrow": "Move to tomorrow",

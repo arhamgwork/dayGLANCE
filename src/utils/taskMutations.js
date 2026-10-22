@@ -25,6 +25,11 @@
 import { parseRoutineBlockId, routineBlockId } from './mcpRoutines.js';
 import { findRoutineConflict, minutesToTime } from './dayOccupancy.js';
 import { completionTimestamp } from './taskUtils.js';
+import { createdTimestamp } from './createdAt.js';
+
+// `createdAt` for a task a write creates: the write's own clock, in the
+// local-offset form every createdAt uses.
+const createdStamp = (nowIso) => createdTimestamp(nowIso ? new Date(nowIso) : new Date());
 import { getProjectColor } from './colorUtils.js';
 import { getOccurrencesInRange } from './recurrenceEngine.js';
 import { applyRecurringInstanceEdit } from './recurringInstanceEdit.js';
@@ -244,6 +249,9 @@ export function applyCreateTask(state, {
     ...(projectId ? { projectId } : {}),
     ...(assignedUserSyncIds ? { assignedUserSyncIds } : {}),
     ...(transitionId ? { transitionId } : {}),
+    // Stamped here as well as by the persist pass (utils/createdAt.js), so the
+    // write's own response already says when the task was created.
+    createdAt: createdStamp(nowIso),
     lastModified: nowIso,
   };
 
@@ -326,6 +334,7 @@ function createRecurringSeries(state, {
     exceptions: {},
     ...(projectId ? { projectId } : {}),
     ...(users ? { assignedUserSyncIds: users } : {}),
+    createdAt: createdStamp(nowIso),
     lastModified: nowIso,
   };
 

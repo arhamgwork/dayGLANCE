@@ -1341,6 +1341,9 @@ export default function useDragDrop({
           notes: task.notes || '',
           subtasks: task.subtasks || [],
           completed: task.completed || false,
+          // The row is rebuilt from a field list, so a write-once field the
+          // list omits would be lost for good (utils/createdAt.js).
+          ...(task.createdAt !== undefined ? { createdAt: task.createdAt } : {}),
         }]);
       } else if (typeof task.id === 'string' && task.id.startsWith('recurring-')) {
         // Recurring task instances via exceptions

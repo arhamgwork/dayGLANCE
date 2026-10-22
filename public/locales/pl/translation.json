@@ -810,6 +810,8 @@
     "tasks": "Zadania"
   },
   "task": {
+    "createdOn": "Utworzono {{when}}",
+    "completedOn": "Ukończono {{when}}",
     "contextNotesSubtasks": "Notatki / podzadania",
     "contextGenerateSubtasks": "Generuj podzadania (AI)",
     "contextMoveTomorrow": "Przenieś na jutro",

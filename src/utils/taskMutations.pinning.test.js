@@ -77,6 +77,7 @@ const {
   applySetCompletion, parseRecurringInstanceId, WRITE_ERROR_CODES,
 } = await import('./taskMutations.js');
 const { dateToString } = await import('./taskUtils.js');
+const { createdTimestamp } = await import('./createdAt.js');
 
 const NOW = new Date(2026, 7, 16, 14, 30, 0);
 const NOW_ISO = NOW.toISOString();
@@ -92,6 +93,14 @@ const ABSENT = '<absent>';
  * field and both values. Documented divergences are asserted EXACTLY on both
  * sides, so they fail too when either implementation moves.
  */
+// #2135: MCP stamps createdAt on the row it builds, so its response can say
+// when the task was created; the UI leaves it to the save pass, which stamps
+// every task new to the device (utils/createdAt.js). Same stamp, same form.
+const CREATED_DIVERGENCE = {
+  ui: ABSENT, mcp: createdTimestamp(new Date(NOW_ISO)),
+  why: 'MCP stamps createdAt on the row; the UI leaves it to the save pass',
+};
+
 function pinShapes(label, uiTask, mcpTask, divergences = {}) {
   const keys = [...new Set([
     ...Object.keys(uiTask), ...Object.keys(mcpTask), ...Object.keys(divergences),
@@ -264,6 +273,7 @@ describe('create pin: applyCreateTask vs addTask', () => {
     // id agrees here only because crypto.randomUUID is pinned: the UI mints a
     // random id, MCP derives a deterministic one from its idempotency key.
     pinShapes('create(inbox)', uiTask, res.task, {
+      createdAt: CREATED_DIVERGENCE,
       lastModified: {
         ui: ABSENT, mcp: NOW_ISO,
         why: 'MCP stamps lastModified explicitly; the UI leaves inbox creates to the save pass (stampTaskTimestamps)',
@@ -282,6 +292,7 @@ describe('create pin: applyCreateTask vs addTask', () => {
       taskId: UUID, title: 'Write the report', durationMinutes: 45, nowIso: NOW_ISO,
     });
     pinShapes('create(inbox defaults)', uiTask, res.task, {
+      createdAt: CREATED_DIVERGENCE,
       lastModified: { ui: ABSENT, mcp: NOW_ISO, why: 'save pass vs explicit stamp, as above' },
     });
     expect(res.task.priority, 'MCP priority default drifted from the UI\'s ?? 0').toBe(0);
@@ -300,6 +311,7 @@ describe('create pin: applyCreateTask vs addTask', () => {
     });
 
     pinShapes('create(scheduled)', uiTask, res.task, {
+      createdAt: CREATED_DIVERGENCE,
       lastModified: {
         ui: ABSENT, mcp: NOW_ISO,
         why: 'MCP stamps lastModified explicitly; the UI leaves scheduled creates to the save pass',
@@ -319,6 +331,7 @@ describe('create pin: applyCreateTask vs addTask', () => {
       nowIso: NOW_ISO,
     });
     pinShapes('create(all-day)', uiTask, res.task, {
+      createdAt: CREATED_DIVERGENCE,
       lastModified: { ui: ABSENT, mcp: NOW_ISO, why: 'save pass vs explicit stamp, as above' },
     });
   });

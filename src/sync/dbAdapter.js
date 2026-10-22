@@ -29,6 +29,7 @@
 import { mergeHabitLogs, mergeRoutineDefinitions, mergeRoutineCompletions, mergeCompletedDates } from '../mergeSync.js';
 import { mergeDeferrals } from '../utils/deferrals.js';
 import { mergePlanTrail, sameTrail } from '../utils/planTrail.js';
+import { earlierCreatedAt } from '../utils/createdAt.js';
 import { TOMBSTONE_BUNDLE_KEYS, tombstoneCutoff, pruneCompletedTaskUids } from './tombstoneRetention.js';
 import { mergeRetiredTaskIds } from '../utils/retiredTaskIds.js';
 import { mergeDayWindowMaps } from './dayWindowSync.js';
@@ -341,6 +342,10 @@ function applyRemoteRecurring(data, remote) {
   const merged = { ...winner, completedDates };
   if (Object.keys(completedDatesTimestamps).length) merged.completedDatesTimestamps = completedDatesTimestamps;
   else delete merged.completedDatesTimestamps;
+  // `createdAt` (utils/createdAt.js): a series is created once; keep the
+  // earlier stamp whichever copy won, as for the task lists in upsertCollection.
+  const created = earlierCreatedAt(local.createdAt, remote.createdAt);
+  if (created !== undefined) merged.createdAt = created;
   data.recurringTasks[idx] = merged;
   return deepEqual(merged, remote) ? [] : [makeEntityId('recurringTasks', id)];
 }
@@ -402,6 +407,13 @@ function upsertCollection(data, kind, value) {
     }
     if (merged && merged.originalPlan === undefined && local && local.originalPlan !== undefined) {
       merged = { ...merged, originalPlan: local.originalPlan };
+    }
+    // `createdAt` (utils/createdAt.js) is write-once too, but MERGED rather
+    // than carried: keep the earlier stamp, so the result does not depend on
+    // which copy won or on the order the two tiers apply it.
+    {
+      const created = earlierCreatedAt(merged?.createdAt, local?.createdAt);
+      if (merged && created !== undefined && created !== merged.createdAt) merged = { ...merged, createdAt: created };
     }
     // `clientId` (intents/launcherWrites.js) likewise: write-once at creation,
     // never cleared, so absent on the winner means that device never had it.

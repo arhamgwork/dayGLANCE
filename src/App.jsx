@@ -60,6 +60,7 @@ import { msUntilMidnightRefresh, rememberViewsForMidnight, readMidnightViews, cl
 import { computeAvailableSlots as computeAvailableSlotsPure, adjustPastConflicts } from './utils/dayOccupancy.js';
 import { frameInstancesForDate } from './utils/frameInstances.js';
 import { dateToString, localDateStr, extractTags, extractWikilinks, stripWikilinks, stripWikilinksAndTags, getRecurrenceLabel, formatDate, formatDateRange, formatShortDate, formatDeadlineDate, computeTaskCalendarTombstones, computeRecurringSeriesTombstones } from './utils/taskUtils.js';
+import { carryCreatedAt } from './utils/createdAt.js';
 import { defaultUse24HourClock, defaultWeekStartDay, formatLocalizedDate, localizedList } from './utils/localeFormatting.js';
 import { ENGLISH_DAILY_NOTE_TEMPLATE, buildLocalizedDailyNoteTemplate, buildLocalizedTaskHeading, localizeDefaultDailyNoteTemplate } from './utils/dailyNoteTemplate.js';
 import { notBucketed, demoteToBucket, normalizeBucketConfig } from './utils/bucketList.js';
@@ -3977,6 +3978,7 @@ const DayPlanner = () => {
             date: newTask.date || parsed.dateStr,
             projectId: newTask.projectId || undefined,
             ...(mobileEditingTask.assignedUserSyncIds?.length ? { assignedUserSyncIds: mobileEditingTask.assignedUserSyncIds } : {}),
+            ...carryCreatedAt(template),
           };
           setTasks(prev => [...prev, regularTask]);
           recordDeletedTaskTombstone(parsed.templateId);
@@ -4011,6 +4013,7 @@ const DayPlanner = () => {
               subtasks: [],
               projectId: newTask.projectId || undefined,
               assignedUserSyncIds: mobileEditingTask.assignedUserSyncIds,
+              ...carryCreatedAt(recurringTasks.find(r => r.id === parsed.templateId)),
             }]);
           } else {
             // Scope picked in RecurringEditModal; nothing scoped changed when unset.
@@ -4048,6 +4051,8 @@ const DayPlanner = () => {
         exceptions: {},
         ...(newTask.projectId ? { projectId: newTask.projectId } : {}),
         assignedUserSyncIds: mobileEditingTask.assignedUserSyncIds ?? existingTask?.assignedUserSyncIds,
+        // The series is the one-off, repeated: it keeps the one-off's creation.
+        ...carryCreatedAt(existingTask),
         lastModified: new Date().toISOString()
       };
       // The original is gone, replaced by a template under a NEW id. Tombstone

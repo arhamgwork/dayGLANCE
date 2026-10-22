@@ -36,6 +36,7 @@
 // missing one and carry another.
 import { mergeDeferrals } from './deferrals.js';
 import { mergePlanTrail, sameTrail } from './planTrail.js';
+import { earlierCreatedAt } from './createdAt.js';
 
 export const STICKY_FIELDS = ['archived', 'originalPlan', 'starredDate', 'clientId'];
 //
@@ -65,6 +66,11 @@ export function preserveStickyFields(incoming, existing) {
     // carry and also recovers stops the incoming copy has fallen behind on.
     const trail = mergePlanTrail(out.planTrail, prev.planTrail);
     if (!sameTrail(trail, out.planTrail)) out = { ...out, planTrail: trail };
+    // `createdAt` (utils/createdAt.js) keeps the earlier stamp, the rule both
+    // tiers use: it subsumes carrying an absent one, and never lets an apply
+    // replace the creation date this device already holds with a later one.
+    const created = earlierCreatedAt(out.createdAt, prev.createdAt);
+    if (created !== undefined && created !== out.createdAt) out = { ...out, createdAt: created };
     return out;
   });
 }

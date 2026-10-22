@@ -791,6 +791,8 @@
     "tasks": "Attività"
   },
   "task": {
+    "createdOn": "Creata {{when}}",
+    "completedOn": "Completata {{when}}",
     "contextNotesSubtasks": "Note / sottoattività",
     "contextGenerateSubtasks": "Genera sottoattività (IA)",
     "contextMoveTomorrow": "Sposta a domani",
