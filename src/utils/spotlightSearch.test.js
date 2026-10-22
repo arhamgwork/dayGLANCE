@@ -147,3 +147,54 @@ describe('dailyNoteTitle', () => {
     expect(dailyNoteTitle(long, 'd').endsWith('…')).toBe(true);
   });
 });
+
+// #2131: goals, projects and areas, by title, in their own group first.
+describe('goals, projects and areas', () => {
+  const goals = [
+    { id: 'g1', title: 'Ship the launcher', status: 'active', color: 'bg-red-500' },
+    { id: 'g2', title: 'Old launcher plans', status: 'archived', color: 'bg-red-500' },
+    { id: 'g3', title: 'Launcher for the family', status: 'active', assignedTo: 'other' },
+  ];
+  const projects = [
+    { id: 'p1', title: 'Launcher widgets', goalId: 'g1', status: 'active' },
+    { id: 'p2', title: 'GLANCElauncher', status: 'active', color: 'bg-amber-500' },
+    { id: 'p3', title: 'Launcher icons', goalId: 'g2', status: 'active' },
+    { id: 'p4', title: 'Launcher done', status: 'completed' },
+    { id: 'p5', title: 'Launcher shelved', status: 'archived' },
+    { id: 'p6', title: 'Launcher orphan', goalId: 'gone', status: 'active' },
+  ];
+  const areas = [{ id: 'a1', title: 'Launcher work', color: 'bg-teal-500' }];
+  const isVisibleForUser = (item) => item.assignedTo !== 'other';
+  const run = (over = {}) => buildSpotlightResults({ query: 'launcher', goals, projects, areas, isVisibleForUser, now: NOW, ...over });
+
+  it('finds the ones the space draws, by title, and nothing it does not', () => {
+    const out = run();
+    expect(out.map(r => [r.task.id, r.source])).toEqual([
+      ['g1', 'goal'], ['p1', 'project'], ['p2', 'project'], ['p4', 'project'], ['a1', 'area'],
+    ]);
+    // A project takes its goal's colour when it has none of its own.
+    expect(out.find(r => r.task.id === 'p1').task.color).toBe('bg-red-500');
+    expect(out.find(r => r.task.id === 'p2').task.color).toBe('bg-amber-500');
+  });
+
+  it('come first, in their own group, ahead of tasks dated today', () => {
+    const out = run({ tasks: [task({ id: 't', title: 'Launcher bug', date: '2026-09-16' })] });
+    expect(out.map(r => r.group)).toEqual(['goals', 'goals', 'goals', 'goals', 'goals', 'today']);
+  });
+
+  it('match a goal or project on its notes when the title misses, title first', () => {
+    const out = buildSpotlightResults({
+      query: 'tempo',
+      goals: [{ id: 'g', title: 'Run a half marathon', status: 'active', description: 'Two tempo runs a week' }],
+      projects: [{ id: 'p', title: 'Tempo blocks', status: 'active' }],
+      now: NOW,
+    });
+    expect(out.map(r => [r.task.id, r.match.field])).toEqual([['p', 'title'], ['g', 'notes']]);
+    expect(out[1].match.text).toBe('Two tempo runs a week');
+  });
+
+  it('are left out when the caller passes none (Goals & Projects off)', () => {
+    expect(buildSpotlightResults({ query: 'launcher', now: NOW })).toEqual([]);
+  });
+});
+

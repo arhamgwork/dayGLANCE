@@ -1687,6 +1687,12 @@ const DayPlanner = () => {
   // become searchable (see the effect near the native-calendar fetch below).
   const [spotlightNativeTasks, setSpotlightNativeTasks] = useState([]);
 
+  // Open the Goals & Projects space on a goal, a project or an area: a
+  // widget or launcher link (drainPendingDeepLinkRef) and a Spotlight result
+  // (#2131). Assigned further down, once everything it reads is in scope.
+  const openGoalsTargetRef = useRef(null);
+  const openGoalsTarget = useCallback((action, id) => openGoalsTargetRef.current?.(action, id), []);
+
   const { changeDate, goToToday, goToDate, handleSpotlightSelect } = useNavigation({
     visibleDays,
     effectiveViewMode,
@@ -1708,6 +1714,7 @@ const DayPlanner = () => {
     setDailyNotesModalDate,
     calendarRef,
     closePlanner,
+    openGoalsTarget,
   });
 
   const {
@@ -2707,23 +2714,25 @@ const DayPlanner = () => {
           setDesktopSpace('calendar');
           if (dayLinkEnvRef.current.phone) { setMobileActiveTab('timeline'); setMobileSettingsView('main'); }
         }
-        else if (action === 'goal' || action === 'project') {
-          const r = resolveGoalsLink(action, url.searchParams, {
-            enabled: goalsProjectsEnabled, phone: dayLinkEnvRef.current.phone,
-          });
-          if (r) {
-            if (r.space) setDesktopSpace(r.space);
-            if (r.mobileTab) { setMobileActiveTab(r.mobileTab); setMobileSettingsView('main'); }
-            // A goal the area filter hides has no card to go to: widen it.
-            const goalId = r.focusGoalId || projects.find(p => p.id === r.focusProjectId)?.goalId;
-            if (areaFilterHides(goals.find(g => g.id === goalId), goalsAreaFilter, areas)) setGoalsAreaFilter('all');
-            if (r.focusGoalId) setGoalsDashboardFocusId(r.focusGoalId);
-            if (r.focusProjectId) setGoalsDashboardFocusProjectId(r.focusProjectId);
-            if (r.tab) setGoalsDashboardFocusTab(r.tab);
-          }
-        }
+        else if (action === 'goal' || action === 'project') openGoalsTargetRef.current(action, url.searchParams);
       } catch (_) {}
     }
+  };
+  // `target` is a link's URLSearchParams, or a bare id (Spotlight). An area
+  // opens the Goals tab filtered to it; areas have no link of their own.
+  openGoalsTargetRef.current = (action, target) => {
+    const params = typeof target === 'string' ? new URLSearchParams({ id: target }) : target;
+    const r = resolveGoalsLink(action, params, { enabled: goalsProjectsEnabled, phone: dayLinkEnvRef.current.phone });
+    if (!r) return;
+    if (r.space) setDesktopSpace(r.space);
+    if (r.mobileTab) { setMobileActiveTab(r.mobileTab); setMobileSettingsView('main'); }
+    if (r.areaFilter) setGoalsAreaFilter(r.areaFilter);
+    // A goal the area filter hides has no card to go to: widen it.
+    const goalId = r.focusGoalId || projects.find(p => p.id === r.focusProjectId)?.goalId;
+    if (areaFilterHides(goals.find(g => g.id === goalId), goalsAreaFilter, areas)) setGoalsAreaFilter('all');
+    if (r.focusGoalId) setGoalsDashboardFocusId(r.focusGoalId);
+    if (r.focusProjectId) setGoalsDashboardFocusProjectId(r.focusProjectId);
+    if (r.tab) setGoalsDashboardFocusTab(r.tab);
   };
 
   // Drain pending quick-action shortcut when data finishes loading. This covers
@@ -5966,9 +5975,11 @@ const DayPlanner = () => {
       recurringTasks,
       recycleBin,
       dailyNotes: obsidianConfig?.enabled ? null : dailyNotes,
+      // Goals, projects and areas only while the feature is on (#2131).
+      ...(goalsProjectsEnabled ? { goals, projects, areas } : {}),
       isVisibleForUser,
     });
-  }, [showSpotlight, spotlightQuery, tasks, unscheduledTasks, recurringTasks, recycleBin, spotlightNativeTasks, dailyNotes, obsidianConfig?.enabled, isVisibleForUser]);
+  }, [showSpotlight, spotlightQuery, tasks, unscheduledTasks, recurringTasks, recycleBin, spotlightNativeTasks, dailyNotes, obsidianConfig?.enabled, goalsProjectsEnabled, goals, projects, areas, isVisibleForUser]);
 
   // Compute today's agenda for dayGLANCE section (excludes past events)
   const todayAgenda = useMemo(() => {

@@ -1352,8 +1352,7 @@
   "spotlight": {
     "resultsCount_one": "{{count}} 个结果",
     "resultsCount_other": "{{count}} 个结果",
-    "placeholder": "搜索任务和笔记...",
-    "typeToSearch": "键入以搜索所有任务和笔记...",
+    "typeToSearch": "键入以搜索...",
     "noResults": "没有找到结果",
     "groupToday": "今天",
     "groupThisWeek": "本周",

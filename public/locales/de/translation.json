@@ -1352,8 +1352,7 @@
   "spotlight": {
     "resultsCount_one": "{{count}} Ergebnis",
     "resultsCount_other": "{{count}} Ergebnisse",
-    "placeholder": "Aufgaben und Notizen suchen…",
-    "typeToSearch": "Tippen um alle Aufgaben und Notizen zu durchsuchen…",
+    "typeToSearch": "Tippen zum Suchen…",
     "noResults": "Keine Ergebnisse gefunden",
     "groupToday": "Heute",
     "groupThisWeek": "Diese Woche",

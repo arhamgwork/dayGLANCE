@@ -13,6 +13,9 @@
 //   dayglance://today          today's calendar: the Calendar space, the
 //                              timeline tab on a phone, today selected
 //
+// Spotlight (#2131) opens goals and projects the same way, and areas, which
+// have no link: 'area' with an id opens the Goals tab filtered to that area.
+//
 // The phone has no space: Goals & Projects is its own tab (mobileActiveTab
 // 'goals'). Tablets and desktops use the header's space switcher.
 //
@@ -22,21 +25,26 @@
 // archived, or not visible to this user) still opens the space, unfocused.
 
 /**
- * @param {'goal'|'project'} action
+ * @param {'goal'|'project'|'area'} action  'area' is Spotlight's only.
  * @param {URLSearchParams} params
  * @param {object} env
  * @param {boolean} env.enabled   Goals & Projects is on.
  * @param {boolean} env.phone     The phone layout (the Goals tab, not the space).
  * @returns {null | { mobileTab: string|null, space: string|null,
  *                    focusGoalId: string|null, focusProjectId: string|null,
- *                    tab: 'goals'|'projects'|null }}
+ *                    tab: 'goals'|'projects'|null, areaFilter?: string }}
  *   null: not a goals link, or the feature is off (open the app as it is).
  *   tab: the panel to show when nothing is focused; null otherwise.
+ *   areaFilter: the area to filter the Goals tab to ('area' only).
  */
 export function resolveGoalsLink(action, params, { enabled, phone }) {
-  if (action !== 'goal' && action !== 'project') return null;
+  if (action !== 'goal' && action !== 'project' && action !== 'area') return null;
   if (!enabled) return null;
   const id = params.get('id') || null;
+  if (action === 'area') {
+    if (!id) return null;
+    return { mobileTab: phone ? 'goals' : null, space: phone ? null : 'goals', focusGoalId: null, focusProjectId: null, tab: 'goals', areaFilter: id };
+  }
   const tab = params.get('tab');
   return {
     mobileTab: phone ? 'goals' : null,
