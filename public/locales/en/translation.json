@@ -817,6 +817,8 @@
     "markSubtaskComplete": "Mark subtask complete",
     "editSubtask": "Edit subtask",
     "deleteSubtask": "Delete subtask",
+    "moveSubtask": "Move subtask “{{title}}”",
+    "moveSubtaskHint": "Drag, or press ↑/↓, to reorder",
     "archiveTask": "Archive task",
     "deadlineWithDate": "Deadline: {{date}}",
     "setDeadline": "Set deadline",
@@ -2760,7 +2762,8 @@
       "voiceApplied": "Applied the voice changes",
       "tagRenamed": "Renamed #{{from}} to #{{to}}",
       "tagMerged": "Merged #{{from}} into #{{to}}",
-      "tagRemoved": "Removed #{{from}}"
+      "tagRemoved": "Removed #{{from}}",
+      "subtasksReordered": "Reordered the subtasks of \"{{title}}\""
     }
   }
 }

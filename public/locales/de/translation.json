@@ -817,6 +817,8 @@
     "markSubtaskComplete": "Unteraufgabe als erledigt markieren",
     "editSubtask": "Unteraufgabe bearbeiten",
     "deleteSubtask": "Unteraufgabe löschen",
+    "moveSubtask": "Unteraufgabe „{{title}}“ verschieben",
+    "moveSubtaskHint": "Ziehen oder ↑/↓ drücken, um die Reihenfolge zu ändern",
     "archiveTask": "Aufgabe archivieren",
     "deadlineWithDate": "Frist: {{date}}",
     "setDeadline": "Frist festlegen",
@@ -2760,7 +2762,8 @@
       "voiceApplied": "Sprachänderungen übernommen",
       "tagRenamed": "#{{from}} in #{{to}} umbenannt",
       "tagMerged": "#{{from}} mit #{{to}} zusammengeführt",
-      "tagRemoved": "#{{from}} entfernt"
+      "tagRemoved": "#{{from}} entfernt",
+      "subtasksReordered": "Unteraufgaben von „{{title}}“ neu geordnet"
     }
   }
 }

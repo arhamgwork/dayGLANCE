@@ -40,6 +40,7 @@ export const UNDO_LABELS = [
   'subtasksAdded',
   'subtaskChanged',
   'subtaskDeleted',
+  'subtasksReordered',
   'snoozed',
   'frameSkipped',
   'frameAdjusted',

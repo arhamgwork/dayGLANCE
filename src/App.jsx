@@ -6421,6 +6421,8 @@ const DayPlanner = () => {
     focusToggleSubtask,
     focusDeleteSubtask,
     focusUpdateSubtaskTitle,
+    focusMoveSubtask,
+    moveSubtask,
   } = useTaskActions({
     tasks, setTasks, setEventNote,
     unscheduledTasks, setUnscheduledTasks,
@@ -7817,7 +7819,7 @@ const DayPlanner = () => {
     moveToRecycleBin, moveToInbox, undeleteTask,
     setDeadline, clearDeadline, postponeTask, postponeDeadlineTask,
     cyclePriority, changeTaskColor,
-    toggleSubtask, addSubtask, deleteSubtask, updateSubtaskTitle, updateTaskNotes,
+    toggleSubtask, addSubtask, deleteSubtask, updateSubtaskTitle, moveSubtask, updateTaskNotes,
     startEditingTask, saveTaskTitle, cancelEditingTask,
     applySuggestionForEdit, handleEditKeyDown, handleEditInputChange,
     handleNewTaskInputChange, handleNewTaskInputKeyDown, applySuggestionForNewTask,
@@ -8211,7 +8213,7 @@ const DayPlanner = () => {
     enterFocusMode, exitFocusMode, skipFocusPhase,
     startFocusTimer, dismissFocusStats, handleFocusTimerEnd,
     focusCompleteTask, focusToggleSubtask, focusAddSubtask,
-    focusDeleteSubtask, focusUpdateSubtaskTitle, focusUpdateTaskNotes,
+    focusDeleteSubtask, focusUpdateSubtaskTitle, focusMoveSubtask, focusUpdateTaskNotes,
     computeFocusBlockTasks,
 
     // ── HyperGLANCE ───────────────────────────────────────────────────────────

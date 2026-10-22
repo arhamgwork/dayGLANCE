@@ -840,6 +840,8 @@
     "markSubtaskComplete": "Позначити підзавдання виконаним",
     "editSubtask": "Редагувати підзавдання",
     "deleteSubtask": "Видалити підзавдання",
+    "moveSubtask": "Перемістити підзавдання «{{title}}»",
+    "moveSubtaskHint": "Перетягніть або натисніть ↑/↓, щоб змінити порядок",
     "archiveTask": "Архівувати завдання",
     "deadlineWithDate": "Дедлайн: {{date}}",
     "setDeadline": "Задати дедлайн",
@@ -2881,7 +2883,8 @@
       "voiceApplied": "Голосові зміни застосовано",
       "tagRenamed": "#{{from}} перейменовано на #{{to}}",
       "tagMerged": "#{{from}} об’єднано з #{{to}}",
-      "tagRemoved": "#{{from}} видалено"
+      "tagRemoved": "#{{from}} видалено",
+      "subtasksReordered": "Змінено порядок підзавдань у «{{title}}»"
     }
   }
 }

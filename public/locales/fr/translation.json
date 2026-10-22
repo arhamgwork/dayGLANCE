@@ -817,6 +817,8 @@
     "markSubtaskComplete": "Marquer la sous-tâche comme terminée",
     "editSubtask": "Modifier la sous-tâche",
     "deleteSubtask": "Supprimer la sous-tâche",
+    "moveSubtask": "Déplacer la sous-tâche « {{title}} »",
+    "moveSubtaskHint": "Faites glisser ou appuyez sur ↑/↓ pour réordonner",
     "archiveTask": "Archiver la tâche",
     "deadlineWithDate": "Échéance : {{date}}",
     "setDeadline": "Définir l’échéance",
@@ -2760,7 +2762,8 @@
       "voiceApplied": "Modifications vocales appliquées",
       "tagRenamed": "#{{from}} renommée en #{{to}}",
       "tagMerged": "#{{from}} fusionnée avec #{{to}}",
-      "tagRemoved": "#{{from}} retirée"
+      "tagRemoved": "#{{from}} retirée",
+      "subtasksReordered": "Sous-tâches de « {{title}} » réordonnées"
     }
   }
 }

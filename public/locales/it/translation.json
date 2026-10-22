@@ -817,6 +817,8 @@
     "markSubtaskComplete": "Contrassegna la sottoattività come completata",
     "editSubtask": "Modifica sottoattività",
     "deleteSubtask": "Elimina sottoattività",
+    "moveSubtask": "Sposta la sottoattività «{{title}}»",
+    "moveSubtaskHint": "Trascina o premi ↑/↓ per riordinare",
     "archiveTask": "Archivia attività",
     "deadlineWithDate": "Scadenza: {{date}}",
     "setDeadline": "Imposta scadenza",
@@ -2762,7 +2764,8 @@
       "voiceApplied": "Modifiche vocali applicate",
       "tagRenamed": "#{{from}} rinominato in #{{to}}",
       "tagMerged": "#{{from}} unito a #{{to}}",
-      "tagRemoved": "#{{from}} rimosso"
+      "tagRemoved": "#{{from}} rimosso",
+      "subtasksReordered": "Sottoattività di «{{title}}» riordinate"
     }
   }
 }

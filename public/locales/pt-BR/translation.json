@@ -817,6 +817,8 @@
     "markSubtaskComplete": "Marcar subtarefa como concluída",
     "editSubtask": "Editar subtarefa",
     "deleteSubtask": "Eliminar subtarefa",
+    "moveSubtask": "Mover a subtarefa “{{title}}”",
+    "moveSubtaskHint": "Arraste ou pressione ↑/↓ para reordenar",
     "archiveTask": "Arquivar tarefa",
     "deadlineWithDate": "Prazo: {{date}}",
     "setDeadline": "Definir prazo",
@@ -2760,7 +2762,8 @@
       "voiceApplied": "Alterações por voz aplicadas",
       "tagRenamed": "#{{from}} renomeada para #{{to}}",
       "tagMerged": "#{{from}} mesclada em #{{to}}",
-      "tagRemoved": "#{{from}} removida"
+      "tagRemoved": "#{{from}} removida",
+      "subtasksReordered": "Subtarefas de “{{title}}” reordenadas"
     }
   }
 }

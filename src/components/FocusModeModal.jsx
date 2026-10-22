@@ -27,7 +27,7 @@ const FocusModeModal = () => {
     focusCompletedTasks, focusCompleteTask,
     focusSessionStart,
     focusUpdateTaskNotes, focusAddSubtask, focusToggleSubtask,
-    focusDeleteSubtask, focusUpdateSubtaskTitle,
+    focusDeleteSubtask, focusUpdateSubtaskTitle, focusMoveSubtask,
     aiConfig, aiSubtasksLoadingForTask, generateAISubtasks,
   } = useFeaturesCtx();
 
@@ -198,6 +198,7 @@ const FocusModeModal = () => {
                       toggleSubtask={focusToggleSubtask}
                       deleteSubtask={focusDeleteSubtask}
                       updateSubtaskTitle={focusUpdateSubtaskTitle}
+                      moveSubtask={focusMoveSubtask}
                       compact={false}
                       noAutoFocus
                       aiConfig={aiConfig}
