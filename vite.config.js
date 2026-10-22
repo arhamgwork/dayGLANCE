@@ -4,6 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { readFileSync } from 'fs'
 import { safeRequest, SsrfError } from './api/_ssrfGuard.mjs'
 import { readBody } from './api/_readBody.mjs'
+import { BUILD_TARGET } from './vite.buildTarget.js'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
@@ -108,6 +109,7 @@ export default defineConfig({
     port: 5174,
   },
   build: {
+    target: BUILD_TARGET,
     sourcemap: false,
   },
   plugins: [

@@ -9,6 +9,7 @@ import react from '@vitejs/plugin-react';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { BUILD_TARGET } from './vite.buildTarget.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
@@ -34,6 +35,7 @@ export default defineConfig({
   ],
 
   build: {
+    target: BUILD_TARGET,
     outDir: 'dayglance-ios/DayGlance/Resources/web',
     emptyOutDir: true,
   },

@@ -6,7 +6,7 @@
 # Build stage - pinned to amd64 because the output is static files (arch-independent).
 # The arm64 image reuses this stage's output and only builds its own production
 # stage (nginx + nodejs) under emulation, so the heavy npm build never runs under QEMU.
-FROM --platform=linux/amd64 node:20-alpine AS builder
+FROM --platform=linux/amd64 node:22-alpine AS builder
 
 WORKDIR /app
 LABEL org.opencontainers.image.source=https://github.com/krelltunez/dayglance
