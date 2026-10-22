@@ -1352,7 +1352,6 @@
   "spotlight": {
     "resultsCount_one": "{{count}} résultat",
     "resultsCount_other": "{{count}} résultats",
-    "placeholder": "Rechercher des tâches et des notes…",
     "typeToSearch": "Tapez pour rechercher parmi toutes les tâches et notes…",
     "noResults": "Aucun résultat",
     "groupToday": "Aujourd'hui",

@@ -46,7 +46,7 @@ const SpotlightModal = () => {
                 handleSpotlightSelect(spotlightResults[spotlightSelectedIndex]);
               }
             }}
-            placeholder={t('spotlight.placeholder')}
+            placeholder={t('common.search')}
             className={`flex-1 bg-transparent outline-none ${textPrimary} text-sm placeholder:${textSecondary}`}
             autoFocus
           />

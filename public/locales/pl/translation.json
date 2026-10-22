@@ -1385,7 +1385,6 @@
     "resultsCount_few": "{{count}} wyniki",
     "resultsCount_many": "{{count}} wyników",
     "resultsCount_other": "{{count}} wyniku",
-    "placeholder": "Szukaj zadań i notatek...",
     "typeToSearch": "Wpisz, aby przeszukać wszystkie zadania i notatki...",
     "noResults": "Brak wyników",
     "groupToday": "Dzisiaj",

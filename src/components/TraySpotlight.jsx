@@ -70,7 +70,7 @@ export default function TraySpotlight({ darkMode, onClose }) {
         <input
           ref={inputRef}
           className={`flex-1 text-sm bg-transparent outline-none ${textPrimary}`}
-          placeholder={t('spotlight.placeholder')}
+          placeholder={t('common.search')}
           value={spotlightQuery}
           onChange={e => { setSpotlightQuery(e.target.value); setSpotlightSelectedIndex(0); }}
           onKeyDown={handleKeyDown}

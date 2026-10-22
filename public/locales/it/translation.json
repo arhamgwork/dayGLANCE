@@ -1354,7 +1354,6 @@
   "spotlight": {
     "resultsCount_one": "{{count}} risultato",
     "resultsCount_other": "{{count}} risultati",
-    "placeholder": "Cerca attività e note…",
     "typeToSearch": "Digita per cercare tra tutte le attività e le note…",
     "noResults": "Nessun risultato trovato",
     "groupToday": "Oggi",
