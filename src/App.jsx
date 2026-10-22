@@ -140,6 +140,8 @@ import { ZOOM_STORAGE_KEY, readZooms, withZoom } from './utils/timelineZoom.js';
 import { readCardSize, writeCardSize } from './utils/cardSize.js';
 import useWeather from './hooks/useWeather.js';
 import useTagFilter from './hooks/useTagFilter.js';
+import useTagManager from './hooks/useTagManager.js';
+import TagManagerModal from './components/TagManagerModal.jsx';
 import useOnboarding from './hooks/useOnboarding.js';
 import useDailyContent from './hooks/useDailyContent.js';
 import useHabits from './hooks/useHabits.js';
@@ -1523,6 +1525,15 @@ const DayPlanner = () => {
     tasks, unscheduledTasks, recycleBin, recurringTasks, gtdFrames,
     setTasks, setUnscheduledTasks, setRecycleBin, setRecurringTasks, setGtdFrames,
     playUISound, t,
+  });
+
+  // The tag manager (#2136): rename, merge or remove a tag on every task.
+  const [showTagManager, setShowTagManager] = useState(false);
+  const { applyTagEdit } = useTagManager({
+    tasks, unscheduledTasks, recurringTasks,
+    setTasks, setUnscheduledTasks, setRecurringTasks, setGtdFrames,
+    setSelectedTags, setInboxTagFilter, followUpTag, setFollowUpTag,
+    pushUndo, setUndoToast,
   });
 
   // Kept updated every render so the URL action handler reads the latest task state,
@@ -3592,6 +3603,7 @@ const DayPlanner = () => {
     showHabitModal, showFramesModal, frameAdjustModal, showRescheduleModal,
     showDayDial, setShowDayDial,
     plannerProjectId,
+    showTagManager,
     selectedDate, hoverPreviewTime, hoverPreviewDate,
     setNewTask, setShowAddTask, setHoverPreviewTime, setHoverPreviewDate,
     routinesEnabled, setRoutinesEnabled, openRoutinesDashboardRef,
@@ -7645,6 +7657,7 @@ const DayPlanner = () => {
 
     // ── Tags ──────────────────────────────────────────────────────────────────
     selectedTags, setSelectedTags,
+    setShowTagManager,
     showUntagged, setShowUntagged,
     showMobileTagFilter, setShowMobileTagFilter,
     allTags, filterableTags,
@@ -8646,6 +8659,17 @@ const DayPlanner = () => {
           onUndo={performUndo}
           onRedo={performRedo}
           onFollowUp={openFollowUp}
+        />
+      )}
+
+      {showTagManager && (
+        <TagManagerModal
+          tasks={tasks}
+          unscheduledTasks={unscheduledTasks}
+          recurringTasks={recurringTasks}
+          onApply={applyTagEdit}
+          onClose={() => setShowTagManager(false)}
+          darkMode={darkMode}
         />
       )}
 

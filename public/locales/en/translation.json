@@ -2694,6 +2694,29 @@
     "peekGone": "This task is no longer in dayGLANCE.",
     "peekShow": "Go to task"
   },
+  "tagManager": {
+    "manage": "Manage tags…",
+    "title": "Tags",
+    "subtitle": "Rename, merge or remove a tag on every task that carries it.",
+    "search": "Find a tag",
+    "empty": "No tags yet. Add a #word to a task's title to tag it.",
+    "noMatch": "No tags match",
+    "rename": "Rename",
+    "remove": "Remove",
+    "showTasks": "Show tasks",
+    "hideTasks": "Hide tasks",
+    "newName": "New tag name",
+    "merge": "Merge",
+    "mergeHint": "#{{to}} is already in use: these tasks join it.",
+    "invalid": "One word, starting with a letter.",
+    "whereRecurring": "Repeats",
+    "taskCount_one": "{{count}} task",
+    "taskCount_other": "{{count}} tasks",
+    "removeConfirm_one": "Remove #{{tag}} from {{count}} task?",
+    "removeConfirm_other": "Remove #{{tag}} from {{count}} tasks?",
+    "locked_one": "{{count}} Todoist task keeps it: Todoist owns its title.",
+    "locked_other": "{{count}} Todoist tasks keep it: Todoist owns their titles."
+  },
   "undo": {
     "undone": "Undone: {{action}}",
     "redone": "Redone: {{action}}",
@@ -2734,7 +2757,10 @@
       "smartScheduled_other": "Scheduled {{count}} tasks with Smart Schedule",
       "rescheduled_one": "Rescheduled {{count}} task",
       "rescheduled_other": "Rescheduled {{count}} tasks",
-      "voiceApplied": "Applied the voice changes"
+      "voiceApplied": "Applied the voice changes",
+      "tagRenamed": "Renamed #{{from}} to #{{to}}",
+      "tagMerged": "Merged #{{from}} into #{{to}}",
+      "tagRemoved": "Removed #{{from}}"
     }
   }
 }

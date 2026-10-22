@@ -27,7 +27,7 @@ const MobileBottomSheets = () => {
     selectedTags,
     filterableTags,
     showUntagged, setShowUntagged,
-    showMobileTagFilter, setShowMobileTagFilter,
+    showMobileTagFilter, setShowMobileTagFilter, setShowTagManager,
     showMobileDailySummary, setShowMobileDailySummary,
     showIncompleteTasks, setShowIncompleteTasks,
     dailyStatsAllTimeCollapsed, setDailyStatsAllTimeCollapsed,
@@ -230,6 +230,20 @@ const MobileBottomSheets = () => {
         });
         })()}
       </div>
+      {/* Rename, merge or remove tags across tasks (#2136). */}
+      {setShowTagManager && (
+        <div className="px-4">
+          <button
+            type="button"
+            data-manage-tags
+            onClick={() => { setShowMobileTagFilter(false); setShowTagManager(true); }}
+            className={`w-full flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-sm font-medium text-blue-500 ${darkMode ? 'bg-white/5' : 'bg-stone-50'}`}
+          >
+            <Hash size={14} />
+            {t('tagManager.manage')}
+          </button>
+        </div>
+      )}
     </div>
   </div>
 )}

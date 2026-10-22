@@ -46,6 +46,9 @@ export const UNDO_LABELS = [
   'smartScheduled',
   'rescheduled',
   'voiceApplied',
+  'tagRenamed',
+  'tagMerged',
+  'tagRemoved',
 ];
 const KNOWN = new Set(UNDO_LABELS);
 

@@ -2694,6 +2694,29 @@
     "peekGone": "Cette tâche n’est plus dans dayGLANCE.",
     "peekShow": "Aller à la tâche"
   },
+  "tagManager": {
+    "manage": "Gérer les étiquettes…",
+    "title": "Étiquettes",
+    "subtitle": "Renommez, fusionnez ou retirez une étiquette sur toutes les tâches qui la portent.",
+    "search": "Chercher une étiquette",
+    "empty": "Aucune étiquette pour l’instant. Ajoutez un #mot au titre d’une tâche pour l’étiqueter.",
+    "noMatch": "Aucune étiquette ne correspond",
+    "rename": "Renommer",
+    "remove": "Retirer",
+    "showTasks": "Afficher les tâches",
+    "hideTasks": "Masquer les tâches",
+    "newName": "Nouveau nom de l’étiquette",
+    "merge": "Fusionner",
+    "mergeHint": "#{{to}} est déjà utilisée : ces tâches la rejoignent.",
+    "invalid": "Un seul mot, commençant par une lettre.",
+    "whereRecurring": "Récurrente",
+    "taskCount_one": "{{count}} tâche",
+    "taskCount_other": "{{count}} tâches",
+    "removeConfirm_one": "Retirer #{{tag}} de {{count}} tâche ?",
+    "removeConfirm_other": "Retirer #{{tag}} de {{count}} tâches ?",
+    "locked_one": "{{count}} tâche Todoist la garde : Todoist gère son titre.",
+    "locked_other": "{{count}} tâches Todoist la gardent : Todoist gère leurs titres."
+  },
   "undo": {
     "undone": "Annulé : {{action}}",
     "redone": "Rétabli : {{action}}",
@@ -2734,7 +2757,10 @@
       "smartScheduled_other": "{{count}} tâches planifiées par la planification intelligente",
       "rescheduled_one": "{{count}} tâche replanifiée",
       "rescheduled_other": "{{count}} tâches replanifiées",
-      "voiceApplied": "Modifications vocales appliquées"
+      "voiceApplied": "Modifications vocales appliquées",
+      "tagRenamed": "#{{from}} renommée en #{{to}}",
+      "tagMerged": "#{{from}} fusionnée avec #{{to}}",
+      "tagRemoved": "#{{from}} retirée"
     }
   }
 }

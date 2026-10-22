@@ -2696,6 +2696,29 @@
     "peekGone": "Questa attività non è più in dayGLANCE.",
     "peekShow": "Vai all'attività"
   },
+  "tagManager": {
+    "manage": "Gestisci tag…",
+    "title": "Tag",
+    "subtitle": "Rinomina, unisci o rimuovi un tag da tutte le attività che lo hanno.",
+    "search": "Cerca un tag",
+    "empty": "Ancora nessun tag. Aggiungi una #parola al titolo di un’attività per taggarla.",
+    "noMatch": "Nessun tag corrisponde",
+    "rename": "Rinomina",
+    "remove": "Rimuovi",
+    "showTasks": "Mostra attività",
+    "hideTasks": "Nascondi attività",
+    "newName": "Nuovo nome del tag",
+    "merge": "Unisci",
+    "mergeHint": "#{{to}} è già in uso: queste attività si uniscono a esso.",
+    "invalid": "Una sola parola che inizia con una lettera.",
+    "whereRecurring": "Si ripete",
+    "taskCount_one": "{{count}} attività",
+    "taskCount_other": "{{count}} attività",
+    "removeConfirm_one": "Rimuovere #{{tag}} da {{count}} attività?",
+    "removeConfirm_other": "Rimuovere #{{tag}} da {{count}} attività?",
+    "locked_one": "{{count}} attività di Todoist lo mantiene: Todoist gestisce il suo titolo.",
+    "locked_other": "{{count}} attività di Todoist lo mantengono: Todoist gestisce i loro titoli."
+  },
   "undo": {
     "undone": "Annullato: {{action}}",
     "redone": "Ripristinato: {{action}}",
@@ -2736,7 +2759,10 @@
       "smartScheduled_other": "{{count}} attività pianificate con la pianificazione intelligente",
       "rescheduled_one": "{{count}} attività ripianificata",
       "rescheduled_other": "{{count}} attività ripianificate",
-      "voiceApplied": "Modifiche vocali applicate"
+      "voiceApplied": "Modifiche vocali applicate",
+      "tagRenamed": "#{{from}} rinominato in #{{to}}",
+      "tagMerged": "#{{from}} unito a #{{to}}",
+      "tagRemoved": "#{{from}} rimosso"
     }
   }
 }
