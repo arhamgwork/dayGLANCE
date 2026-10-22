@@ -25,6 +25,8 @@ const isSubscriptionImport = (t) =>
 import { isTrayMode } from '../utils/trayMode.js';
 import { repairLoadedGhostRows } from '../utils/obsidianGhostRows.js';
 import { recordLoadFailure, isLoadProtected } from '../utils/loadFailures.js';
+import { loadDailyNotes } from '../utils/dailyNotesStore.js';
+import { mergeDailyNotes } from '@glance-apps/sync';
 import { writeItem, getWriteFailures } from '../utils/storageWrites.js';
 import { stripProjectRefs, stripGoalRefs } from '../utils/referentialIntegrity.js';
 
@@ -42,6 +44,20 @@ import { stripProjectRefs, stripGoalRefs } from '../utils/referentialIntegrity.j
 // never changes what is stored.
 const lastWritten = new Map(); // storage key -> { inputs: any[], value: string }
 const sameInputs = (a, b) => a.length === b.length && a.every((v, i) => Object.is(v, b[i]));
+
+// Per-row reuse inside a task-shaped bucket (#2140). Skipping a whole bucket
+// only helps when nothing in it changed, and completing one task changes the
+// tasks array, so the pass used to re-parse the stored copy and run every row
+// through the baseline / deferral / plan-trail / timestamp steps. Each of
+// those steps is per row: it pairs a row with the stored row of the same id
+// and nothing else. So a row whose object is the one the last pass saw, against
+// a stored copy that is still exactly what that pass wrote, produces exactly
+// what that pass produced, and is reused. Only the other rows run the steps,
+// against the last pass's output, which IS the stored copy. Any doubt (the
+// suppress flag or the native-calendar filter moved, or storage was changed
+// behind the pass) takes the full path, as before.
+const rowCache = new Map(); // storage key -> { context, value, inputById, outputById }
+const rowId = (row) => String(row?.id);
 
 export default function useDataPersistence({
   // setters for loadData
@@ -219,13 +235,6 @@ export default function useDataPersistence({
       const completedTaskUidsData = localStorage.getItem('day-planner-task-completed-uids');
       if (completedTaskUidsData) setCompletedTaskUids(new Set(JSON.parse(completedTaskUidsData)));
     });
-    // App's useState initializer has already read the notes (and recorded a
-    // failure there if they were unreadable); this re-read keeps a reload of
-    // loadData in step with storage.
-    bucket(['day-planner-daily-notes'], () => {
-      const dailyNotesData = localStorage.getItem('day-planner-daily-notes');
-      if (dailyNotesData) setDailyNotes(JSON.parse(dailyNotesData));
-    });
     bucket(['day-planner-recurring-tasks'], () => {
       const recurringTasksData = localStorage.getItem('day-planner-recurring-tasks');
       if (!recurringTasksData) return;
@@ -328,9 +337,21 @@ export default function useDataPersistence({
       const goalsProjectsEnabledData = localStorage.getItem('day-planner-goals-projects-enabled');
       if (goalsProjectsEnabledData !== null) setGoalsProjectsEnabled(JSON.parse(goalsProjectsEnabledData));
     });
+    // Daily notes come from IndexedDB, asynchronously (utils/dailyNotesStore.js,
+    // which also moves them out of localStorage on the first run). dataLoaded
+    // waits for them, so nothing gated on it (the save pass, both sync tiers,
+    // backups) ever sees the map before it has loaded. Edits made in the
+    // moment before are kept: the loaded map and the live one merge per date,
+    // newer lastModified winning, as sync merges them.
+    //
     // Loaded, though not necessarily in full: whatever could not be read is
     // protected (utils/loadFailures.js) and the banner says so.
-    setDataLoaded(true);
+    return loadDailyNotes({ readOnly: isTrayMode })
+      .then(({ notes }) => {
+        setDailyNotes(prev => mergeDailyNotes(notes, prev || {}).merged);
+      })
+      .catch((error) => console.error('[load] daily notes:', error))
+      .finally(() => setDataLoaded(true));
   };
 
   const saveData = () => {
@@ -391,52 +412,91 @@ export default function useDataPersistence({
     // already carrying a baseline, stampOriginalPlan returns the SAME array, and
     // nothing further happens. suppressTimestampRef covers it as before: while
     // remote data is being applied this device witnessed no scheduling.
-    // The whole task pipeline (baselines, deferrals, plan trail, stamps) reads
-    // the stored copy and the live list, and is skipped with the bucket when
-    // neither has moved since this pass wrote it (#2140).
-    const taskInputs = [tasks, suppressTimestampRef.current, hasNativeCalendar()];
+    // Stamp a task-shaped bucket, reusing the rows the last pass already did
+    // (see rowCache above). `steps(rows, prevRows)` maps rows to their stamped
+    // form, one for one and in order, against the stored rows they replace.
+    const context = [suppressTimestampRef.current, hasNativeCalendar()];
+    const stampRows = (key, rows, steps) => {
+      const cache = rowCache.get(key);
+      let raw;
+      try { raw = localStorage.getItem(key); } catch { raw = undefined; }
+      const reusable = cache && raw != null && raw === cache.value && sameInputs(cache.context, context);
+      if (!reusable) return steps(rows, readStored(key));
+      const changed = rows.filter(row => cache.inputById.get(rowId(row)) !== row);
+      if (changed.length === 0) return rows.map(row => cache.outputById.get(rowId(row)));
+      const prevRows = changed.map(row => cache.outputById.get(rowId(row))).filter(Boolean);
+      const done = steps(changed, prevRows);
+      const redone = new Map(changed.map((row, i) => [row, done[i]]));
+      return rows.map(row => (redone.has(row) ? redone.get(row) : cache.outputById.get(rowId(row))));
+    };
+    // Write a stamped bucket, and remember its rows for the next pass only if
+    // the write landed (a failed or protected write leaves storage as it was).
+    const saveRows = (key, rows, stamped, inputs) => {
+      const value = JSON.stringify(stamped);
+      safeSet(key, value, inputs);
+      if (lastWritten.get(key)?.value === value) {
+        rowCache.set(key, {
+          context,
+          value,
+          inputById: new Map(rows.map(row => [rowId(row), row])),
+          outputById: new Map(stamped.map(row => [rowId(row), row])),
+        });
+      } else {
+        rowCache.delete(key);
+      }
+    };
+
+    // The task pipeline (baselines, deferrals, plan trail, stamps), skipped
+    // with the bucket when nothing in it has moved since this pass wrote it,
+    // and run only on the rows that did otherwise (#2140).
+    const taskInputs = [tasks, ...context];
     if (!unchanged('day-planner-tasks', taskInputs)) {
-      const prevStoredTasks = readStored('day-planner-tasks');
       const liveTasks = tasks.filter(t => !t._native && !(hasNativeCalendar() && isSubscriptionImport(t)));
-      //
-      // `deferrals` (utils/deferrals.js) rides the same pass and the same reasoning:
-      // this is the only place that sees the schedule a task HAD next to the one it
-      // has now, which is what tells a slip from a fresh plan. Suppressed during a
-      // remote apply for the same reason as the baseline — a reschedule made on
-      // another device is that device's to count, and counting it again here would
-      // inflate every task on every sync.
-      const plannedTasks = suppressTimestampRef.current
-        ? liveTasks
-        : stampOriginalPlan(liveTasks, prevStoredTasks);
-      const countedTasks = suppressTimestampRef.current
-        ? plannedTasks
-        : stampDeferrals(plannedTasks, prevStoredTasks);
-      // `planTrail` (utils/planTrail.js) records WHERE each of those slips landed,
-      // off the same comparison and under the same suppression. Stamped from
-      // `countedTasks` so a task that gains both in one pass keeps them: reading
-      // `plannedTasks` here would build the trail on a copy without the new count
-      // and then overwrite it.
-      const trailedTasks = suppressTimestampRef.current
-        ? countedTasks
-        : stampPlanTrail(countedTasks, prevStoredTasks);
-      if (plannedTasks !== liveTasks) setTasks(prev => applyBaselines(prev, plannedTasks));
-      if (countedTasks !== plannedTasks) setTasks(prev => applyDeferrals(prev, countedTasks));
-      if (trailedTasks !== countedTasks) setTasks(prev => applyPlanTrail(prev, trailedTasks));
-      const stampedTasks = stampTaskTimestamps(trailedTasks, 'day-planner-tasks', prevStoredTasks);
-      safeSet('day-planner-tasks', JSON.stringify(stampedTasks), taskInputs);
+      const stampedTasks = stampRows('day-planner-tasks', liveTasks, (rows, prevStoredTasks) => {
+        //
+        // `deferrals` (utils/deferrals.js) rides the same pass and the same reasoning:
+        // this is the only place that sees the schedule a task HAD next to the one it
+        // has now, which is what tells a slip from a fresh plan. Suppressed during a
+        // remote apply for the same reason as the baseline — a reschedule made on
+        // another device is that device's to count, and counting it again here would
+        // inflate every task on every sync.
+        const plannedTasks = suppressTimestampRef.current
+          ? rows
+          : stampOriginalPlan(rows, prevStoredTasks);
+        const countedTasks = suppressTimestampRef.current
+          ? plannedTasks
+          : stampDeferrals(plannedTasks, prevStoredTasks);
+        // `planTrail` (utils/planTrail.js) records WHERE each of those slips landed,
+        // off the same comparison and under the same suppression. Stamped from
+        // `countedTasks` so a task that gains both in one pass keeps them: reading
+        // `plannedTasks` here would build the trail on a copy without the new count
+        // and then overwrite it.
+        const trailedTasks = suppressTimestampRef.current
+          ? countedTasks
+          : stampPlanTrail(countedTasks, prevStoredTasks);
+        // The apply* write-backs match by id, so a subset of rows is enough.
+        if (plannedTasks !== rows) setTasks(prev => applyBaselines(prev, plannedTasks));
+        if (countedTasks !== plannedTasks) setTasks(prev => applyDeferrals(prev, countedTasks));
+        if (trailedTasks !== countedTasks) setTasks(prev => applyPlanTrail(prev, trailedTasks));
+        return stampTaskTimestamps(trailedTasks, 'day-planner-tasks', prevStoredTasks);
+      });
+      saveRows('day-planner-tasks', liveTasks, stampedTasks, taskInputs);
     }
 
     // The other task-shaped arrays are stamped against their own stored copy;
     // the suppress flag is an input because it decides whether they stamp.
     const suppressed = suppressTimestampRef.current;
-    saveBucket('day-planner-unscheduled', [unscheduledTasks, suppressed],
-      () => JSON.stringify(stampTaskTimestamps(unscheduledTasks, 'day-planner-unscheduled')));
-    saveBucket('day-planner-recycle-bin', [recycleBin, suppressed],
-      () => JSON.stringify(stampTaskTimestamps(recycleBin, 'day-planner-recycle-bin')));
-    saveBucket('day-planner-recurring-tasks', [recurringTasks, suppressed],
-      () => JSON.stringify(stampTaskTimestamps(recurringTasks, 'day-planner-recurring-tasks')));
-    saveBucket('day-planner-today-routines', [todayRoutines, suppressed],
-      () => JSON.stringify(stampTaskTimestamps(todayRoutines, 'day-planner-today-routines')));
+    const stampOnly = (key) => (rows, prev) => stampTaskTimestamps(rows, key, prev);
+    for (const [key, rows] of [
+      ['day-planner-unscheduled', unscheduledTasks],
+      ['day-planner-recycle-bin', recycleBin],
+      ['day-planner-recurring-tasks', recurringTasks],
+      ['day-planner-today-routines', todayRoutines],
+    ]) {
+      const inputs = [rows, suppressed];
+      if (unchanged(key, inputs)) continue;
+      saveRows(key, rows, stampRows(key, rows, stampOnly(key)), inputs);
+    }
 
     // Prune completedTaskUids to the retention window to prevent unbounded growth.
     // UIDs have the format "icalUid::YYYY-MM-DD"; discard entries whose date is

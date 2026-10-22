@@ -49,8 +49,9 @@ import { expandRecurringTasks } from '../utils/expandRecurringTasks.js';
 import { computeRecurringExpansionRange } from '../utils/recurringExpansionRange.js';
 import { frameInstancesForDate } from '../utils/frameInstances.js';
 import { isTaskVisibleForUser, isOwnedBy } from '../utils/userScope.js';
-import { readWeekStartDay } from '../utils/storedSlices.js';
+import { readWeekStartDay, readCalendarFilter, readNativeTimeOverrides } from '../utils/storedSlices.js';
 import { getStoredWeatherCoords } from '../utils/solar.js';
+import { fetchHourlyForecast } from '../utils/weatherForecast.js';
 import { loadAlarmPrefs } from '../utils/dialPrefs.js';
 import { dateToString } from '../utils/taskUtils.js';
 
@@ -65,6 +66,7 @@ const SCHED_DAYS_SHOWN = 14;
  * @param {() => object} [props.bridge]  the native bridge (window.DayGlanceNative)
  * @param {Function} [props.createFileEngine]  test seam for sync/adapter.js
  * @param {Function} [props.createVaultEngine] test seam for sync/dbEngine.js
+ * @param {Function} [props.fetchForecast]     test seam for utils/weatherForecast.js
  * @param {() => Date} [props.now]
  */
 export default function HeadlessRefresh({
@@ -72,6 +74,7 @@ export default function HeadlessRefresh({
   bridge = nativeBridge,
   createFileEngine = createDayGlanceEngine,
   createVaultEngine = createDbEngine,
+  fetchForecast = fetchHourlyForecast,
   now = () => new Date(),
 } = {}) {
   const clientId = clientIdProp ?? headlessRequest(window.location?.search ?? '')?.clientId ?? '';
@@ -124,8 +127,15 @@ export default function HeadlessRefresh({
   callbacksRef.current = { buildSyncPayload, applyEngineData, multiUserEnabled, syncRetentionDays };
 
   // What stopped a cycle, when the engine reports it rather than throwing:
-  // a first-sync conflict, a missing passphrase, a transport error.
+  // a first-sync conflict, a missing passphrase, a transport error. Both
+  // engines also call onError(null, null) to CLEAR a previous error at the
+  // start of a cycle; that is not a blocker (the first device run read it as
+  // one and reported `failed (vault:)` after a cycle that had succeeded).
   const blockerRef = useRef(null);
+  const noteError = (tier) => (msg, code) => {
+    if (!msg && !code) return;
+    blockerRef.current = `${tier}: ${code || ''} ${msg || ''}`.trim();
+  };
   const fileEngineRef = useRef(null);
   const syncFolder = normalizeSyncFolder(cloudSyncConfig?.syncFolder);
   if (!fileEngineRef.current && cloudSyncConfig?.enabled) {
@@ -134,7 +144,7 @@ export default function HeadlessRefresh({
       buildBackupPayload: () => callbacksRef.current.buildSyncPayload(),
       applyPayload: (data, opts) => callbacksRef.current.applyEngineData(data, opts),
       onStatusChange: noop,
-      onError: (msg, code) => { blockerRef.current = `file tier: ${code || ''} ${msg || ''}`.trim(); },
+      onError: noteError('file tier'),
       onLastSyncedChange: noop,
       onConflict: () => { blockerRef.current = 'file tier: first sync needs the user to resolve a conflict'; },
       onPassphraseRequired: () => { blockerRef.current = 'passphrase required'; },
@@ -152,7 +162,7 @@ export default function HeadlessRefresh({
       commitData: (data) => callbacksRef.current.applyEngineData(data, { allowEmpty: true }),
       isMultiUserEnabled: () => callbacksRef.current.multiUserEnabled === true,
       onStatusChange: noop,
-      onError: (msg, code) => { blockerRef.current = `vault: ${code || ''} ${msg || ''}`.trim(); },
+      onError: noteError('vault'),
       onRowsSkipped: noop,
     });
     if (!engine) return;
@@ -170,6 +180,8 @@ export default function HeadlessRefresh({
   const startedAtRef = useRef(null);
   // One cycle per root, whatever React does with effects (StrictMode re-runs them).
   const startedRef = useRef(false);
+  // The forecast, requested when the run starts so it overlaps the sync.
+  const forecastRef = useRef(null);
 
   const touchHeartbeat = useCallback(() => {
     const fileTier = cloudSyncConfig?.enabled ? fileEngineRef.current?.getLastSynced?.() : null;
@@ -200,6 +212,17 @@ export default function HeadlessRefresh({
     startedRef.current = true;
     setPhase('syncing');
     startedAtRef.current = Date.now();
+    // The one fetch outside the sync tiers (CLAUDE.md, "Headless refresh"):
+    // the dial's weather ring reads this forecast, and a phone left with the
+    // app closed for days would otherwise show the temperatures of the day it
+    // was last opened. Read-only: it writes no storage and no state, and its
+    // only consumer is the snapshot below. A failure is no forecast, and the
+    // shell keeps the last one.
+    forecastRef.current = Promise.resolve(fetchForecast({
+      coords: getStoredWeatherCoords(),
+      tempUnit: weatherTempUnit,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    })).catch(() => null);
     (async () => {
       if (shouldAbort()) return finish(HEADLESS_OUTCOMES.ABORTED, { reason: 'app opened' });
       if (syncKeyReady === false) return finish(HEADLESS_OUTCOMES.FAILED, { reason: 'passphrase required' });
@@ -231,39 +254,49 @@ export default function HeadlessRefresh({
   // commit when it reads state.
   useEffect(() => {
     if (phase !== 'synced') return;
-    try {
-      const nowDate = now();
-      const todayStr = dateToString(nowDate);
-      const isVisibleForUser = (task) => isTaskVisibleForUser(task, multiUserEnabled, meUserSyncId);
-      const ownedBy = (item) => isOwnedBy(item, multiUserEnabled, meUserSyncId);
-      const { rangeStart, rangeEnd } = computeRecurringExpansionRange({
-        selectedDate: nowDate, today: nowDate, schedDaysShown: SCHED_DAYS_SHOWN, weekStartDay: readWeekStartDay(),
-      });
-      const snapshot = buildLauncherSnapshot({
-        now: nowDate, todayStr,
-        tasks, unscheduledTasks,
-        expandedRecurringTasks: recurringTasks.length ? expandRecurringTasks(recurringTasks, { rangeStart, rangeEnd, today: todayStr }) : [],
-        projects, goals, goalsProjectsEnabled, isVisibleForUser,
-        todayRoutines: allTodayRoutines.filter(ownedBy), routineCompletions, routinesEnabled,
-        frameInstancesForDate: (date) => frameInstancesForDate(gtdFrames.filter(ownedBy), dateToString(date)),
-        getDayWindow,
-        weatherCoords: getStoredWeatherCoords(),
-        // No weather fetch in a headless run: the shell keeps the last
-        // snapshot's weather when a new one carries none.
-        weatherHourlyByDate: null,
-        weatherTempUnit,
-        dialAlarm: loadAlarmPrefs(),
-        use24Hour: use24HourClock,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        updatedAt: Date.now(),
-        handledWrites: readLauncherLedger(),
-      });
-      if (shouldAbort()) return finish(HEADLESS_OUTCOMES.ABORTED, { reason: 'app opened' });
-      bridge()?.updateLauncherSnapshot?.(JSON.stringify(snapshot));
-      finish(HEADLESS_OUTCOMES.RAN);
-    } catch (err) {
-      finish(HEADLESS_OUTCOMES.FAILED, { reason: `snapshot: ${err?.message || err}` });
-    }
+    (async () => {
+      try {
+        const weatherHourlyByDate = await (forecastRef.current ?? null);
+        if (shouldAbort()) return finish(HEADLESS_OUTCOMES.ABORTED, { reason: 'app opened' });
+        const nowDate = now();
+        const todayStr = dateToString(nowDate);
+        const isVisibleForUser = (task) => isTaskVisibleForUser(task, multiUserEnabled, meUserSyncId);
+        const ownedBy = (item) => isOwnedBy(item, multiUserEnabled, meUserSyncId);
+        const { rangeStart, rangeEnd } = computeRecurringExpansionRange({
+          selectedDate: nowDate, today: nowDate, schedDaysShown: SCHED_DAYS_SHOWN, weekStartDay: readWeekStartDay(),
+        });
+        const snapshot = buildLauncherSnapshot({
+          now: nowDate, todayStr,
+          tasks, unscheduledTasks,
+          expandedRecurringTasks: recurringTasks.length ? expandRecurringTasks(recurringTasks, { rangeStart, rangeEnd, today: todayStr }) : [],
+          projects, goals, goalsProjectsEnabled, isVisibleForUser,
+          todayRoutines: allTodayRoutines.filter(ownedBy), routineCompletions, routinesEnabled,
+          frameInstancesForDate: (date) => frameInstancesForDate(gtdFrames.filter(ownedBy), dateToString(date)),
+          getDayWindow,
+          weatherCoords: getStoredWeatherCoords(),
+          // Null when the fetch failed: the shell keeps the last snapshot's
+          // weather when a new one carries none.
+          weatherHourlyByDate,
+          weatherTempUnit,
+          dialAlarm: loadAlarmPrefs(),
+          use24Hour: use24HourClock,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          updatedAt: Date.now(),
+          handledWrites: readLauncherLedger(),
+          // No device-calendar read in a headless run (the allowlist): the
+          // provider reads the calendar itself with these, and without the
+          // permission keeps the previous snapshot's events, which a sync
+          // cannot change anyway.
+          carryDeviceEvents: true,
+          deviceCalendar: { filter: readCalendarFilter(), overrides: readNativeTimeOverrides() },
+        });
+        if (shouldAbort()) return finish(HEADLESS_OUTCOMES.ABORTED, { reason: 'app opened' });
+        bridge()?.updateLauncherSnapshot?.(JSON.stringify(snapshot));
+        finish(HEADLESS_OUTCOMES.RAN);
+      } catch (err) {
+        finish(HEADLESS_OUTCOMES.FAILED, { reason: `snapshot: ${err?.message || err}` });
+      }
+    })();
     // The snapshot is built once, from the state of the commit that settled the cycle.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);

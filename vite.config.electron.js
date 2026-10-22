@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { readFileSync } from 'fs';
+import { BUILD_TARGET } from './vite.buildTarget.js';
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
@@ -52,6 +53,7 @@ export default defineConfig({
     __MAS_BUILD__: JSON.stringify(process.env.DAYGLANCE_MAS_BUILD === '1'),
   },
   build: {
+    target: BUILD_TARGET,
     sourcemap: false,
     outDir: 'dist',
     emptyOutDir: true,

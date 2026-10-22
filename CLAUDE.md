@@ -128,6 +128,24 @@ feature-local namespace. Add new keys to `public/locales/*/translation.json`;
   grid and snaps to 15 minutes like every view. Do not reimplement timeline
   behaviour inside JOBO: extend the shared column instead.
 
+# Daily notes storage
+
+Daily notes live in IndexedDB, one row per date (`src/utils/dailyNotesStore.js`,
+#2141); React state still holds the whole map and both sync tiers see it through
+the payload. The rules:
+
+- **Not loaded is not empty.** `dataLoaded` waits for the notes, and until they
+  load (or for a session in which they could not) `dailyNotesSyncable()` is
+  false: nothing is written, and the payload and backups omit `dailyNotes`
+  rather than send `{}`. The vault diff carries an omitted map forward
+  (`absentCollectionKinds` in `src/sync/dbAdapter.js`).
+- **The move never loses the only copy.** The old localStorage key is removed
+  only after every date it held reads back from the database. Where IndexedDB
+  is unavailable the notes stay in localStorage, as before.
+- **Write through the store.** `writeDailyNotes` (per changed date) and
+  `restoreDailyNotesFromBackup`; a restore awaits `flushDailyNotes()` before it
+  reloads. Nothing else touches the database or the old key.
+
 # Adding a field to a task
 
 Task rows cross four subsystems, and a new field has to be declared to each one
@@ -179,11 +197,19 @@ Activity, to answer the launcher's REFRESH while the app's process is dead
   `useSaveOnChange`, the day windows, the JOBO ledger), both sync tiers with
   the app's own payload and apply (`hooks/useSyncEngineData.js`), and the
   launcher snapshot and heartbeat push. Nothing else initialises: no
-  calendar fetch, Obsidian, reminders, weather, widgets, intents or UI. It is
+  calendar fetch, Obsidian, reminders, widgets, intents or UI. It is
   never `<App headless />`: a feature that must not run headlessly is one the
   root does not import, not one that checks a flag. The native
   `HeadlessBridge` is the same allowlist (`HEADLESS_BRIDGE_METHODS` in
   `headlessMode.js`); keep the two lists equal.
+- **The forecast is the one named exception.** The dial's weather ring reads
+  it, and a phone left with the app closed for days would otherwise show the
+  temperatures of the day it was last opened. One read-only request for the
+  stored coordinates (`utils/weatherForecast.js`, the same request and
+  reading `useWeather` makes), started with the sync, awaited by the
+  snapshot, writing no storage and no state. A failure is no forecast, and
+  the shell keeps the last one. It is not a precedent: anything else a
+  headless run should fetch is argued for here first.
 - **The headless root loads every synced slice the way the app does.** The
   payload sends each slice with a fresh `lastModified`, so a slice read with a
   different default here would be pushed to every device as an edit. Slices

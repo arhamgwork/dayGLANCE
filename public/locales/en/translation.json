@@ -35,6 +35,7 @@
       "PASSPHRASE_REQUIRED": "Enter your sync passphrase to continue.",
       "PRECONDITION_FAILED": "Another device updated first. Retrying.",
       "QUOTA_EXCEEDED": "The sync server has reached its limit for this account. Your changes are saved on this device and syncing will retry automatically. Ask whoever runs your sync server to raise the limit.",
+      "PAYLOAD_TOO_LARGE": "The sync file{{size}} is too large for your sync server or the proxy in front of it (413), so nothing was uploaded. Your changes are saved on this device, and changes from your other devices still arrive. Uploads retry every 30 minutes; ask whoever runs your sync server to raise its upload limit.",
       "KEY_MISMATCH": "Wrong sync passphrase. It must exactly match the passphrase used on your other devices.",
       "VERIFIER_UNSUPPORTED": "Your GLANCEvault server needs to be updated to support this app version (key verification).",
       "ACCOUNT_ID_REQUIRED": "GLANCEvault is missing an account ID. Re-enter your GLANCEvault details (URL, device token, and account ID) in Cloud Sync settings.",
@@ -1377,7 +1378,16 @@
     "loadFailedDownload": "Download a copy",
     "loadFailedDiscard": "Discard",
     "loadFailedDiscardConfirm": "Discard the unreadable data? Your current data will be saved over it, and this can't be undone. Download a copy first if you might need it.",
-    "seeWhatIsUsingSpace": "See what's using space"
+    "seeWhatIsUsingSpace": "See what's using space",
+    "projectionPending": "A forecast appears after a week of use.",
+    "projectionFlat": "Local storage use isn't growing.",
+    "projectionWarningFull": "Local storage is over 80% full. Open Storage Breakdown in Settings to see what's using it.",
+    "projectionDays_one": "At your current rate, local storage fills in about {{count}} day.",
+    "projectionMonths_one": "At your current rate, local storage fills in about {{count}} month.",
+    "projectionWarningSoon_one": "Local storage is filling up: at the current rate it is full in about {{count}} day. Open Storage Breakdown in Settings to see what's using it.",
+    "projectionDays_other": "At your current rate, local storage fills in about {{count}} days.",
+    "projectionMonths_other": "At your current rate, local storage fills in about {{count}} months.",
+    "projectionWarningSoon_other": "Local storage is filling up: at the current rate it is full in about {{count}} days. Open Storage Breakdown in Settings to see what's using it."
   },
   "weeklyReview": {
     "tasksDone": "Tasks done",

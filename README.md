@@ -488,6 +488,8 @@ The sync engine resolves conflicts at the task level using timestamps, not last-
 
 **Setup:** Settings → Cloud Sync → choose Nextcloud or Generic WebDAV → enter URL and credentials. Syncs automatically every 15 minutes or on demand.
 
+The sync file travels whole, so a proxy between the app and your server sets its maximum size: 4.5 MB on dayglance.app in a browser, 50 MB in the Docker image, and only your server's own limit in the desktop and mobile apps. See [`docs/sync-file-size.md`](docs/sync-file-size.md) for each setup and what happens at the limit.
+
 **End-to-end encryption** is available as an opt-in. When enabled, all sync data is encrypted with AES-256-GCM before leaving your device, and your passphrase never leaves your device and the server never sees plaintext. On Android, the derived key is stored in the hardware-backed Android Keystore; on iOS it is kept in the device Keychain, along with the GLANCEvault connection, so it survives a WebKit storage purge. Enable in **Settings → Cloud Sync → Enable end-to-end encryption**.
 
 One address policy backs all of this, and it is implemented separately in the desktop app, the four server-side proxies, and the sibling GLANCE apps. `api/ssrf-vectors.json` is the canonical table those implementations are checked against; regenerate it with `npm run ssrf:vectors` after any policy change and copy it to the siblings, the same way `dayDial.vectors.json` keeps the dial geometry in agreement across platforms.
@@ -656,7 +658,7 @@ These are the ones worth knowing by heart:
 | Layer | Technology |
 |-------|-----------|
 | UI Framework | [React 18](https://react.dev) |
-| Build Tool | [Vite 5](https://vitejs.dev) |
+| Build Tool | [Vite 8](https://vitejs.dev) |
 | Styling | [Tailwind CSS 3](https://tailwindcss.com) |
 | Icons | [Lucide React](https://lucide.dev) |
 | PWA | [vite-plugin-pwa](https://vite-pwa-org.netlify.app) + Workbox |

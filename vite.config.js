@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { readFileSync } from 'fs'
 import { safeRequest, SsrfError } from './api/_ssrfGuard.mjs'
+import { readBody } from './api/_readBody.mjs'
+import { BUILD_TARGET } from './vite.buildTarget.js'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
@@ -12,15 +14,6 @@ const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 // identically to the deployed environment.
 // ---------------------------------------------------------------------------
 function devApiProxy() {
-  function readBody(req) {
-    return new Promise((resolve, reject) => {
-      let data = '';
-      req.on('data', chunk => data += chunk);
-      req.on('end', () => resolve(data));
-      req.on('error', reject);
-    });
-  }
-
   function sendJson(res, status, obj) {
     res.writeHead(status, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(obj));
@@ -46,6 +39,11 @@ function devApiProxy() {
         }
         if (req.headers['x-webdav-auth']) headers['Authorization'] = req.headers['x-webdav-auth'];
         if (req.headers['depth'] !== undefined) headers['Depth'] = req.headers['depth'];
+        // The sync engine's concurrency check (If-Match) and its idle gate
+        // (If-None-Match, answered 304) both ride on these, as in the deployed
+        // proxies.
+        if (req.headers['if-match']) headers['If-Match'] = req.headers['if-match'];
+        if (req.headers['if-none-match']) headers['If-None-Match'] = req.headers['if-none-match'];
 
         const body = (req.method !== 'GET' && req.method !== 'HEAD')
           ? await readBody(req) : undefined;
@@ -59,9 +57,12 @@ function devApiProxy() {
           const response = await safeRequest(targetUrl, {
             method: req.method, headers, body: body ?? null, allowPrivate: true,
           });
-          res.writeHead(response.status, {
+          const resHeaders = {
             'Content-Type': response.headers['content-type'] || 'text/plain',
-          });
+            'Cache-Control': 'no-store',
+          };
+          if (response.headers.etag) resHeaders['ETag'] = response.headers.etag;
+          res.writeHead(response.status, resHeaders);
           res.end(response.body);
         } catch (err) {
           if (err instanceof SsrfError) return sendJson(res, err.status, { error: err.message });
@@ -108,6 +109,7 @@ export default defineConfig({
     port: 5174,
   },
   build: {
+    target: BUILD_TARGET,
     sourcemap: false,
   },
   plugins: [

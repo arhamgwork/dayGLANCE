@@ -76,6 +76,17 @@ export const readObsidianCompletionDates = () => {
 export const readWeatherZip = () => localStorage.getItem('day-planner-weather-zip') || '';
 export const readWeatherTempUnit = () => localStorage.getItem('day-planner-weather-temp-unit') || 'fahrenheit';
 
+// The device-calendar filter (utils/nativeCalendar.js: [] shows every
+// calendar) and the user's edits to device events, keyed by event id. App and
+// the headless root read them here; the launcher snapshot carries both so the
+// shell can read the calendar itself (utils/launcherSnapshot.js).
+export const readCalendarFilter = () => {
+  try { return JSON.parse(localStorage.getItem('day-planner-calendar-filter') || '[]'); } catch { return []; }
+};
+export const readNativeTimeOverrides = () => {
+  try { return JSON.parse(localStorage.getItem('day-planner-native-time-overrides') || '{}'); } catch { return {}; }
+};
+
 export const readGtdFrames = () => {
   try {
     const saved = localStorage.getItem('day-planner-gtd-frames');
@@ -94,8 +105,11 @@ export const readSyncRetentionDays = () => {
 };
 
 /**
- * Daily notes. Unreadable is not empty: the failure is recorded so the notes
- * persist effect does not write {} over the stored copy (utils/loadFailures.js).
+ * Daily notes, as an initial value only. They live in IndexedDB since #2141
+ * and arrive with loadData (utils/dailyNotesStore.js); this reads the
+ * localStorage copy a device has until that first load moves it, and {} after.
+ * Unreadable is not empty: the failure is recorded so nothing writes {} over
+ * the stored copy (utils/loadFailures.js).
  */
 export const readDailyNotes = () => {
   let saved = null;

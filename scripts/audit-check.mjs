@@ -39,45 +39,14 @@ const ACK = {
   // every packaged build at startup (ERR_MODULE_NOT_FOUND: hono). That is why
   // "hono" is a DIRECT dependency in package.json — do not remove it as
   // unused while the override keeps @hono/node-server on 2.x.
-  'GHSA-fx2h-pf6j-xcff': {
-    disposition: 'defer', pkg: 'vite',
-    reason: 'Dev-server `server.fs.deny` bypass (Windows only). Fix with the vite 5->8 upgrade.',
-    review: '2026-12-31',
-  },
-  'GHSA-4w7w-66w2-5vf9': {
-    disposition: 'defer', pkg: 'vite',
-    reason: 'Dev optimized-deps `.map` path traversal. Fix with the vite 5->8 upgrade.',
-    review: '2026-12-31',
-  },
-  'GHSA-v6wh-96g9-6wx3': {
-    disposition: 'defer', pkg: 'launch-editor (via vite)',
-    reason: 'NTLMv2 hash disclosure (Windows only). Fix with the vite 5->8 upgrade.',
-    review: '2026-12-31',
-  },
-  // Published 2026-10-20 against launch-editor, which vite's DEV server uses to
-  // open a file from the error overlay. Every vite through 6.4.3 is affected,
-  // so vite 5 has no patched release; vitest's own vite 8 copy is on 8.3.4,
-  // which is fixed. Dev-only: `npm ls vite --omit=dev` is empty.
-  'GHSA-587h-7wmj-h5pm': {
-    disposition: 'defer', pkg: 'launch-editor (via vite)',
-    reason: 'Dev-server open-in-editor existence check bypass (Windows only). Fix with the vite 5->8 upgrade.',
-    review: '2026-12-31',
-  },
-  'GHSA-698v-4r3x-3vcv': {
-    disposition: 'defer', pkg: 'launch-editor (via vite)',
-    reason: 'Dev-server open-in-editor argument escaping (Windows only). Fix with the vite 5->8 upgrade.',
-    review: '2026-12-31',
-  },
-  'GHSA-r825-w8mm-5pxw': {
-    disposition: 'defer', pkg: 'launch-editor (via vite)',
-    reason: 'Dev-server open-in-editor CLI flag injection for some editors. Fix with the vite 5->8 upgrade.',
-    review: '2026-12-31',
-  },
-  'GHSA-67mh-4wv8-2f99': {
-    disposition: 'defer', pkg: 'esbuild',
-    reason: 'Dev-server request/response exposure to any website. Fix with the vite 5->8 upgrade.',
-    review: '2026-12-31',
-  },
+  //
+  // The vite 5 dev-server advisories (GHSA-fx2h-pf6j-xcff, GHSA-4w7w-66w2-5vf9,
+  // GHSA-rq7h-c2jc-7f22, GHSA-9jrq-w75r-8gcw), the launch-editor ones it pulled
+  // in (GHSA-v6wh-96g9-6wx3, GHSA-587h-7wmj-h5pm, GHSA-698v-4r3x-3vcv,
+  // GHSA-r825-w8mm-5pxw) and esbuild's (GHSA-67mh-4wv8-2f99) were deferred here
+  // until the vite 5 -> 8 upgrade. They are FIXED by it: vite 8.3.5 is patched,
+  // and it builds with rolldown, so esbuild is no longer in the tree.
+
   // Both published 2026-10 with no patched release (every version affected),
   // so there is nothing to upgrade or override to yet. Both are build-time
   // only: `npm ls --omit=dev` finds neither. Revisit when a fix ships.

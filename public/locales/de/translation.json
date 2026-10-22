@@ -45,6 +45,7 @@
       "iCloudUnavailable": "iCloud nicht verfügbar: {{error}}",
       "CREDENTIAL_INVALID": "Der Sync-Server akzeptiert den Sync-Zugriff dieses Geräts nicht mehr. Ihre Änderungen sind auf diesem Gerät gespeichert. Bitten Sie die Person, die Ihren Sync-Server betreibt, den Zugriff für dieses Gerät wiederherzustellen.",
       "QUOTA_EXCEEDED": "Der Sync-Server hat das Limit für dieses Konto erreicht. Ihre Änderungen sind auf diesem Gerät gespeichert und die Synchronisierung versucht es automatisch erneut. Bitten Sie die Person, die Ihren Sync-Server betreibt, das Limit zu erhöhen.",
+      "PAYLOAD_TOO_LARGE": "Die Sync-Datei{{size}} ist zu groß für Ihren Sync-Server oder den Proxy davor (413), daher wurde nichts hochgeladen. Ihre Änderungen sind auf diesem Gerät gespeichert, und Änderungen Ihrer anderen Geräte kommen weiterhin an. Uploads werden alle 30 Minuten erneut versucht; bitten Sie die Person, die Ihren Sync-Server betreibt, das Upload-Limit zu erhöhen.",
       "directAccessUnavailable": "Direct-Access-Ordner nicht verfügbar: {{error}}",
       "directAccessEncrypted": "Die Datei im Direct-Access-Ordner ist verschlüsselt und kann auf diesem Gerät nicht gelesen werden. Es wurde nichts hineingeschrieben."
     },
@@ -1377,7 +1378,16 @@
     "loadFailedDownload": "Kopie herunterladen",
     "loadFailedDiscard": "Verwerfen",
     "loadFailedDiscardConfirm": "Die unlesbaren Daten verwerfen? Deine aktuellen Daten werden darüber gespeichert, und das lässt sich nicht rückgängig machen. Lade vorher eine Kopie herunter, falls du sie brauchen könntest.",
-    "seeWhatIsUsingSpace": "Speicherbelegung ansehen"
+    "seeWhatIsUsingSpace": "Speicherbelegung ansehen",
+    "projectionPending": "Eine Prognose erscheint nach einer Woche Nutzung.",
+    "projectionFlat": "Der lokale Speicher wächst nicht.",
+    "projectionWarningFull": "Der lokale Speicher ist zu über 80 % voll. Unter Einstellungen → „Speicherbelegung“ siehst du, was ihn belegt.",
+    "projectionDays_one": "Bei gleichbleibender Nutzung ist der lokale Speicher in etwa {{count}} Tag voll.",
+    "projectionMonths_one": "Bei gleichbleibender Nutzung ist der lokale Speicher in etwa {{count}} Monat voll.",
+    "projectionWarningSoon_one": "Der lokale Speicher füllt sich: Bei gleichbleibender Nutzung ist er in etwa {{count}} Tag voll. Unter Einstellungen → „Speicherbelegung“ siehst du, was ihn belegt.",
+    "projectionDays_other": "Bei gleichbleibender Nutzung ist der lokale Speicher in etwa {{count}} Tagen voll.",
+    "projectionMonths_other": "Bei gleichbleibender Nutzung ist der lokale Speicher in etwa {{count}} Monaten voll.",
+    "projectionWarningSoon_other": "Der lokale Speicher füllt sich: Bei gleichbleibender Nutzung ist er in etwa {{count}} Tagen voll. Unter Einstellungen → „Speicherbelegung“ siehst du, was ihn belegt."
   },
   "weeklyReview": {
     "tasksDone": "Erledigte Aufgaben",

@@ -45,6 +45,7 @@
       "iCloudUnavailable": "iCloud non disponibile: {{error}}",
       "CREDENTIAL_INVALID": "Il server di sincronizzazione non accetta più l'accesso di questo dispositivo. Le tue modifiche sono salvate su questo dispositivo. Chiedi a chi gestisce il tuo server di sincronizzazione di ripristinare l'accesso per questo dispositivo.",
       "QUOTA_EXCEEDED": "Il server di sincronizzazione ha raggiunto il limite di questo account. Le tue modifiche sono salvate su questo dispositivo e la sincronizzazione riproverà automaticamente. Chiedi a chi gestisce il tuo server di sincronizzazione di aumentare il limite.",
+      "PAYLOAD_TOO_LARGE": "Il file di sincronizzazione{{size}} è troppo grande per il tuo server di sincronizzazione o per il proxy davanti a esso (413), quindi non è stato caricato nulla. Le tue modifiche sono salvate su questo dispositivo e quelle degli altri dispositivi continuano ad arrivare. Il caricamento viene ritentato ogni 30 minuti; chiedi a chi gestisce il tuo server di sincronizzazione di aumentarne il limite di caricamento.",
       "directAccessUnavailable": "Cartella Direct Access non disponibile: {{error}}",
       "directAccessEncrypted": "Il file nella cartella Direct Access è cifrato e questo dispositivo non può leggerlo. Non vi è stato scritto nulla."
     },
@@ -1379,7 +1380,16 @@
     "loadFailedDownload": "Scarica una copia",
     "loadFailedDiscard": "Scarta",
     "loadFailedDiscardConfirm": "Scartare i dati illeggibili? I tuoi dati attuali verranno salvati al loro posto e non si potrà annullare. Scarica prima una copia se potrebbe servirti.",
-    "seeWhatIsUsingSpace": "Vedi cosa occupa spazio"
+    "seeWhatIsUsingSpace": "Vedi cosa occupa spazio",
+    "projectionPending": "Una previsione compare dopo una settimana di utilizzo.",
+    "projectionFlat": "Lo spazio locale non sta crescendo.",
+    "projectionWarningFull": "Lo spazio locale è pieno oltre l'80%. Apri «Dettaglio dello spazio di archiviazione» nelle Impostazioni per vedere cosa lo occupa.",
+    "projectionDays_one": "Al ritmo attuale, lo spazio locale sarà pieno tra circa {{count}} giorno.",
+    "projectionMonths_one": "Al ritmo attuale, lo spazio locale sarà pieno tra circa {{count}} mese.",
+    "projectionWarningSoon_one": "Lo spazio locale si sta riempiendo: al ritmo attuale sarà pieno tra circa {{count}} giorno. Apri «Dettaglio dello spazio di archiviazione» nelle Impostazioni per vedere cosa lo occupa.",
+    "projectionDays_other": "Al ritmo attuale, lo spazio locale sarà pieno tra circa {{count}} giorni.",
+    "projectionMonths_other": "Al ritmo attuale, lo spazio locale sarà pieno tra circa {{count}} mesi.",
+    "projectionWarningSoon_other": "Lo spazio locale si sta riempiendo: al ritmo attuale sarà pieno tra circa {{count}} giorni. Apri «Dettaglio dello spazio di archiviazione» nelle Impostazioni per vedere cosa lo occupa."
   },
   "weeklyReview": {
     "tasksDone": "Attività completate",

@@ -35,6 +35,7 @@
       "PASSPHRASE_REQUIRED": "输入您的同步密码以继续。",
       "PRECONDITION_FAILED": "另一台设备已先完成更新，正在重试。",
       "QUOTA_EXCEEDED": "此账户已达到同步服务器的配额上限。你的更改仍保存在本机，系统会自动重试同步。请联系服务器管理员提高配额。",
+      "PAYLOAD_TOO_LARGE": "同步文件{{size}}超出了同步服务器或其前端代理的大小限制（413），因此没有上传任何内容。你的更改仍保存在本机，其他设备的更改也会照常同步过来。系统每 30 分钟重试一次上传；请联系服务器管理员提高上传大小限制。",
       "KEY_MISMATCH": "同步口令错误。它必须与其他设备所用的口令完全一致。",
       "VERIFIER_UNSUPPORTED": "您的 GLANCEvault 服务器需要更新以支持此应用程序版本（密钥验证）。",
       "ACCOUNT_ID_REQUIRED": "GLANCEvault 缺少账户 ID。请在“云同步”设置中重新输入 GLANCEvault URL、设备令牌和账户 ID。",
@@ -1377,7 +1378,13 @@
     "loadFailedDownload": "下载副本",
     "loadFailedDiscard": "丢弃",
     "loadFailedDiscardConfirm": "要丢弃无法读取的数据吗？当前数据将覆盖保存，且无法撤销。如果之后可能需要，请先下载一份副本。",
-    "seeWhatIsUsingSpace": "查看占用空间的内容"
+    "seeWhatIsUsingSpace": "查看占用空间的内容",
+    "projectionPending": "使用一周后会显示预测。",
+    "projectionFlat": "本地存储用量没有增长。",
+    "projectionWarningFull": "本地存储已使用超过 80%。请在设置中打开“存储空间明细”，查看占用情况。",
+    "projectionDays_other": "按当前速度，本地存储大约 {{count}} 天后用满。",
+    "projectionMonths_other": "按当前速度，本地存储大约 {{count}} 个月后用满。",
+    "projectionWarningSoon_other": "本地存储即将用满：按当前速度，大约 {{count}} 天后用满。请在设置中打开“存储空间明细”，查看占用情况。"
   },
   "weeklyReview": {
     "tasksDone": "已完成任务",

@@ -35,6 +35,7 @@
       "PASSPHRASE_REQUIRED": "Saisissez votre phrase secrète de synchronisation pour continuer.",
       "PRECONDITION_FAILED": "Un autre appareil a effectué la mise à jour en premier. Nouvelle tentative.",
       "QUOTA_EXCEEDED": "Le serveur de synchronisation a atteint la limite de ce compte. Vos modifications sont enregistrées sur cet appareil et la synchronisation réessaiera automatiquement. Demandez à la personne qui gère votre serveur de synchronisation d'augmenter la limite.",
+      "PAYLOAD_TOO_LARGE": "Le fichier de synchronisation{{size}} est trop volumineux pour votre serveur de synchronisation ou le proxy placé devant lui (413) : rien n'a été envoyé. Vos modifications sont enregistrées sur cet appareil, et celles de vos autres appareils continuent d'arriver. L'envoi est réessayé toutes les 30 minutes ; demandez à la personne qui gère votre serveur de synchronisation d'augmenter sa limite d'envoi.",
       "KEY_MISMATCH": "Phrase secrète de synchronisation incorrecte. Elle doit correspondre exactement à celle utilisée sur vos autres appareils.",
       "VERIFIER_UNSUPPORTED": "Votre serveur GLANCEvault doit être mis à jour pour prendre en charge cette version de l'application (vérification de clé).",
       "ACCOUNT_ID_REQUIRED": "Il manque un identifiant de compte à GLANCEvault. Ressaisissez vos informations GLANCEvault (URL, jeton d'appareil et identifiant de compte) dans les paramètres de synchronisation cloud.",
@@ -1377,7 +1378,16 @@
     "loadFailedDownload": "Télécharger une copie",
     "loadFailedDiscard": "Supprimer",
     "loadFailedDiscardConfirm": "Supprimer les données illisibles ? Vos données actuelles seront enregistrées par-dessus, et c'est irréversible. Téléchargez d'abord une copie si vous pourriez en avoir besoin.",
-    "seeWhatIsUsingSpace": "Voir ce qui occupe l'espace"
+    "seeWhatIsUsingSpace": "Voir ce qui occupe l'espace",
+    "projectionPending": "Une prévision apparaît après une semaine d'utilisation.",
+    "projectionFlat": "Le stockage local n'augmente pas.",
+    "projectionWarningFull": "Le stockage local est plein à plus de 80 %. Ouvrez « Répartition du stockage » dans les réglages pour voir ce qui l'occupe.",
+    "projectionDays_one": "Au rythme actuel, le stockage local sera plein dans environ {{count}} jour.",
+    "projectionMonths_one": "Au rythme actuel, le stockage local sera plein dans environ {{count}} mois.",
+    "projectionWarningSoon_one": "Le stockage local se remplit : au rythme actuel, il sera plein dans environ {{count}} jour. Ouvrez « Répartition du stockage » dans les réglages pour voir ce qui l'occupe.",
+    "projectionDays_other": "Au rythme actuel, le stockage local sera plein dans environ {{count}} jours.",
+    "projectionMonths_other": "Au rythme actuel, le stockage local sera plein dans environ {{count}} mois.",
+    "projectionWarningSoon_other": "Le stockage local se remplit : au rythme actuel, il sera plein dans environ {{count}} jours. Ouvrez « Répartition du stockage » dans les réglages pour voir ce qui l'occupe."
   },
   "weeklyReview": {
     "tasksDone": "Tâches terminées",

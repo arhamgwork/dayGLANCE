@@ -24,8 +24,16 @@ export function syncErrorText(t, message, code) {
   if (!message) return null;
   // `detail` lets a code's string quote the engine's message (SYNC_FAILED does);
   // strings that don't reference it ignore it.
-  if (code) return t(`sync.errors.${code}`, { defaultValue: message, detail: message });
+  if (code) return t(`sync.errors.${code}`, { defaultValue: message, detail: message, size: sizeIn(message) });
   return message;
+}
+
+// The refused size, as the engine writes it into a PAYLOAD_TOO_LARGE message:
+// " (2.3 MB)", ready to follow "the sync file". Empty when the message has
+// none (a proxy's bare 413 carries no size).
+function sizeIn(message) {
+  const match = /\((\d+(?:\.\d+)?) MB\)/.exec(message);
+  return match ? ` (${match[1]} MB)` : '';
 }
 
 /**
