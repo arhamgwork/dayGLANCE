@@ -836,6 +836,8 @@
     "markSubtaskComplete": "Oznacz podzadanie jako ukończone",
     "editSubtask": "Edytuj podzadanie",
     "deleteSubtask": "Usuń podzadanie",
+    "moveSubtask": "Przenieś podzadanie „{{title}}”",
+    "moveSubtaskHint": "Przeciągnij lub naciśnij ↑/↓, aby zmienić kolejność",
     "archiveTask": "Archiwizuj zadanie",
     "deadlineWithDate": "Termin: {{date}}",
     "setDeadline": "Ustaw termin",
@@ -2875,7 +2877,8 @@
       "voiceApplied": "Zastosowano zmiany głosowe",
       "tagRenamed": "Zmieniono #{{from}} na #{{to}}",
       "tagMerged": "Scalono #{{from}} z #{{to}}",
-      "tagRemoved": "Usunięto #{{from}}"
+      "tagRemoved": "Usunięto #{{from}}",
+      "subtasksReordered": "Zmieniono kolejność podzadań w „{{title}}”"
     }
   }
 }

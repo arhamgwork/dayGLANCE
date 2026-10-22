@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { BookOpen, Loader, Sparkles, X, Check, Plus, ExternalLink } from 'lucide-react';
+import { BookOpen, Loader, Sparkles, X, Check, Plus, ExternalLink, GripVertical } from 'lucide-react';
 import { noteTextHash } from '@glance-apps/obsidian-format';
 import { useTranslation } from 'react-i18next';
 import { isOnlyUrl, renderFormattedText } from '../utils/textFormatting.jsx';
@@ -14,6 +14,8 @@ import { taskLink } from '../utils/followUp.js';
 import { canLinkTask, findBacklinks, insertTaskLink, linkCandidates, pickerQueryAt } from '../utils/taskLinks.js';
 import TaskLinkPicker from './TaskLinkPicker.jsx';
 import TaskBacklinks from './TaskBacklinks.jsx';
+import { dropIndex } from '../utils/subtaskOrder.js';
+import { beginLongPressReorder } from '../utils/longPressReorder.js';
 import { aiFeatureOn } from '../ai.js';
 
 /** Format an ISO timestamp as a human-readable relative or absolute string. */
@@ -65,6 +67,9 @@ const NotesSubtasksPanel = ({
   toggleSubtask,
   deleteSubtask,
   updateSubtaskTitle,
+  // Reorders a subtask (#2176); defaults to the planner's. Focus mode passes
+  // its own, which keeps its session copy of the task in step.
+  moveSubtask: moveSubtaskProp,
   compact = true, // Use compact mode for inbox, expanded for timeline
   noAutoFocus = false,
   aiConfig,
@@ -341,6 +346,69 @@ const NotesSubtasksPanel = ({
   };
 
   const handleNotesChange = (e) => { setLocalNotes(e.target.value); updatePicker(e.target); };
+
+  // Subtask reordering (#2176). A grip on each row: drag it (pointer), hold
+  // and move it (touch), or focus it and press Up/Down. The panel often sits
+  // inside a card that is itself draggable (timeline, Inbox), so every drag
+  // event the grip and rows handle stops here: the grip, being draggable
+  // itself, is the drag's source, and the card never hears of it.
+  const moveSubtask = moveSubtaskProp || planner?.moveSubtask;
+  const subtaskCount = task.subtasks?.length || 0;
+  const canReorder = !!moveSubtask && !isEvent && subtaskCount > 1;
+  const [subtaskDrag, setSubtaskDrag] = useState(null); // { id, from, over, lower }
+  const gripRefs = useRef(new Map());
+  const focusGripAfterMove = (id) => requestAnimationFrame(() => gripRefs.current.get(id)?.focus());
+  const moveTo = (id, toIndex) => moveSubtask(task.id, id, toIndex, isInbox);
+  const subtaskRowSelector = `[data-subtask-of="${typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(String(task.id)) : String(task.id)}"]`;
+  const gripProps = (subtask, idx) => ({
+    draggable: true,
+    onDragStart: (e) => {
+      e.stopPropagation();
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/x-dayglance-subtask', subtask.id); } catch { /* some browsers refuse custom types */ }
+      setSubtaskDrag({ id: subtask.id, from: idx, over: null, lower: false });
+    },
+    onDragEnd: (e) => { e.stopPropagation(); setSubtaskDrag(null); },
+    onTouchStart: (e) => {
+      e.stopPropagation();
+      beginLongPressReorder(e, {
+        idx,
+        hitSelector: subtaskRowSelector,
+        onActivate: () => setSubtaskDrag({ id: subtask.id, from: idx, over: idx, lower: false }),
+        onOver: (over) => setSubtaskDrag(d => (d ? { ...d, over, lower: over > d.from } : d)),
+        onEnd: ({ activated, fromIdx, overIdx }) => {
+          setSubtaskDrag(null);
+          if (activated && overIdx != null && overIdx !== fromIdx) moveTo(subtask.id, overIdx);
+        },
+      });
+    },
+    onKeyDown: (e) => {
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+      e.preventDefault();
+      e.stopPropagation();
+      const to = idx + (e.key === 'ArrowUp' ? -1 : 1);
+      if (to < 0 || to >= subtaskCount) return;
+      moveTo(subtask.id, to);
+      focusGripAfterMove(subtask.id);
+    },
+  });
+  const rowDropProps = (idx) => (subtaskDrag ? {
+    onDragOver: (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = 'move';
+      const rect = e.currentTarget.getBoundingClientRect();
+      const lower = e.clientY > rect.top + rect.height / 2;
+      if (subtaskDrag.over !== idx || subtaskDrag.lower !== lower) setSubtaskDrag(d => (d ? { ...d, over: idx, lower } : d));
+    },
+    onDrop: (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const drag = subtaskDrag;
+      setSubtaskDrag(null);
+      if (drag) moveTo(drag.id, dropIndex(drag.from, idx, drag.lower));
+    },
+  } : {});
 
   const handleNotesKeyDown = (e) => {
     // The picker has the arrows, Enter, Tab and Escape while it is open; the
@@ -637,8 +705,31 @@ const NotesSubtasksPanel = ({
         {/* Subtasks list */}
         {task.subtasks?.length > 0 && (
           <div className="space-y-1 mb-2">
-            {task.subtasks.map((subtask) => (
-              <div key={subtask.id} className="flex items-center gap-2 group">
+            {task.subtasks.map((subtask, idx) => (
+              <div
+                key={subtask.id}
+                data-subtask-of={String(task.id)}
+                data-drag-idx={idx}
+                {...rowDropProps(idx)}
+                className={`flex items-center gap-2 group ${subtaskDrag?.id === subtask.id ? 'opacity-40' : ''} ${
+                  subtaskDrag && subtaskDrag.over === idx && subtaskDrag.id !== subtask.id
+                    ? (subtaskDrag.lower ? 'shadow-[inset_0_-2px_0_0_rgb(59,130,246)]' : 'shadow-[inset_0_2px_0_0_rgb(59,130,246)]')
+                    : ''
+                }`}
+              >
+                {canReorder && (
+                  <button
+                    type="button"
+                    ref={(el) => { if (el) gripRefs.current.set(subtask.id, el); else gripRefs.current.delete(subtask.id); }}
+                    data-subtask-grip={subtask.id}
+                    aria-label={t('task.moveSubtask', { title: subtask.title })}
+                    title={t('task.moveSubtaskHint')}
+                    {...gripProps(subtask, idx)}
+                    className={`flex-shrink-0 -ml-1 cursor-grab active:cursor-grabbing touch-none select-none md:opacity-0 md:group-hover:opacity-60 md:focus-visible:opacity-100 opacity-40 rounded ${th.deleteBtn}`}
+                  >
+                    <GripVertical size={12} />
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => toggleSubtask(task.id, subtask.id, isInbox)}

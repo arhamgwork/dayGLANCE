@@ -817,6 +817,8 @@
     "markSubtaskComplete": "将子任务标记为已完成",
     "editSubtask": "编辑子任务",
     "deleteSubtask": "删除子任务",
+    "moveSubtask": "移动子任务“{{title}}”",
+    "moveSubtaskHint": "拖动或按 ↑/↓ 调整顺序",
     "archiveTask": "存档任务",
     "deadlineWithDate": "截止日期：{{date}}",
     "setDeadline": "设置截止日期",
@@ -2757,7 +2759,8 @@
       "voiceApplied": "已应用语音更改",
       "tagRenamed": "已将 #{{from}} 重命名为 #{{to}}",
       "tagMerged": "已将 #{{from}} 合并到 #{{to}}",
-      "tagRemoved": "已移除 #{{from}}"
+      "tagRemoved": "已移除 #{{from}}",
+      "subtasksReordered": "已调整“{{title}}”的子任务顺序"
     }
   }
 }

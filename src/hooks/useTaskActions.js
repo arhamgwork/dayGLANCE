@@ -11,6 +11,7 @@ import { describeObstacle } from '../utils/dayOccupancy.js';
 import { createPendingProject } from '../utils/pendingProject.js';
 import { canFollowUp, resolveTaskRef } from '../utils/followUp.js';
 import { editedSeriesStart } from '../utils/recurrenceEngine.js';
+import { moveSubtaskTo } from '../utils/subtaskOrder.js';
 import { recordDeletedTaskTombstone } from '../utils/deletedTaskTombstones.js';
 
 // Strip a specific tag (e.g. "#obsidian") from a title string.
@@ -742,6 +743,29 @@ export default function useTaskActions({
     }
   };
 
+  // Move one subtask to position `toIndex` (#2176): the array's order is the
+  // checklist's, so this writes the task's subtasks in the new order through
+  // the same paths as the other subtask edits. One undo step; a no-op move
+  // (dropped where it was) pushes none and changes nothing.
+  const moveSubtask = (taskId, subtaskId, toIndex, isInbox) => {
+    const isRecurring = typeof taskId === 'string' && taskId.startsWith('recurring-');
+    const parsed = isRecurring ? parseRecurringId(taskId) : null;
+    const current = isRecurring
+      ? recurringTasks.find(t => t.id === parsed?.templateId)
+      : (isInbox ? unscheduledTasks : tasks).find(t => t.id === taskId);
+    const subtasks = current?.subtasks || [];
+    if (moveSubtaskTo(subtasks, subtaskId, toIndex) === subtasks) return;
+    pushUndo({ key: 'subtasksReordered', taskId });
+    const subtaskUpdater = t => ({ ...t, subtasks: moveSubtaskTo(t.subtasks || [], subtaskId, toIndex) });
+    if (isRecurring) {
+      updateRecurringTemplate(taskId, subtaskUpdater);
+    } else if (isInbox) {
+      setUnscheduledTasks(prev => prev.map(t => t.id === taskId ? subtaskUpdater(t) : t));
+    } else {
+      setTasks(prev => prev.map(t => t.id === taskId ? subtaskUpdater(t) : t));
+    }
+  };
+
   // ── Task deletion ────────────────────────────────────────────────────────
 
   const moveToRecycleBin = (id, fromInbox = false) => {
@@ -971,6 +995,13 @@ export default function useTaskActions({
     }));
   };
 
+  const focusMoveSubtask = (taskId, subtaskId, toIndex, isInbox) => {
+    moveSubtask(taskId, subtaskId, toIndex, isInbox);
+    setFocusBlockTasks(prev => prev.map(t => (t.id === taskId
+      ? { ...t, subtasks: moveSubtaskTo(t.subtasks || [], subtaskId, toIndex) }
+      : t)));
+  };
+
   const focusUpdateSubtaskTitle = (taskId, subtaskId, newTitle, isInbox) => {
     updateSubtaskTitle(taskId, subtaskId, newTitle, isInbox);
     setFocusBlockTasks(prev => prev.map(t => {
@@ -1006,6 +1037,7 @@ export default function useTaskActions({
     toggleSubtask,
     deleteSubtask,
     updateSubtaskTitle,
+    moveSubtask,
     // Delete
     moveToRecycleBin,
     deleteRecurringInstance,
@@ -1023,5 +1055,6 @@ export default function useTaskActions({
     focusToggleSubtask,
     focusDeleteSubtask,
     focusUpdateSubtaskTitle,
+    focusMoveSubtask,
   };
 }
