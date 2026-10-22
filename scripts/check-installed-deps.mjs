@@ -31,7 +31,7 @@ export function findLockDrift(lock, installedVersion) {
     // Workspace links (file:packages/*) have no registry version to compare.
     if (entry.link || !entry.version) continue;
     const installed = installedVersion(path);
-    // Optional packages are platform-specific (esbuild, rollup binaries): their
+    // Optional packages are platform-specific (rolldown, lightningcss binaries): their
     // absence on this machine is expected, but a present one must still match.
     if (installed == null && entry.optional) continue;
     if (installed !== entry.version) drift.push({ path, expected: entry.version, installed });

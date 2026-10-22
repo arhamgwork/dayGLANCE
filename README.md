@@ -658,7 +658,7 @@ These are the ones worth knowing by heart:
 | Layer | Technology |
 |-------|-----------|
 | UI Framework | [React 18](https://react.dev) |
-| Build Tool | [Vite 5](https://vitejs.dev) |
+| Build Tool | [Vite 8](https://vitejs.dev) |
 | Styling | [Tailwind CSS 3](https://tailwindcss.com) |
 | Icons | [Lucide React](https://lucide.dev) |
 | PWA | [vite-plugin-pwa](https://vite-pwa-org.netlify.app) + Workbox |
