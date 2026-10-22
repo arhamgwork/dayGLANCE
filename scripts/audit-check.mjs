@@ -58,6 +58,19 @@ const ACK = {
   // open a file from the error overlay. Every vite through 6.4.3 is affected,
   // so vite 5 has no patched release; vitest's own vite 8 copy is on 8.3.4,
   // which is fixed. Dev-only: `npm ls vite --omit=dev` is empty.
+  // Published 2026-10-21 against vite's DEV server. Every vite through 6.4.3
+  // is affected, so vite 5 has no patched release; vitest's own vite 8 copy is
+  // on 8.3.5, which is fixed. Dev-only: `npm ls vite --omit=dev` is empty.
+  'GHSA-rq7h-c2jc-7f22': {
+    disposition: 'defer', pkg: 'vite',
+    reason: 'Dev-server `server.fs.allow` bypass when project paths match system paths (non-Windows). Fix with the vite 5->8 upgrade.',
+    review: '2026-12-31',
+  },
+  'GHSA-9jrq-w75r-8gcw': {
+    disposition: 'defer', pkg: 'vite',
+    reason: 'Dev-server cross-origin script execution through custom middleware (low). Fix with the vite 5->8 upgrade.',
+    review: '2026-12-31',
+  },
   'GHSA-587h-7wmj-h5pm': {
     disposition: 'defer', pkg: 'launch-editor (via vite)',
     reason: 'Dev-server open-in-editor existence check bypass (Windows only). Fix with the vite 5->8 upgrade.',
