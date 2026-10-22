@@ -48,7 +48,7 @@ const goalTasks = [
 const goalProjects = [{ id: 'gp1', title: 'Goal project', status: 'active', goalId: 'g1' }];
 const projectTasks = [task('p-t1', 'p1', true), task('p-t2', 'p1', false)];
 
-function renderGlance(surface) {
+function renderGlance(surface, extraProjects = []) {
   const planner = {
     currentTime: new Date(`${TODAY}T17:25:00`),
     tasks: projectTasks, unscheduledTasks: goalTasks, todayAgenda: [], recurringTasks: [],
@@ -72,7 +72,7 @@ function renderGlance(surface) {
     myFrames: [],
     getFrameInstancesForDate: () => [],
     goals: [goal],
-    projects: [project, hiddenProject, tomorrowProject, doneProject, archivedProject, ...goalProjects],
+    projects: [project, hiddenProject, tomorrowProject, doneProject, archivedProject, ...goalProjects, ...extraProjects],
     hgVisibleProjects: [],
     goalsProjectsEnabled: true,
     // The hidden project is the one this user cannot see; everything else is.
@@ -92,9 +92,9 @@ function renderGlance(surface) {
 }
 
 let i18nextInstance;
-const render = async (surface) => {
+const render = async (surface, extraProjects) => {
   i18nextInstance = await i18n();
-  return renderGlance(surface);
+  return renderGlance(surface, extraProjects);
 };
 
 /** One due-today row's markup, by kind, in DOM order. */
@@ -123,5 +123,14 @@ describe.each(['desktop', 'mobile'])('%s GLANCE due-today card', (surface) => {
     expect(html).not.toContain('Finished project');
     expect(html).not.toContain('Archived project');
     expect(html).not.toContain('Someone else\'s project');
+  });
+
+  it('draws no progress bar for a project with nothing to measure, rather than a red 0%', async () => {
+    const empty = { ...project, id: 'p-empty', title: 'Empty project' };
+    const html = await render(surface, [empty]);
+    const row = rows(html, 'project').find((r) => r.includes('Empty project'));
+    expect(row).toBeDefined();
+    expect(row).not.toContain('%');
+    expect(row).not.toContain('#ef4444');
   });
 });

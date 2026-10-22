@@ -16,7 +16,7 @@ const MobileTabBar = () => {
   } = useDayPlannerCtx();
   const { t } = useTranslation();
   const {
-    goalsProjectsEnabled, goals, handleRoutinesDone, isVisibleForUser,
+    goalsProjectsEnabled, goals, projects, handleRoutinesDone, isVisibleForUser,
   } = useFeaturesCtx();
 
   // Count only the active user's goals (matches the per-user visibility used
@@ -26,7 +26,11 @@ const MobileTabBar = () => {
     : [];
   const goalsCount = activeGoals.length;
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const hasOverdueGoal = activeGoals.some(g => g.targetDate && new Date(g.targetDate + 'T00:00:00') < today && g.status !== 'completed');
+  const overdue = (item) => item.targetDate && new Date(item.targetDate + 'T00:00:00') < today && item.status !== 'completed';
+  // A project's own target date (#2160) counts the same way: an overdue one
+  // turns the Goals badge red too. Only the active user's, as for goals.
+  const hasOverdueGoal = activeGoals.some(overdue) || (goalsProjectsEnabled && (projects || []).some(p =>
+    p.status !== 'archived' && !p.archived && isVisibleForUser(p) && overdue(p)));
 
   const tabCount = 4 + (goalsProjectsEnabled ? 1 : 0);
   const showLabels = tabCount <= 5;

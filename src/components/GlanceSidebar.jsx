@@ -498,12 +498,16 @@ const GlanceSidebar = ({ variant = 'desktop' }) => {
         const progress = calculateProjectProgress(p.id, allTasksCombined);
         return {
           id: p.id, kind: 'project', title: p.title,
-          progressPct: Math.round((progress || 0) * 100),
+          // Null when there is nothing to measure: no bar is drawn then, as
+          // the goal rows above drop such a project rather than show 0%.
+          progressPct: progress === null ? null : Math.round(progress * 100),
           totalTasks: projectTasks.length,
           completedTasks: projectTasks.filter(t => t.completed).length,
         };
       });
     const dueToday = [...todayDueGoals, ...todayDueProjects];
+    // A row with no bar and no tasks to count has nothing under its title.
+    const hasDetail = (item) => item.progressPct !== null || item.totalTasks > 0;
     if (dueToday.length === 0) return null;
     return (
       <div className="space-y-2">
@@ -513,7 +517,7 @@ const GlanceSidebar = ({ variant = 'desktop' }) => {
             data-due-today-kind={item.kind}
             className={`rounded-lg border p-3 ${darkMode ? 'border-gray-600 bg-gray-700/40' : 'border-stone-200 bg-stone-50'}`}
           >
-            <div className="flex items-start justify-between gap-2 mb-2">
+            <div className={`flex items-start justify-between gap-2 ${hasDetail(item) ? 'mb-2' : ''}`}>
               <div className="flex items-center gap-1.5 min-w-0">
                 {item.kind === 'project'
                   ? <Target size={13} className="text-amber-400 flex-shrink-0" />
@@ -522,13 +526,17 @@ const GlanceSidebar = ({ variant = 'desktop' }) => {
               </div>
               <span className={`text-xs flex-shrink-0 font-medium px-1.5 py-0.5 rounded ${darkMode ? 'bg-amber-900/40 text-amber-300' : 'bg-amber-100 text-amber-700'}`}>{t('goals.dueToday')}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className={`flex-1 h-1.5 rounded-full ${darkMode ? 'bg-gray-600' : 'bg-stone-200'}`}>
-                <div className="h-full rounded-full" style={{ width: `${item.progressPct}%`, backgroundColor: item.progressPct >= 80 ? '#22c55e' : item.progressPct >= 40 ? '#f59e0b' : '#ef4444' }} />
+            {hasDetail(item) && (
+              <div className="flex items-center gap-2">
+                {item.progressPct !== null && (<>
+                  <div className={`flex-1 h-1.5 rounded-full ${darkMode ? 'bg-gray-600' : 'bg-stone-200'}`}>
+                    <div className="h-full rounded-full" style={{ width: `${item.progressPct}%`, backgroundColor: item.progressPct >= 80 ? '#22c55e' : item.progressPct >= 40 ? '#f59e0b' : '#ef4444' }} />
+                  </div>
+                  <span className={`text-xs ${textSecondary} flex-shrink-0`}>{item.progressPct}%</span>
+                </>)}
+                {item.totalTasks > 0 && <span className={`text-xs ${textSecondary} flex-shrink-0`}>{item.completedTasks}/{item.totalTasks}</span>}
               </div>
-              <span className={`text-xs ${textSecondary} flex-shrink-0`}>{item.progressPct}%</span>
-              {item.totalTasks > 0 && <span className={`text-xs ${textSecondary} flex-shrink-0`}>{item.completedTasks}/{item.totalTasks}</span>}
-            </div>
+            )}
           </div>
         ))}
       </div>

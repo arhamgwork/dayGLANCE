@@ -61,6 +61,7 @@ import { computeAvailableSlots as computeAvailableSlotsPure, adjustPastConflicts
 import { frameInstancesForDate } from './utils/frameInstances.js';
 import { dateToString, localDateStr, extractTags, extractWikilinks, stripWikilinks, stripWikilinksAndTags, getRecurrenceLabel, formatDate, formatDateRange, formatShortDate, formatDeadlineDate, computeTaskCalendarTombstones, computeRecurringSeriesTombstones } from './utils/taskUtils.js';
 import { carryCreatedAt } from './utils/createdAt.js';
+import DaySummaryCallouts from './components/DaySummaryCallouts.jsx';
 import { defaultUse24HourClock, defaultWeekStartDay, formatLocalizedDate, localizedList } from './utils/localeFormatting.js';
 import { ENGLISH_DAILY_NOTE_TEMPLATE, buildLocalizedDailyNoteTemplate, buildLocalizedTaskHeading, localizeDefaultDailyNoteTemplate } from './utils/dailyNoteTemplate.js';
 import { notBucketed, demoteToBucket, normalizeBucketConfig } from './utils/bucketList.js';
@@ -1734,6 +1735,7 @@ const DayPlanner = () => {
     todayCompletedGoals,
     todayCompletedProjects,
     todayDueGoals,
+    todayDueProjects,
     consecutiveDayStreak,
     todayIncompleteTasks,
     allTimeIncompleteTasks,
@@ -7785,7 +7787,7 @@ const DayPlanner = () => {
     allTimeUnscheduledProjectDoneCount, allTimeUnscheduledProjectDoneMinutes,
     allTimeGoalsCreated, allTimeGoalsCompleted,
     allTimeProjectsCreated, allTimeProjectsCompleted,
-    todayCompletedGoals, todayCompletedProjects, todayDueGoals,
+    todayCompletedGoals, todayCompletedProjects, todayDueGoals, todayDueProjects,
     consecutiveDayStreak,
     todayIncompleteTasks, allTimeIncompleteTasks,
 
@@ -8846,27 +8848,12 @@ const DayPlanner = () => {
                         )}
                       </div>
                     </div>
-                    {goalsProjectsEnabled && (todayDueGoals.length > 0 || todayCompletedGoals.length > 0 || todayCompletedProjects.length > 0) && (
-                      <div className="space-y-1.5 mb-3">
-                        {todayDueGoals.map(g => (
-                          <div key={g.id} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${darkMode ? 'bg-yellow-900/30 text-yellow-300' : 'bg-yellow-50 text-yellow-700'}`}>
-                            <Flag size={14} className="flex-shrink-0" />
-                            <span className="truncate">{t('app.goalDueToday', { title: g.title })}</span>
-                          </div>
-                        ))}
-                        {todayCompletedGoals.map(g => (
-                          <div key={g.id} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${darkMode ? 'bg-amber-900/30 text-amber-300' : 'bg-amber-50 text-amber-700'}`}>
-                            <Flag size={14} className="flex-shrink-0" />
-                            <span className="truncate">{t('app.goalComplete', { title: g.title })}</span>
-                          </div>
-                        ))}
-                        {todayCompletedProjects.map(p => (
-                          <div key={p.id} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${darkMode ? 'bg-green-900/30 text-green-300' : 'bg-green-50 text-green-700'}`}>
-                            <FolderOpen size={14} className="flex-shrink-0" />
-                            <span className="truncate">{t('app.projectComplete', { title: p.title })}</span>
-                          </div>
-                        ))}
-                      </div>
+                    {goalsProjectsEnabled && (
+                      <DaySummaryCallouts
+                        dueGoals={todayDueGoals} dueProjects={todayDueProjects}
+                        completedGoals={todayCompletedGoals} completedProjects={todayCompletedProjects}
+                        darkMode={darkMode}
+                      />
                     )}
                     <div className={`space-y-3 ${textSecondary}`}>
                       <div className="flex items-center justify-between text-sm">

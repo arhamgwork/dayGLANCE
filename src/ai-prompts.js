@@ -415,6 +415,15 @@ export function weeklySummaryUserPrompt(data) {
     if (stalledProjects.length > 0) {
       lines.push(`Stalled projects (no completions in 7+ days): ${stalledProjects.map(p => `"${p.title}"`).join(', ')}.`);
     }
+    // A project's own target date (#2160), in the goal line's wording.
+    const targetedProjects = projectStats.filter(p => p.daysToTarget !== null && p.daysToTarget !== undefined);
+    if (targetedProjects.length > 0) {
+      lines.push(`Project target dates: ${targetedProjects.map(p => {
+        if (p.daysToTarget < 0) return `"${p.title}" (${Math.abs(p.daysToTarget)} days overdue)`;
+        if (p.daysToTarget === 0) return `"${p.title}" (target date: today)`;
+        return `"${p.title}" (${p.daysToTarget} days to target)`;
+      }).join('; ')}.`);
+    }
   }
 
   lines.push(`\nNext week: ${nextWeekTaskCount} task(s) already scheduled.`);
