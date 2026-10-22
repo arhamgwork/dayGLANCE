@@ -1391,7 +1391,7 @@
     "resultsCount_few": "{{count}} результати",
     "resultsCount_many": "{{count}} результатів",
     "resultsCount_other": "{{count}} результату",
-    "typeToSearch": "Введіть, щоб шукати серед усіх завдань і нотаток...",
+    "typeToSearch": "Введіть, щоб шукати...",
     "noResults": "Нічого не знайдено",
     "groupToday": "Сьогодні",
     "groupThisWeek": "Цього тижня",

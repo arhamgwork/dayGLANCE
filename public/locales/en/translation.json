@@ -1352,7 +1352,7 @@
   "spotlight": {
     "resultsCount_one": "{{count}} result",
     "resultsCount_other": "{{count}} results",
-    "typeToSearch": "Type to search across all tasks and notes...",
+    "typeToSearch": "Type to search...",
     "noResults": "No results found",
     "groupToday": "Today",
     "groupThisWeek": "This week",
