@@ -473,37 +473,61 @@ const GlanceSidebar = ({ variant = 'desktop' }) => {
     );
   })()}
 
-  {/* Goals due today */}
+  {/* Goals and projects due today */}
   {goalsProjectsEnabled && (() => {
     const todayStr = getTodayStr();
     const allTasksCombined = [...tasks, ...unscheduledTasks];
+    // Active and visible to this user, exactly as the goals carousel picks its
+    // list: a goal shared with someone else is not this user's due-today work.
     const todayDueGoals = goals
-      .filter(g => g.status === 'active' && g.targetDate === todayStr)
+      .filter(g => g.status === 'active' && g.targetDate === todayStr && isVisibleForUser(g))
       .map(g => {
         const progress = calculateGoalProgress(g.id, projects, allTasksCombined);
         const childProjects = projects.filter(p => p.goalId === g.id && p.status !== 'archived');
         const totalTasks = allTasksCombined.filter(t => childProjects.some(p => p.id === t.projectId) && !t.archived).length;
         const completedTasks = allTasksCombined.filter(t => childProjects.some(p => p.id === t.projectId) && !t.archived && t.completed).length;
-        return { id: g.id, title: g.title, progressPct: Math.round(progress * 100), totalTasks, completedTasks };
+        return { id: g.id, kind: 'goal', title: g.title, progressPct: Math.round(progress * 100), totalTasks, completedTasks };
       });
-    if (todayDueGoals.length === 0) return null;
+    // A project's own target date lands here too (2026-10-21): one row per
+    // due-today project, with the same progress and done/total task counts the
+    // goal row carries.
+    const todayDueProjects = projects
+      .filter(p => p.status === 'active' && p.targetDate === todayStr && isVisibleForUser(p))
+      .map(p => {
+        const projectTasks = allTasksCombined.filter(t => t.projectId === p.id && !t.archived);
+        const progress = calculateProjectProgress(p.id, allTasksCombined);
+        return {
+          id: p.id, kind: 'project', title: p.title,
+          progressPct: Math.round((progress || 0) * 100),
+          totalTasks: projectTasks.length,
+          completedTasks: projectTasks.filter(t => t.completed).length,
+        };
+      });
+    const dueToday = [...todayDueGoals, ...todayDueProjects];
+    if (dueToday.length === 0) return null;
     return (
       <div className="space-y-2">
-        {todayDueGoals.map(g => (
-          <div key={g.id} className={`rounded-lg border p-3 ${darkMode ? 'border-gray-600 bg-gray-700/40' : 'border-stone-200 bg-stone-50'}`}>
+        {dueToday.map(item => (
+          <div
+            key={`${item.kind}-${item.id}`}
+            data-due-today-kind={item.kind}
+            className={`rounded-lg border p-3 ${darkMode ? 'border-gray-600 bg-gray-700/40' : 'border-stone-200 bg-stone-50'}`}
+          >
             <div className="flex items-start justify-between gap-2 mb-2">
               <div className="flex items-center gap-1.5 min-w-0">
-                <Flag size={13} className="text-amber-400 flex-shrink-0" />
-                <span className={`text-sm font-medium ${textPrimary} truncate`}>{g.title}</span>
+                {item.kind === 'project'
+                  ? <Target size={13} className="text-amber-400 flex-shrink-0" />
+                  : <Flag size={13} className="text-amber-400 flex-shrink-0" />}
+                <span className={`text-sm font-medium ${textPrimary} truncate`}>{item.title}</span>
               </div>
               <span className={`text-xs flex-shrink-0 font-medium px-1.5 py-0.5 rounded ${darkMode ? 'bg-amber-900/40 text-amber-300' : 'bg-amber-100 text-amber-700'}`}>{t('goals.dueToday')}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className={`flex-1 h-1.5 rounded-full ${darkMode ? 'bg-gray-600' : 'bg-stone-200'}`}>
-                <div className="h-full rounded-full" style={{ width: `${g.progressPct}%`, backgroundColor: g.progressPct >= 80 ? '#22c55e' : g.progressPct >= 40 ? '#f59e0b' : '#ef4444' }} />
+                <div className="h-full rounded-full" style={{ width: `${item.progressPct}%`, backgroundColor: item.progressPct >= 80 ? '#22c55e' : item.progressPct >= 40 ? '#f59e0b' : '#ef4444' }} />
               </div>
-              <span className={`text-xs ${textSecondary} flex-shrink-0`}>{g.progressPct}%</span>
-              {g.totalTasks > 0 && <span className={`text-xs ${textSecondary} flex-shrink-0`}>{g.completedTasks}/{g.totalTasks}</span>}
+              <span className={`text-xs ${textSecondary} flex-shrink-0`}>{item.progressPct}%</span>
+              {item.totalTasks > 0 && <span className={`text-xs ${textSecondary} flex-shrink-0`}>{item.completedTasks}/{item.totalTasks}</span>}
             </div>
           </div>
         ))}

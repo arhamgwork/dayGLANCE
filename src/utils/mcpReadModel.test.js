@@ -10,6 +10,7 @@ import {
   buildWeek,
   buildUsers,
   inboxItem,
+  projectItem,
   handleMcpRequest,
 } from './mcpReadModel.js';
 
@@ -528,5 +529,14 @@ describe('created_at and completed_at on the wire', () => {
     expect(gym.created_at).toEqual({ date: '2026-10-01', time: '06:00' });
     expect(gym.completed_at).toEqual({ date: '2026-10-22', time: '08:05' });
     expect(byId.e1).not.toHaveProperty('created_at');
+  });
+});
+
+describe('projectItem — the project\'s own target date on the wire', () => {
+  const project = { id: 'p1', title: 'Roof', status: 'active' };
+
+  it('carries target_date (YYYY-MM-DD) when the project has one, and no key when it does not', () => {
+    expect(projectItem({ ...project, targetDate: '2026-12-01' })).toMatchObject({ id: 'p1', target_date: '2026-12-01' });
+    expect(projectItem(project)).not.toHaveProperty('target_date');
   });
 });

@@ -564,6 +564,10 @@ export const ProjectForm = ({ initial, goals, defaultGoalId, onSave, onCancel, m
   const [title, setTitle] = useState(initial?.title || '');
   const [goalId, setGoalId] = useState(initial?.goalId || defaultGoalId || '');
   const [status, setStatus] = useState(initial?.status || 'active');
+  // The project's own target date (local calendar date, absent = none). This
+  // is not a task field: project tasks keep their own deadlines. The name and
+  // wording follow goals, whose date is a targetDate.
+  const [targetDate, setTargetDate] = useState(initial?.targetDate || '');
   // Copy-at-creation inheritance: a new project defaults its color and assigned
   // users from the selected goal (standalone default: blue / nobody) and keeps
   // following the goal picker until the user explicitly overrides. Editing an
@@ -596,6 +600,7 @@ export const ProjectForm = ({ initial, goals, defaultGoalId, onSave, onCancel, m
     const fromTitle = noteLinkFromTitle(title);
     onSave({
       title: fromTitle ? fromTitle.title : title.trim(), goalId: goalId || undefined, status, color, assignedUserSyncIds,
+      targetDate: targetDate || undefined,
       createNote: !initial && createNote && !fromTitle, linkNotePath: fromTitle?.path,
     });
   };
@@ -647,6 +652,32 @@ export const ProjectForm = ({ initial, goals, defaultGoalId, onSave, onCancel, m
             <option key={g.id} value={g.id}>{g.title}</option>
           ))}
         </select>
+      </div>
+
+      {/* Target date — the project's own due date, independent of its tasks' */}
+      <div className="flex flex-col gap-1">
+        <label className={`text-xs font-medium ${textSecondary}`} htmlFor="project-target-date">{t('common.targetDate')}</label>
+        <div className="flex items-center gap-2">
+          <input
+            id="project-target-date"
+            data-project-target-date
+            type="date"
+            value={targetDate}
+            onChange={e => setTargetDate(e.target.value)}
+            className={`flex-1 min-w-0 px-3 py-2 text-sm rounded-lg border ${borderClass} focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              darkMode ? 'bg-gray-700 text-gray-100' : 'bg-white text-stone-900'
+            }`}
+          />
+          {targetDate && (
+            <button
+              type="button"
+              onClick={() => setTargetDate('')}
+              className={`px-2.5 py-1.5 text-xs rounded-lg ${hoverBg} ${textSecondary} transition-colors`}
+            >
+              {t('common.clear')}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Obsidian note (companion §4.3): link an existing note, or create one with the project */}

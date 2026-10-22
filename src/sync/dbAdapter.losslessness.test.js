@@ -150,7 +150,9 @@ function buildFixture() {
     ],
     deletedGoalIds: { 9199: ts(950) },
     projects: [
-      { id: 7001, title: 'Q3 launch', updatedAt: ts(60), goalId: 9101, hyperglance: { enabled: false } },
+      // targetDate: the project's OWN target date (2026-10-21), a plain record
+      // field the whole-row vault roundtrip must carry like any other.
+      { id: 7001, title: 'Q3 launch', updatedAt: ts(60), goalId: 9101, targetDate: '2026-07-15', hyperglance: { enabled: false } },
     ],
     deletedProjectIds: { 7099: ts(990) },
     areas: [
