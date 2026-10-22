@@ -86,7 +86,10 @@ describe('buildLauncherSnapshot', () => {
     const projects = [{ id: 'p1', title: 'Base', goalId: 'g1', color: 'bg-green-500' }];
     const on = buildLauncherSnapshot(base({ goals, projects }));
     expect(on.goals).toEqual([{ id: 'g1', title: 'Half marathon', description: '', colorHex: '#22c55e', targetDate: '2027-01-10', status: 'active' }]);
-    expect(on.projects[0]).toMatchObject({ id: 'p1', goalId: 'g1', status: 'active' });
+    expect(on.projects[0]).toMatchObject({ id: 'p1', goalId: 'g1', status: 'active', targetDate: null });
+    // A project's own target date (#2160), as a goal row carries its own.
+    const dated = buildLauncherSnapshot(base({ goals, projects: [{ ...projects[0], targetDate: '2026-11-01' }] }));
+    expect(dated.projects[0].targetDate).toBe('2026-11-01');
     const off = buildLauncherSnapshot(base({ goals, projects, goalsProjectsEnabled: false }));
     expect(off.goals).toEqual([]);
     expect(off.projects).toEqual([]);

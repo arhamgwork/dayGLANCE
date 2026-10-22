@@ -104,6 +104,8 @@ class DayGlanceWidgetListFactory(
             val totalTasks: Int,
             val completedTasks: Int,
             val link: String = "",
+            /** False for a project with nothing to measure: no bar, no percentage. */
+            val measured: Boolean = true,
         ) : AgendaItem(TYPE_GOAL)
         class HyperGLANCE(
             val title: String,
@@ -243,20 +245,18 @@ class DayGlanceWidgetListFactory(
             if (habits.isNotEmpty()) items += AgendaItem.Habits(habits)
         }
 
-        // 1.5 Goals due today — section header + rows below habits, above overdue
-        val goalsArray = snapshot.optJSONArray("goals")
-        if (goalsArray != null && goalsArray.length() > 0) {
+        // 1.5 Goals due today — section header + rows below habits, above overdue.
+        // Then projects with their own target date that day (#2160), in their
+        // own section with the same row (WidgetDue.kt reads both lists).
+        val dueGoals = WidgetDueRules.rows(snapshot, "goals")
+        if (dueGoals.isNotEmpty()) {
             items += AgendaItem.Section("GOALS")
-            for (i in 0 until goalsArray.length()) {
-                val g = goalsArray.optJSONObject(i) ?: continue
-                items += AgendaItem.Goal(
-                    title = g.optString("title", "").ifEmpty { context.getString(R.string.widget_untitled) },
-                    progressPct = g.optInt("progressPct", 0).coerceIn(0, 100),
-                    totalTasks = g.optInt("totalTasks", 0),
-                    completedTasks = g.optInt("completedTasks", 0),
-                    link = WidgetLinks.goal(g.optString("id", "").ifEmpty { null }),
-                )
-            }
+            for (g in dueGoals) items += dueItem(g, WidgetLinks.goal(g.id.ifEmpty { null }))
+        }
+        val dueProjects = WidgetDueRules.rows(snapshot, "projectsDue")
+        if (dueProjects.isNotEmpty()) {
+            items += AgendaItem.Section("PROJECTS")
+            for (p in dueProjects) items += dueItem(p, WidgetLinks.project(p.id.ifEmpty { null }))
         }
 
         // 1.75 hyperGLANCE sessions — today's + overdue project sessions
@@ -588,6 +588,15 @@ class DayGlanceWidgetListFactory(
         return rv
     }
 
+    private fun dueItem(row: WidgetDueRules.DueRow, link: String) = AgendaItem.Goal(
+        title = row.title.ifEmpty { context.getString(R.string.widget_untitled) },
+        progressPct = row.progressPct ?: 0,
+        totalTasks = row.totalTasks,
+        completedTasks = row.completedTasks,
+        link = link,
+        measured = row.progressPct != null,
+    )
+
     private fun buildGoalView(item: AgendaItem.Goal): RemoteViews {
         val rv = RemoteViews(context.packageName, R.layout.widget_item_goal)
         rv.setTextViewText(R.id.tv_goal_title, item.title)
@@ -598,9 +607,10 @@ class DayGlanceWidgetListFactory(
             item.progressPct >= 40 -> Triple(View.GONE,    View.VISIBLE, View.GONE)
             else                   -> Triple(View.VISIBLE, View.GONE,    View.GONE)
         }
-        rv.setViewVisibility(R.id.pb_goal_progress_red,   visRed)
-        rv.setViewVisibility(R.id.pb_goal_progress_amber, visAmber)
-        rv.setViewVisibility(R.id.pb_goal_progress_green, visGreen)
+        // A project with nothing to measure draws no bar (#2160).
+        rv.setViewVisibility(R.id.pb_goal_progress_red,   if (item.measured) visRed else View.GONE)
+        rv.setViewVisibility(R.id.pb_goal_progress_amber, if (item.measured) visAmber else View.GONE)
+        rv.setViewVisibility(R.id.pb_goal_progress_green, if (item.measured) visGreen else View.GONE)
         val activeBarId = when {
             item.progressPct >= 80 -> R.id.pb_goal_progress_green
             item.progressPct >= 40 -> R.id.pb_goal_progress_amber
@@ -608,10 +618,13 @@ class DayGlanceWidgetListFactory(
         }
         rv.setProgressBar(activeBarId, 100, item.progressPct, false)
 
-        val statsStr = if (item.totalTasks > 0)
-            context.getString(R.string.widget_goal_stats, item.progressPct, item.completedTasks, item.totalTasks)
-        else
-            "${item.progressPct}%"
+        val statsStr = when {
+            !item.measured && item.totalTasks > 0 -> "${item.completedTasks}/${item.totalTasks}"
+            !item.measured -> ""
+            item.totalTasks > 0 ->
+                context.getString(R.string.widget_goal_stats, item.progressPct, item.completedTasks, item.totalTasks)
+            else -> "${item.progressPct}%"
+        }
         rv.setTextViewText(R.id.tv_goal_stats, statsStr)
         rv.boostTextSizeForOneUi(R.id.tv_goal_title, 13f)
         rv.boostTextSizeForOneUi(R.id.tv_goal_badge, 11f)
@@ -919,6 +932,7 @@ class DayGlanceWidgetListFactory(
     // rendered text is localized, here at the last moment.
     private fun localizedSection(label: String): String = when (label) {
         "GOALS" -> context.getString(R.string.section_goals)
+        "PROJECTS" -> context.getString(R.string.section_projects)
         "OVERDUE" -> context.getString(R.string.section_overdue)
         "ALL DAY" -> context.getString(R.string.section_all_day)
         "SCHEDULED" -> context.getString(R.string.section_scheduled)

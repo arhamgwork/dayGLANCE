@@ -15,6 +15,7 @@
     <string name="tile_add_inbox_label">Caixa de entrada</string>
     <string name="tile_add_scheduled_label">Tarefa agendada</string>
     <string name="section_goals">OBJETIVOS</string>
+    <string name="section_projects">PROJETOS</string>
     <string name="section_overdue">ATRASADAS</string>
     <string name="section_all_day">DIA INTEIRO</string>
     <string name="section_scheduled">AGENDADO</string>

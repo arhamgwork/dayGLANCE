@@ -184,13 +184,14 @@ export function buildScheduleSections({ scheduled, frames, frameAvailableMinutes
  * @param opts.dayWindow   getDayWindow(dateStr) or null.
  * @param opts.coords      Stored weather coords or null → no sky.
  * @param opts.goalsDue    Goals with targetDate === dateStr, already shaped.
+ * @param opts.projectsDue Projects with targetDate === dateStr, already shaped (#2160).
  * @param opts.projectNameFor (task) => project title or ''.
  */
 export function buildProjectedDay({
   date, dateStr, dateLabel,
   dayTasks = [], prevDayTasks = [], deadlineTasks = [],
   frames = [], frameAvailableMinutes = () => 0, dialFrames = null,
-  dayWindow = null, coords = null, goalsDue = [],
+  dayWindow = null, coords = null, goalsDue = [], projectsDue = [],
   projectNameFor = () => '',
 }) {
   const serialize = (t) => serializeWidgetTask(t, projectNameFor);
@@ -238,6 +239,7 @@ export function buildProjectedDay({
     deadlines,
     sections,
     goals: goalsDue,
+    projectsDue,
     nextTask,
     upcomingTasks,
     sky: computeSkySnapshot(date, coords),

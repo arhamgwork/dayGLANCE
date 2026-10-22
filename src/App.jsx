@@ -80,7 +80,7 @@ import { shiftDateStr } from '@glance-apps/agenda-core';
 import { fetchIcsFeed, replaceFeedEvents, PRIMARY_FEED_ID, ICS_CALENDARS_KEY, loadIcsCalendars, isActiveIcsCalendar, hasActiveIcsCalendars, stripIcsCalendarCredentials, applyRemoteIcsCalendars, PRIMARY_CAL_META_KEY, defaultPrimaryCalendarMeta, injectPrimaryStub, splitPrimaryStub } from './utils/icsFeedSync.js';
 import { nextPerUserCalendarEntry } from './utils/perUserCalendarEntry.js';
 import { TASK_COLORS, TAILWIND_TO_HEX, getProjectColor } from './utils/colorUtils.js';
-import { calculateGoalProgress } from './utils/goalProgress.js';
+import { buildWidgetDueOn } from './utils/widgetGoalsProjects.js';
 import { resolveGoalsLink, areaFilterHides } from './utils/goalsLink.js';
 import { HABIT_ICONS, HABIT_ICON_NAMES, HABIT_COLORS } from './constants/habits.js';
 import { FRAME_COLORS } from './constants/frames.js';
@@ -6864,17 +6864,9 @@ const DayPlanner = () => {
       const dateStr = dateToString(date);
       const prev = new Date(date);
       prev.setDate(prev.getDate() - 1);
-      const goalsDue = goalsProjectsEnabled
-        ? visibleGoals
-            .filter(g => g.status === 'active' && g.targetDate === dateStr)
-            .map(g => {
-              const progressPct = Math.round(calculateGoalProgress(g.id, visibleProjects, allTasksCombined) * 100);
-              const childProjects = visibleProjects.filter(p => p.goalId === g.id && p.status !== 'archived');
-              const totalTasks = allTasksCombined.filter(t => childProjects.some(p => p.id === t.projectId) && !t.archived).length;
-              const completedTasks = allTasksCombined.filter(t => childProjects.some(p => p.id === t.projectId) && !t.archived && t.completed).length;
-              return { id: g.id, title: g.title, progressPct, totalTasks, completedTasks };
-            })
-        : [];
+      const due = goalsProjectsEnabled
+        ? buildWidgetDueOn({ goals: visibleGoals, projects: visibleProjects, tasks: allTasksCombined, dateStr })
+        : { goals: [], projects: [] };
       return buildProjectedDay({
         date,
         dateStr,
@@ -6887,7 +6879,8 @@ const DayPlanner = () => {
         dialFrames: dialFramesForDate(date),
         dayWindow: getDayWindow(dateStr),
         coords,
-        goalsDue,
+        goalsDue: due.goals,
+        projectsDue: due.projects,
         projectNameFor,
       });
     });
