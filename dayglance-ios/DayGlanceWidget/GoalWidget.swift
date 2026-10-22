@@ -154,7 +154,7 @@ struct GoalWidgetView: View {
                         // string. Not shown at all on a stale snapshot.
                         if !freshness.isStale,
                            let days = ResolvedWidgetDay.daysUntil(goal.targetDate, from: entry.date) ?? goal.daysUntilDue {
-                            dueBadge(days: days)
+                            WidgetDueBadge(days: days)
                         }
                     }
                     ProgressView(value: Double(goal.progressPct ?? 0) / 100.0)
@@ -198,19 +198,6 @@ struct GoalWidgetView: View {
         }
     }
 
-    private func dueBadge(days: Int) -> some View {
-        let (label, color): (String, Color) = {
-            // String(localized:), not a plain String: Text(String) shows
-            // its argument verbatim and never looks it up.
-            if days < 0 { return (String(localized: "\(abs(days))d overdue"), .red) }
-            if days == 0 { return (String(localized: "Due today"), .orange) }
-            return (String(localized: "\(days)d left"), .secondary)
-        }()
-        return Text(label)
-            .font(.caption2)
-            .foregroundColor(color)
-    }
-
     private func progressColor(pct: Int) -> Color {
         if pct >= 80 { return .green }
         if pct >= 40 { return .orange }
@@ -227,5 +214,24 @@ struct GoalWidget: Widget {
         .configurationDisplayName("Goal")
         .description("Progress on a goal. Long-press to choose which one.")
         .supportedFamilies([.systemMedium, .systemLarge])
+    }
+}
+
+/// "3d left" / "Due today" / "2d overdue": the Goal widget's due badge, and
+/// the Project widget's since a project has its own target date (#2160).
+struct WidgetDueBadge: View {
+    let days: Int
+
+    var body: some View {
+        let (label, color): (String, Color) = {
+            // String(localized:), not a plain String: Text(String) shows
+            // its argument verbatim and never looks it up.
+            if days < 0 { return (String(localized: "\(abs(days))d overdue"), .red) }
+            if days == 0 { return (String(localized: "Due today"), .orange) }
+            return (String(localized: "\(days)d left"), .secondary)
+        }()
+        Text(label)
+            .font(.caption2)
+            .foregroundColor(color)
     }
 }
