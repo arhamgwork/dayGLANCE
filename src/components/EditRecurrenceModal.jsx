@@ -3,6 +3,7 @@ import { Check, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDayPlannerCtx } from '../context/DayPlannerContext.jsx';
 import { getRecurrencePresets } from '../utils/recurrenceEngine.js';
+import { carryCreatedAt } from '../utils/createdAt.js';
 import { formatLocalizedDate } from '../utils/localeFormatting.js';
 import { renderTitle } from '../utils/textFormatting.jsx';
 
@@ -61,7 +62,8 @@ const EditRecurrenceModal = () => {
                       isAllDay: template.isAllDay || false,
                       notes: template.notes || '',
                       subtasks: template.subtasks ? JSON.parse(JSON.stringify(template.subtasks)) : [],
-                      date: dateStr
+                      date: dateStr,
+                      ...carryCreatedAt(template),
                     };
                     setTasks(prev => [...prev, regularTask]);
                     recordDeletedTaskTombstone(templateId);

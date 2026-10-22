@@ -669,8 +669,12 @@ export default function useSyncEngineData(deps) {
       if (remotePrimaryMeta) setPrimaryCalendarMeta(remotePrimaryMeta);
     }
     if (data.completedTaskUids) setCompletedTaskUids(new Set(data.completedTaskUids));
+    // Templates take the same carry as the task lists, for `createdAt`
+    // (utils/createdAt.js): a series this device stamped moments before the
+    // merge built its payload must not lose the stamp to the apply. The other
+    // sticky fields are never on a template, so for them it is a no-op.
     if (recurringForApply) setRecurringTasks(prev =>
-      stripProjectRefs(rescueUnsyncedTasks(recurringForApply, prev, rescueDeletedIds, t => !!t._intentKey), deletedProjectIds));
+      stripProjectRefs(rescueUnsyncedTasks(preserveStickyFields(recurringForApply, prev), prev, rescueDeletedIds, t => !!t._intentKey), deletedProjectIds));
     if (data.routineDefinitions) setRoutineDefinitions(data.routineDefinitions);
     // Only apply today's routine state if the remote data is from today — matching
     // the localStorage guard above. If routinesDate is stale/off, applying it would

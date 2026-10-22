@@ -81,6 +81,13 @@ editing and completing it need a CalDAV write MCP does not perform, so those are
 Blocks and inbox items carry `assignee_id` when the task is assigned (multi-user), and inbox
 items carry `duration_minutes`, the duration scheduling will default to.
 
+**`created_at` and `completed_at`** ride every inbox item and every `task` and `recurring_task`
+block (not events or routines). Each is `{ date, time }` on the machine's local clock (`date`
+strict `YYYY-MM-DD`, `time` `HH:MM`, or `null` for an old completion recorded as a date only), or
+`null` when not known. `created_at` is null for tasks made before dayGLANCE recorded creation
+times; they are never backfilled. A recurring occurrence reports the series' creation and that
+date's completion. `completed_at` is null on an open task.
+
 **`daily_note` rides every day read.** `dayglance_get_today`, `dayglance_get_day` and the
 schedule resources return `daily_note`: `{ text, last_modified }` for the user's note on that
 date as dayGLANCE shows it, or `null` when the date has no note. `last_modified` is present only
@@ -143,8 +150,8 @@ exclusion applies here, not a filter argument, and `bucketId` never appears on t
 | `include_completed` | boolean | no | Default `true`. Pass `false` for open tasks only. |
 
 Returns `{ items, truncated, next_cursor, total, timezone }`. Items carry `id`, `title`,
-`priority` (0–3), `completed`, `duration_minutes`, and `deadline` / `project_id` / `notes` /
-`assignee_id` / `subtasks` when set.
+`priority` (0–3), `completed`, `created_at`, `completed_at`, `duration_minutes`, and `deadline` /
+`project_id` / `notes` / `assignee_id` / `subtasks` when set.
 
 Filtering happens before pagination: `total`, `truncated`, and `next_cursor` always describe
 the **filtered** set. A filter matching nothing returns an empty list with `total: 0`, not an

@@ -791,6 +791,8 @@
     "tasks": "Aufgaben"
   },
   "task": {
+    "createdOn": "Erstellt {{when}}",
+    "completedOn": "Erledigt {{when}}",
     "contextNotesSubtasks": "Notizen / Unteraufgaben",
     "contextGenerateSubtasks": "Unteraufgaben generieren (KI)",
     "contextMoveTomorrow": "Auf morgen verschieben",
