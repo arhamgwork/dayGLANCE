@@ -130,3 +130,35 @@ describe('SYNC_FAILED quotes the real message', () => {
     expect(syncErrorText(realT(fr), 'snapshot write failed', 'SYNC_FAILED')).toContain('snapshot write failed');
   });
 });
+
+// #2142: a 413 used to read as "check your connection". The engine's message
+// carries the refused size; the localized string quotes it when it is there.
+describe('PAYLOAD_TOO_LARGE', () => {
+  const realT = (bundle) => (key, opts = {}) => {
+    const v = key.split('.').reduce((o, k) => o?.[k], bundle);
+    return typeof v === 'string' ? v.replace(/\{\{(\w+)\}\}/g, (_, k) => opts[k] ?? '') : opts.defaultValue;
+  };
+  // Verbatim from @glance-apps/sync 2.3.0's engine.
+  const sized = 'The sync file (4.7 MB) is too large for this server or the proxy in front of it (413). ' +
+    'Nothing was uploaded; your data is unchanged on this device.';
+  const unsized = 'The sync file is too large for this server or the proxy in front of it (413). ' +
+    'Nothing was uploaded; your data is unchanged on this device.';
+
+  it('quotes the size the engine reported', () => {
+    expect(syncErrorText(realT(en), sized, 'PAYLOAD_TOO_LARGE')).toMatch(/^The sync file \(4\.7 MB\) is too large/);
+    expect(syncErrorText(realT(fr), sized, 'PAYLOAD_TOO_LARGE')).toContain('(4.7 MB)');
+  });
+
+  it('reads cleanly without one (a proxy that answered a bare 413)', () => {
+    const rendered = syncErrorText(realT(en), unsized, 'PAYLOAD_TOO_LARGE');
+    expect(rendered).toMatch(/^The sync file is too large/);
+    expect(rendered).not.toContain('{{');
+  });
+
+  it('says nothing was uploaded, the local copy is kept, and points at the operator', () => {
+    expect(en.sync.errors.PAYLOAD_TOO_LARGE).toMatch(/nothing was uploaded/i);
+    expect(en.sync.errors.PAYLOAD_TOO_LARGE).toMatch(/saved on this device/);
+    expect(en.sync.errors.PAYLOAD_TOO_LARGE).toMatch(/whoever runs your sync server/);
+    expect(en.sync.errors.PAYLOAD_TOO_LARGE).not.toMatch(/connection/i);
+  });
+});

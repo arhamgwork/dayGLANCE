@@ -16,14 +16,12 @@ object LauncherWrites {
     private const val TAG = "LauncherSnapshot"
 
     /**
-     * Store the snapshot and announce it. With [carryWeather], a snapshot that
-     * carries no weather keeps the previous one's: a headless run fetches no
-     * forecast, and the launcher's weather ring would otherwise go blank until
-     * the app next opened.
+     * Store the snapshot and announce it. With [headless], what a headless run
+     * cannot produce is carried from the previous snapshot ([withCarried]).
      */
-    fun updateSnapshot(context: Context, store: SharedDataStore, snapshotJson: String, carryWeather: Boolean = false) {
+    fun updateSnapshot(context: Context, store: SharedDataStore, snapshotJson: String, headless: Boolean = false) {
         try {
-            store.launcherSnapshot = if (carryWeather) withCarriedWeather(snapshotJson, store.launcherSnapshot) else snapshotJson
+            store.launcherSnapshot = if (headless) withCarried(snapshotJson, store.launcherSnapshot) else snapshotJson
             store.launcherSnapshotUpdatedAt = System.currentTimeMillis()
             context.contentResolver.notifyChange(LauncherProvider.CONTENT_URI, null)
         } catch (e: Exception) {
@@ -31,20 +29,59 @@ object LauncherWrites {
         }
     }
 
-    /** [incoming]'s weather collection replaced by [previous]'s when it is absent or empty. Pure. */
-    fun withCarriedWeather(incoming: String, previous: String?): String {
+    /**
+     * [incoming] with what a headless run cannot produce taken from [previous]. Pure.
+     *
+     *  - Weather: a headless run's forecast request can fail, so an absent or empty
+     *    collection keeps the previous one; the weather ring would otherwise go
+     *    blank until the app next opened.
+     *  - Device-calendar events: when the snapshot says `carryDeviceEvents`, it
+     *    could not read the calendar. The previous snapshot's `native` task rows
+     *    from yesterday on are kept, skipping any id the incoming one has. A sync
+     *    never changes these (the OS calendar does). The provider replaces them
+     *    with its own read whenever it holds the calendar permission
+     *    ([LauncherDeviceEvents]); this carry is what it serves otherwise.
+     */
+    fun withCarried(incoming: String, previous: String?): String {
         if (previous == null) return incoming
         return try {
             val next = JSONObject(incoming)
+            val old = JSONObject(previous)
+            var changed = false
             val weather = next.optJSONArray("weather")
-            if (weather != null && weather.length() > 0) return incoming
-            val old = JSONObject(previous).optJSONArray("weather") ?: return incoming
-            if (old.length() == 0) return incoming
-            next.put("weather", JSONArray(old.toString())).toString()
+            val oldWeather = old.optJSONArray("weather")
+            if ((weather == null || weather.length() == 0) && oldWeather != null && oldWeather.length() > 0) {
+                next.put("weather", JSONArray(oldWeather.toString()))
+                changed = true
+            }
+            if (next.optBoolean("carryDeviceEvents", false)) {
+                val tasks = next.optJSONArray("tasks") ?: JSONArray().also { next.put("tasks", it) }
+                val ids = HashSet<String>()
+                for (i in 0 until tasks.length()) tasks.optJSONObject(i)?.optString("id")?.let { ids.add(it) }
+                val from = next.optString("today").takeIf { it.length == 10 }?.let { dayBefore(it) }
+                val oldTasks = old.optJSONArray("tasks") ?: JSONArray()
+                for (i in 0 until oldTasks.length()) {
+                    val t = oldTasks.optJSONObject(i) ?: continue
+                    if (!t.optBoolean("native", false)) continue
+                    val id = t.optString("id")
+                    if (id.isEmpty() || id in ids) continue
+                    val date = t.optString("date")
+                    if (from != null && date.isNotEmpty() && date < from) continue
+                    tasks.put(JSONObject(t.toString()))
+                    ids.add(id)
+                    changed = true
+                }
+            }
+            if (changed) next.toString() else incoming
         } catch (e: Exception) {
             incoming
         }
     }
+
+    /** The ISO date before [isoDate] ("2026-10-21" -> "2026-10-20"). */
+    private fun dayBefore(isoDate: String): String? = try {
+        java.time.LocalDate.parse(isoDate).minusDays(1).toString()
+    } catch (e: Exception) { null }
 
     /** Merge the heartbeat ({checkedAt, syncedAt}) into the stored one and announce it. */
     fun touchHeartbeat(context: Context, store: SharedDataStore, json: String) {

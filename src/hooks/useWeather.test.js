@@ -17,6 +17,8 @@ vi.mock('../utils/trayMode.js', () => ({ isTrayMode: false }));
 const storeWeatherCoords = vi.fn();
 vi.mock('../utils/solar.js', () => ({ storeWeatherCoords: (...a) => storeWeatherCoords(...a) }));
 vi.mock('../utils/localeFormatting.js', () => ({ formatLocalizedDate: () => 'Mon' }));
+let nativeApp = false;
+vi.mock('../native.js', () => ({ isNativeApp: () => nativeApp }));
 
 const { default: useWeather } = await import('./useWeather.js');
 
@@ -75,6 +77,19 @@ describe('useWeather.fetchWeather: the location outlives the header toggle', () 
     expect(storeWeatherCoords).toHaveBeenCalledWith({ lat: 39.7392, lon: -104.9903 });
     expect(forecastCalls()).toHaveLength(0);
     expect(slots[WEATHER_SLOT]).toBeNull();
+  });
+
+  it('header weather OFF on a native app: the forecast is fetched anyway (dial, widget and launcher read it)', async () => {
+    nativeApp = true;
+    try {
+      store.set('day-planner-weather-enabled', 'false');
+      store.set('day-planner-weather-zip', '80202');
+      await useHook().fetchWeather();
+      expect(forecastCalls()).toHaveLength(1);
+      expect(slots[WEATHER_SLOT]?.hourlyByDate?.['2026-09-21']?.[12]?.temp).toBe(65);
+    } finally {
+      nativeApp = false;
+    }
   });
 
   it('header weather ON (the default): geocodes and fetches the forecast', async () => {

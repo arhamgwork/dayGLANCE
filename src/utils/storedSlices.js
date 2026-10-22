@@ -76,6 +76,17 @@ export const readObsidianCompletionDates = () => {
 export const readWeatherZip = () => localStorage.getItem('day-planner-weather-zip') || '';
 export const readWeatherTempUnit = () => localStorage.getItem('day-planner-weather-temp-unit') || 'fahrenheit';
 
+// The device-calendar filter (utils/nativeCalendar.js: [] shows every
+// calendar) and the user's edits to device events, keyed by event id. App and
+// the headless root read them here; the launcher snapshot carries both so the
+// shell can read the calendar itself (utils/launcherSnapshot.js).
+export const readCalendarFilter = () => {
+  try { return JSON.parse(localStorage.getItem('day-planner-calendar-filter') || '[]'); } catch { return []; }
+};
+export const readNativeTimeOverrides = () => {
+  try { return JSON.parse(localStorage.getItem('day-planner-native-time-overrides') || '{}'); } catch { return {}; }
+};
+
 export const readGtdFrames = () => {
   try {
     const saved = localStorage.getItem('day-planner-gtd-frames');

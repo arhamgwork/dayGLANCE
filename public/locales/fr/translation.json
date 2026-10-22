@@ -35,6 +35,7 @@
       "PASSPHRASE_REQUIRED": "Saisissez votre phrase secrète de synchronisation pour continuer.",
       "PRECONDITION_FAILED": "Un autre appareil a effectué la mise à jour en premier. Nouvelle tentative.",
       "QUOTA_EXCEEDED": "Le serveur de synchronisation a atteint la limite de ce compte. Vos modifications sont enregistrées sur cet appareil et la synchronisation réessaiera automatiquement. Demandez à la personne qui gère votre serveur de synchronisation d'augmenter la limite.",
+      "PAYLOAD_TOO_LARGE": "Le fichier de synchronisation{{size}} est trop volumineux pour votre serveur de synchronisation ou le proxy placé devant lui (413) : rien n'a été envoyé. Vos modifications sont enregistrées sur cet appareil, et celles de vos autres appareils continuent d'arriver. L'envoi est réessayé toutes les 30 minutes ; demandez à la personne qui gère votre serveur de synchronisation d'augmenter sa limite d'envoi.",
       "KEY_MISMATCH": "Phrase secrète de synchronisation incorrecte. Elle doit correspondre exactement à celle utilisée sur vos autres appareils.",
       "VERIFIER_UNSUPPORTED": "Votre serveur GLANCEvault doit être mis à jour pour prendre en charge cette version de l'application (vérification de clé).",
       "ACCOUNT_ID_REQUIRED": "Il manque un identifiant de compte à GLANCEvault. Ressaisissez vos informations GLANCEvault (URL, jeton d'appareil et identifiant de compte) dans les paramètres de synchronisation cloud.",

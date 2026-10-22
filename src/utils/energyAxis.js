@@ -26,7 +26,9 @@ export const ENERGY_RESTORE = 'restore';
 
 // Conservative on purpose — false "restore" reads worse than false "effort",
 // and the per-block override exists for everything this list misses. Matched
-// against whole words only, so "restaurant" never matches "rest".
+// against whole words only, so "restaurant" never matches "rest". The Android
+// launcher provider keeps a copy for device events (LauncherDeviceEvents.kt);
+// launcherDeviceEvents.fixture.test.js holds the two equal.
 export const RESTORE_KEYWORDS = new Set([
   'health', 'gym', 'workout', 'exercise', 'run', 'running', 'walk', 'yoga',
   'meditate', 'meditation', 'breakfast', 'lunch', 'dinner', 'meal', 'eat',

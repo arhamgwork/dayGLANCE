@@ -65,8 +65,10 @@ class LauncherIntentReceiver : BroadcastReceiver() {
      * is scheduled to run the same cycle headlessly and the entry reads
      * `scheduled` until the worker reports; only a failed enqueue is `deferred`.
      * A second REFRESH inside [INFLIGHT_MS] of one still queued or scheduled is
-     * `coalesced`. Every entry carries the liveness it saw, so standby-bucket
-     * deferral and dead-process gaps are visible in the launcher's diagnostics.
+     * `coalesced`. A queued one also starts [LauncherAwakeWorker], which keeps a
+     * backgrounded app from being frozen until the web layer has answered.
+     * Every entry carries the liveness it saw, so standby-bucket deferral and
+     * dead-process gaps are visible in the launcher's diagnostics.
      */
     private fun refresh(context: Context, clientId: String) {
         val store = SharedDataStore(context)
@@ -100,6 +102,14 @@ class LauncherIntentReceiver : BroadcastReceiver() {
         store.appendLauncherRefresh(entry)
         context.contentResolver.notifyChange(LauncherProvider.CONTENT_URI, null)
         if (entry.optString("outcome") == "queued") {
+            // Android freezes a backgrounded app; the web layer would then answer
+            // only when the user next opened it. A running job keeps it awake.
+            // After the entry is written (the job waits on it), before the wake.
+            try {
+                LauncherAwakeWorker.schedule(context, clientId)
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not hold the app awake for a refresh", e)
+            }
             context.sendBroadcast(Intent(MainActivity.ACTION_INTENT_RECEIVED).setPackage(context.packageName))
         }
     }

@@ -82,6 +82,8 @@ const seedStorage = (ls, { cloud = true, vault = false, encrypted = false } = {}
   ls.setItem('dayglance-users', JSON.stringify([{ id: 'me', syncId: 'me', name: 'Me', updatedAt: '2026-10-01T00:00:00.000Z' }]));
   ls.setItem('day-planner-weather-temp-unit', 'celsius');
   ls.setItem('day-planner-gtd-frames', JSON.stringify([]));
+  ls.setItem('day-planner-calendar-filter', JSON.stringify(['cal-1']));
+  ls.setItem('day-planner-native-time-overrides', JSON.stringify({ 'ev-9': { title: 'Moved' } }));
   if (cloud) ls.setItem('day-planner-cloud-sync-config', JSON.stringify({ enabled: true, provider: 'webdav', webdavUrl: 'https://dav.example', syncFolder: 'GLANCE/dayglance', encryptionEnabled: encrypted }));
   if (vault) ls.setItem('dayglance-vault-config', JSON.stringify({ enabled: true, vaultUrl: 'https://vault.example', vaultToken: 'tok', accountId: 'acc' }));
 };
@@ -159,6 +161,10 @@ describe('HeadlessRefresh', () => {
     // …and the snapshot was built from the settled state, with the pulled task.
     expect(calls.updateLauncherSnapshot).toHaveLength(1);
     const snapshot = calls.updateLauncherSnapshot[0];
+    // It cannot read the device calendar, and says so: the shell keeps the last events.
+    expect(snapshot.carryDeviceEvents).toBe(true);
+    // …and tells the provider how to read it itself: the stored filter and edits.
+    expect(snapshot.deviceCalendar).toMatchObject({ filter: ['cal-1'], overrides: { 'ev-9': { title: 'Moved' } } });
     expect(snapshot.tasks.map((t) => t.title)).toEqual(expect.arrayContaining(['Local task', 'From the other device']));
     // The heartbeat carries the tier's completed cycle, and the outcome is logged.
     const heartbeat = calls.touchLauncherHeartbeat.at(-1);
@@ -172,6 +178,39 @@ describe('HeadlessRefresh', () => {
     expect(outside).toEqual([]);
     // The deps guard saw a complete wiring.
     expect(errors.mock.calls.filter((c) => String(c[0]).includes('useSyncEngineData'))).toEqual([]);
+    root.unmount();
+  });
+
+  it('fetches the forecast for the stored location and pushes it in the snapshot', async () => {
+    seedStorage(ls);
+    ls.setItem('day-planner-weather-coords', JSON.stringify({ lat: 39.74, lon: -104.99 }));
+    const { bridge, calls } = fakeBridge();
+    globalThis.window.DayGlanceNative = bridge;
+    const fetchForecast = vi.fn(async () => ({ '2026-10-19': { 9: { temp: 12, code: 1, uv: 3 } } }));
+    const root = await mount({ bridge: () => bridge, createFileEngine: scriptedFileEngine().factory, createVaultEngine: () => null, fetchForecast, now: () => new Date('2026-10-19T12:00:00') });
+    await until(() => calls.headlessDone.length > 0);
+
+    // One request, for the stored coordinates in the user's unit; not the
+    // geocode (the coordinates are already resolved) and nothing else.
+    expect(fetchForecast).toHaveBeenCalledTimes(1);
+    expect(fetchForecast.mock.calls[0][0]).toMatchObject({ coords: { lat: 39.74, lon: -104.99 }, tempUnit: 'celsius' });
+    const snapshot = calls.updateLauncherSnapshot[0];
+    expect(snapshot.weather).toEqual([expect.objectContaining({ date: '2026-10-19', unit: 'celsius', hours: [expect.objectContaining({ hour: 9, temp: 12 })] })]);
+    expect(calls.headlessDone[0]).toMatchObject({ outcome: 'ran' });
+    root.unmount();
+  });
+
+  it('a failed forecast is no forecast: the run still reports ran and the shell keeps the last one', async () => {
+    seedStorage(ls);
+    ls.setItem('day-planner-weather-coords', JSON.stringify({ lat: 39.74, lon: -104.99 }));
+    const { bridge, calls } = fakeBridge();
+    globalThis.window.DayGlanceNative = bridge;
+    const fetchForecast = vi.fn(async () => { throw new Error('offline'); });
+    const root = await mount({ bridge: () => bridge, createFileEngine: scriptedFileEngine().factory, createVaultEngine: () => null, fetchForecast, now: () => new Date('2026-10-19T12:00:00') });
+    await until(() => calls.headlessDone.length > 0);
+
+    expect(calls.updateLauncherSnapshot[0].weather).toEqual([]);
+    expect(calls.headlessDone[0]).toMatchObject({ outcome: 'ran' });
     root.unmount();
   });
 
@@ -314,6 +353,36 @@ describe('HeadlessRefresh', () => {
     } finally {
       notesStore.resetDailyNotesStore();
       delete globalThis.indexedDB;
+    }
+  });
+
+  // The file tier's idle gate (@glance-apps/sync 2.3.0, #2142) skips a poll
+  // only when the local data's JSON matches the last quiet cycle's. A payload
+  // whose `data` carried the clock would differ on every poll, and the gate
+  // would never engage: every poll would merge the whole file, as before.
+  it('builds the same payload data twice when nothing changed, minutes apart', async () => {
+    seedStorage(ls);
+    const { bridge, calls } = fakeBridge();
+    globalThis.window.DayGlanceNative = bridge;
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-10-19T12:00:00Z') });
+    try {
+      const built = [];
+      const factory = vi.fn((callbacks) => ({
+        sync: async () => {
+          built.push(await callbacks.buildPayload());
+          vi.setSystemTime(new Date('2026-10-19T12:05:00Z'));
+          built.push(await callbacks.buildPayload());
+        },
+        getLastSynced: () => '2026-10-19T10:00:00.000Z',
+      }));
+      await mount({ bridge: () => bridge, createFileEngine: factory, createVaultEngine: () => null, now: () => new Date() });
+      await until(() => calls.headlessDone.length > 0);
+
+      expect(built).toHaveLength(2);
+      expect(built[1].lastModified).not.toBe(built[0].lastModified);
+      expect(JSON.stringify(built[1].data)).toBe(JSON.stringify(built[0].data));
+    } finally {
+      vi.useRealTimers();
     }
   });
 

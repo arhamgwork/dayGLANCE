@@ -6,7 +6,7 @@
 # Build stage - pinned to amd64 because the output is static files (arch-independent).
 # The arm64 image reuses this stage's output and only builds its own production
 # stage (nginx + nodejs) under emulation, so the heavy npm build never runs under QEMU.
-FROM --platform=linux/amd64 node:20-alpine AS builder
+FROM --platform=linux/amd64 node:22-alpine AS builder
 
 WORKDIR /app
 LABEL org.opencontainers.image.source=https://github.com/krelltunez/dayglance
@@ -40,6 +40,7 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # directory layout is preserved so proxy-server.mjs's ../api/ import resolves.
 COPY docker/proxy-server.mjs /app/docker/proxy-server.mjs
 COPY api/_ssrfGuard.mjs /app/api/_ssrfGuard.mjs
+COPY api/_readBody.mjs /app/api/_readBody.mjs
 COPY docker/start.sh /start.sh
 RUN chmod +x /start.sh
 

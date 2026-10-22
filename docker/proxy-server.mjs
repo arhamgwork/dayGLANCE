@@ -34,6 +34,7 @@
 
 import http from 'node:http';
 import { safeRequest, SsrfError } from '../api/_ssrfGuard.mjs';
+import { readBody } from '../api/_readBody.mjs';
 
 // Private/LAN targets stay reachable unless a deployment opts into the hosted
 // lock-down. Same variable name lifeGLANCE uses, so anyone self-hosting more
@@ -48,15 +49,6 @@ if (BLOCK_PRIVATE) {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function readBody(req) {
-  return new Promise((resolve, reject) => {
-    let data = '';
-    req.on('data', chunk => (data += chunk));
-    req.on('end', () => resolve(data));
-    req.on('error', reject);
-  });
-}
 
 function sendJson(res, status, obj) {
   const body = JSON.stringify(obj);

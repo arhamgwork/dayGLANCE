@@ -35,6 +35,7 @@
       "PASSPHRASE_REQUIRED": "输入您的同步密码以继续。",
       "PRECONDITION_FAILED": "另一台设备已先完成更新，正在重试。",
       "QUOTA_EXCEEDED": "此账户已达到同步服务器的配额上限。你的更改仍保存在本机，系统会自动重试同步。请联系服务器管理员提高配额。",
+      "PAYLOAD_TOO_LARGE": "同步文件{{size}}超出了同步服务器或其前端代理的大小限制（413），因此没有上传任何内容。你的更改仍保存在本机，其他设备的更改也会照常同步过来。系统每 30 分钟重试一次上传；请联系服务器管理员提高上传大小限制。",
       "KEY_MISMATCH": "同步口令错误。它必须与其他设备所用的口令完全一致。",
       "VERIFIER_UNSUPPORTED": "您的 GLANCEvault 服务器需要更新以支持此应用程序版本（密钥验证）。",
       "ACCOUNT_ID_REQUIRED": "GLANCEvault 缺少账户 ID。请在“云同步”设置中重新输入 GLANCEvault URL、设备令牌和账户 ID。",

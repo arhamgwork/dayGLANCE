@@ -45,6 +45,7 @@
       "iCloudUnavailable": "iCloud no disponible: {{error}}",
       "CREDENTIAL_INVALID": "El servidor de sincronización ya no acepta el acceso de este dispositivo. Tus cambios están guardados en este dispositivo. Pide a quien administra tu servidor de sincronización que restaure el acceso para este dispositivo.",
       "QUOTA_EXCEEDED": "El servidor de sincronización ha alcanzado el límite de esta cuenta. Tus cambios están guardados en este dispositivo y la sincronización se reintentará automáticamente. Pide a quien administra tu servidor de sincronización que aumente el límite.",
+      "PAYLOAD_TOO_LARGE": "El archivo de sincronización{{size}} es demasiado grande para tu servidor de sincronización o el proxy que tiene delante (413), así que no se subió nada. Tus cambios están guardados en este dispositivo y los cambios de tus otros dispositivos siguen llegando. Las subidas se reintentan cada 30 minutos; pide a quien administra tu servidor de sincronización que aumente su límite de subida.",
       "directAccessUnavailable": "Carpeta de Direct Access no disponible: {{error}}",
       "directAccessEncrypted": "El archivo de la carpeta de Direct Access está cifrado y este dispositivo no puede leerlo. No se ha escrito nada en él."
     },
