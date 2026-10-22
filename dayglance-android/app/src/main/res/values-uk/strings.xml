@@ -15,6 +15,7 @@
     <string name="tile_add_inbox_label">У вхідні</string>
     <string name="tile_add_scheduled_label">До плану</string>
     <string name="section_goals">ЦІЛІ</string>
+    <string name="section_projects">ПРОЄКТИ</string>
     <string name="section_overdue">ПРОТЕРМІНОВАНО</string>
     <string name="section_all_day">ВЕСЬ ДЕНЬ</string>
     <string name="section_scheduled">ЗАПЛАНОВАНО</string>

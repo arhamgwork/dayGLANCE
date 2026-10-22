@@ -156,6 +156,17 @@
                             android:maxLines="1"
                             android:ellipsize="end" />
 
+                        <!-- The project's own target date (#2160), as on the Goal widget -->
+                        <TextView
+                            android:id="@+id/tv_pw_due"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:text=""
+                            android:textColor="@color/widget_text_secondary"
+                            android:textSize="11sp"
+                            android:visibility="gone" />
+
                         <!-- "Done" badge when 100% complete -->
                         <TextView
                             android:id="@+id/tv_pw_done_badge"

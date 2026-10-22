@@ -23,7 +23,7 @@ same trigger (every data change while the app runs), and pushes through
                energy, clientId, recurringId, native }],   // scheduled, Inbox (date null), recurring occurrences;
                                                 // native: a device-calendar event, read live, never stored
   goals:    [{ id, title, description, colorHex, targetDate, status }],
-  projects: [{ id, title, goalId, colorHex, description, status }],
+  projects: [{ id, title, goalId, colorHex, description, status, targetDate }],   // targetDate: the project's own, as on a goal (null when unset)
   routines: [{ id, name, startTime, duration, isAllDay, completed }],   // today's
   frames:   [{ id, frameId, date, start, end, name, colorHex }],       // per day, today-7 to today+34
   dayShape: { dayStartMin, dayStopMin, sunriseMin, sunsetMin, use24HourClock,

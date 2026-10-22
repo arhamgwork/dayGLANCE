@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildWidgetGoalsProjects, WIDGET_PROJECT_TASK_LIMIT } from './widgetGoalsProjects.js';
+import { buildWidgetGoalsProjects, buildWidgetDueOn, WIDGET_PROJECT_TASK_LIMIT } from './widgetGoalsProjects.js';
 
 const goal = { id: 'g1', title: 'Launch', status: 'active', color: 'bg-emerald-500' };
 const build = (over = {}) => buildWidgetGoalsProjects({
@@ -98,5 +98,39 @@ describe('buildWidgetGoalsProjects: the Goal widget', () => {
     });
     expect(allGoals.map((g) => g.id)).toEqual(['g1']);
     expect(allGoals[0].daysUntilDue).toBe(10);
+  });
+});
+
+// #2160: a project's own target date, for the Project widget's due badge.
+describe('buildWidgetGoalsProjects: a project\'s target date', () => {
+  it('carries targetDate and daysUntilDue in the goal\'s shape', () => {
+    const { allProjects } = build({
+      projects: [
+        { id: 'p1', title: 'Roof', status: 'active', targetDate: '2026-09-28' },
+        { id: 'p2', title: 'Garden', status: 'active', targetDate: '2026-09-20' },
+        { id: 'p3', title: 'Open-ended', status: 'active' },
+      ],
+    });
+    const byId = Object.fromEntries(allProjects.map((p) => [p.id, p]));
+    expect(byId.p1).toMatchObject({ targetDate: '2026-09-28', daysUntilDue: 3 });
+    expect(byId.p2).toMatchObject({ targetDate: '2026-09-20', daysUntilDue: -5 });
+    expect(byId.p3).toMatchObject({ targetDate: '', daysUntilDue: null });
+  });
+});
+
+describe('buildWidgetDueOn', () => {
+  it('lists the goals and projects due on a date, each in its own list', () => {
+    const due = buildWidgetDueOn({
+      goals: [{ id: 'g', title: 'Ship', status: 'active', targetDate: '2026-09-26' }],
+      projects: [
+        { id: 'gp', title: 'Child', status: 'active', goalId: 'g' },
+        { id: 'p', title: 'Roof', status: 'active', targetDate: '2026-09-26' },
+        { id: 'q', title: 'Other day', status: 'active', targetDate: '2026-09-27' },
+      ],
+      tasks: [{ id: 't1', projectId: 'gp', completed: true }, { id: 't2', projectId: 'p', completed: false }],
+      dateStr: '2026-09-26',
+    });
+    expect(due.goals).toEqual([{ id: 'g', title: 'Ship', progressPct: 100, totalTasks: 1, completedTasks: 1 }]);
+    expect(due.projects).toEqual([{ id: 'p', title: 'Roof', progressPct: 0, totalTasks: 1, completedTasks: 0 }]);
   });
 });

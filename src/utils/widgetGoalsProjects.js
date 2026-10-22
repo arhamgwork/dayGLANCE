@@ -12,6 +12,7 @@
 
 import { TAILWIND_TO_HEX, getProjectColor } from './colorUtils.js';
 import { calculateGoalProgress } from './goalProgress.js';
+import { calculateProjectProgress } from './projectProgress.js';
 import { stripWikilinksAndTags } from './taskUtils.js';
 import { orderProjectTasks, sortProjectsByOrder } from './projectOrder.js';
 
@@ -21,6 +22,9 @@ import { orderProjectTasks, sortProjectsByOrder } from './projectOrder.js';
 export const WIDGET_PROJECT_TASK_LIMIT = 8;
 
 const DEFAULT_HEX = '#3b82f6';
+const daysUntil = (targetDate, todayStr) => (targetDate
+  ? Math.round((new Date(targetDate) - new Date(todayStr)) / 86400000)
+  : null);
 const pct = (done, total) => (total > 0 ? Math.round((done / total) * 100) : 0);
 const openFirst = (list) => [
   ...list.filter((p) => p.status !== 'completed'),
@@ -48,10 +52,7 @@ export function buildWidgetGoalsProjects({ goals = [], allGoals = goals, project
       const childProjects = openFirst(sortProjectsByOrder(projects.filter((p) => p.goalId === g.id && p.status !== 'archived')));
       const childIds = new Set(childProjects.map((p) => p.id));
       const goalTasks = allTasks.filter((t) => childIds.has(t.projectId) && live(t));
-      let daysUntilDue = null;
-      if (g.targetDate) {
-        daysUntilDue = Math.round((new Date(g.targetDate) - new Date(todayStr)) / 86400000);
-      }
+      const daysUntilDue = daysUntil(g.targetDate, todayStr);
       return {
         id: g.id,
         title: g.title,
@@ -99,6 +100,11 @@ export function buildWidgetGoalsProjects({ goals = [], allGoals = goals, project
         // The project's own colour as the app draws it (its colour, else its
         // goal's, else the fallback): a standalone project has no goal colour.
         colorHex: TAILWIND_TO_HEX[getProjectColor(p, parentGoal)] || DEFAULT_HEX,
+        // The project's own target date (#2160), in the goal's shape: the
+        // widget computes its badge from targetDate at render time, and
+        // daysUntilDue is the fallback for one that does not parse.
+        targetDate: p.targetDate || '',
+        daysUntilDue: daysUntil(p.targetDate, todayStr),
         progressPct: pct(done, ordered.length),
         totalTasks: ordered.length,
         completedTasks: done,
@@ -109,4 +115,48 @@ export function buildWidgetGoalsProjects({ goals = [], allGoals = goals, project
     });
 
   return { allGoals: goalData, allProjects: projectData };
+}
+
+/**
+ * The day widgets' "due" rows for one date: goals, and projects with their
+ * own target date (#2160), that are active and due on `dateStr`. Shared by
+ * the pushed day (widgetSnapshot.js) and every projected day (App.jsx), which
+ * built the goal rows separately before.
+ *
+ * Projects ride a separate `projectsDue` list rather than `goals`, so a
+ * widget that does not know about them (the iOS widgets, an older Android
+ * build) keeps drawing exactly what it did. A project with nothing to
+ * measure carries `progressPct: null`, and the widget draws no bar for it.
+ *
+ * @param {object} input
+ * @param {object[]} input.goals     Visible goals.
+ * @param {object[]} input.projects  Visible projects.
+ * @param {object[]} input.tasks     Visible tasks, scheduled and unscheduled.
+ * @param {string}   input.dateStr   'YYYY-MM-DD'.
+ * @returns {{ goals: object[], projects: object[] }}
+ */
+export function buildWidgetDueOn({ goals = [], projects = [], tasks = [], dateStr }) {
+  const dueGoals = goals
+    .filter(g => g.status === 'active' && g.targetDate === dateStr)
+    .map(g => {
+      const progressPct = Math.round(calculateGoalProgress(g.id, projects, tasks) * 100);
+      const childProjects = projects.filter(p => p.goalId === g.id && p.status !== 'archived');
+      const totalTasks = tasks.filter(task => childProjects.some(p => p.id === task.projectId) && !task.archived).length;
+      const completedTasks = tasks.filter(task => childProjects.some(p => p.id === task.projectId) && !task.archived && task.completed).length;
+      return { id: g.id, title: g.title, progressPct, totalTasks, completedTasks };
+    });
+  const dueProjects = projects
+    .filter(p => p.status === 'active' && p.targetDate === dateStr)
+    .map(p => {
+      const progress = calculateProjectProgress(p.id, tasks);
+      const own = tasks.filter(task => task.projectId === p.id && !task.archived);
+      return {
+        id: p.id,
+        title: p.title,
+        progressPct: progress === null ? null : Math.round(progress * 100),
+        totalTasks: own.length,
+        completedTasks: own.filter(task => task.completed).length,
+      };
+    });
+  return { goals: dueGoals, projects: dueProjects };
 }

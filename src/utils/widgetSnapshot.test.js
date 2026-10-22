@@ -122,6 +122,29 @@ describe('buildWidgetSnapshot', () => {
     expect(snapshot.goals).toEqual([{ id: 'g', title: 'Ship', progressPct: expect.any(Number), totalTasks: 2, completedTasks: 1 }]);
   });
 
+  // #2160: projects with their own target date ride `projectsDue`, so a
+  // widget that only reads `goals` (iOS, an older Android build) is unchanged.
+  it('projects due today ride their own list, visible ones only, null progress when nothing to measure', () => {
+    const snapshot = buildWidgetSnapshot(base({
+      goalsProjectsEnabled: true,
+      projects: [
+        { id: 'roof', title: 'Roof', status: 'active', targetDate: TODAY },
+        { id: 'empty', title: 'Empty', status: 'active', targetDate: TODAY },
+        { id: 'later', title: 'Later', status: 'active', targetDate: '2026-12-01' },
+        { id: 'done', title: 'Done', status: 'completed', targetDate: TODAY },
+        { id: 'theirs', title: 'Theirs', status: 'active', targetDate: TODAY, owner: 'bob' },
+      ],
+      tasks: [{ id: 'a', projectId: 'roof', completed: true }, { id: 'b', projectId: 'roof', completed: false }],
+      isVisibleForUser: (item) => item.owner !== 'bob',
+    }));
+    expect(snapshot.goals).toEqual([]);
+    expect(snapshot.projectsDue).toEqual([
+      { id: 'roof', title: 'Roof', progressPct: 50, totalTasks: 2, completedTasks: 1 },
+      { id: 'empty', title: 'Empty', progressPct: null, totalTasks: 0, completedTasks: 0 },
+    ]);
+    expect(buildWidgetSnapshot(base({ projects: [{ id: 'roof', status: 'active', targetDate: TODAY }] })).projectsDue).toEqual([]);
+  });
+
   it('frames end-filtered at now; routines carry completion; sky needs coordinates', () => {
     const snapshot = buildWidgetSnapshot(base({
       getFrameInstancesForDate: () => [{ frameId: 'past', start: '07:00', end: '09:00', label: 'Past' }, { frameId: 'open', start: '09:00', end: '12:00', label: 'Open' }],

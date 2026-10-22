@@ -103,7 +103,7 @@ class ProjectWidget : AppWidgetProvider() {
             if (project == null) {
                 showEmpty(views, context.getString(R.string.widget_project_gone))
             } else {
-                bindProjectViews(views, project, context)
+                bindProjectViews(views, project, context, showDueBadge = !freshness.isStale)
             }
         }
 
@@ -125,7 +125,7 @@ class ProjectWidget : AppWidgetProvider() {
         return null
     }
 
-    private fun bindProjectViews(views: RemoteViews, project: JSONObject, context: Context) {
+    private fun bindProjectViews(views: RemoteViews, project: JSONObject, context: Context, showDueBadge: Boolean) {
         views.setViewVisibility(R.id.layout_project_content, View.VISIBLE)
         views.setViewVisibility(R.id.layout_project_empty, View.GONE)
 
@@ -147,6 +147,18 @@ class ProjectWidget : AppWidgetProvider() {
 
         // Title
         views.setTextViewText(R.id.tv_pw_title, project.optString("title", context.getString(R.string.widget_untitled)))
+
+        // The project's own target date (#2160): the Goal widget's badge, from
+        // the same rules (WidgetDue.kt), at render time. Not on a stale
+        // snapshot, and not on a completed project, whose date is history.
+        val targetDate = project.optString("targetDate", "")
+        val daysUntilDue = WidgetDueRules.daysUntil(targetDate, WidgetDueRules.pushedDays(project), java.time.LocalDate.now())
+        if (showDueBadge && daysUntilDue != null && targetDate.isNotEmpty() && project.optString("status") != "completed") {
+            views.setTextViewText(R.id.tv_pw_due, dueLabel(context, daysUntilDue))
+            views.setViewVisibility(R.id.tv_pw_due, View.VISIBLE)
+        } else {
+            views.setViewVisibility(R.id.tv_pw_due, View.GONE)
+        }
 
         // Progress + stats
         val pct   = project.optInt("progressPct", 0)

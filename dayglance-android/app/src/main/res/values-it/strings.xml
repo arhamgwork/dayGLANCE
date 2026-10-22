@@ -15,6 +15,7 @@
     <string name="tile_add_inbox_label">In arrivo</string>
     <string name="tile_add_scheduled_label">Attività programmata</string>
     <string name="section_goals">OBIETTIVI</string>
+    <string name="section_projects">PROGETTI</string>
     <string name="section_overdue">IN RITARDO</string>
     <string name="section_all_day">TUTTO IL GIORNO</string>
     <string name="section_scheduled">PROGRAMMATO</string>

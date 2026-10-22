@@ -163,9 +163,17 @@ struct ProjectWidgetView: View {
                             .foregroundColor(.secondary)
                             .lineLimit(1)
                     }
-                    Text(proj.title ?? "")
-                        .font(.subheadline).fontWeight(.semibold)
-                        .lineLimit(1)
+                    HStack {
+                        Text(proj.title ?? "")
+                            .font(.subheadline).fontWeight(.semibold)
+                            .lineLimit(1)
+                        Spacer()
+                        // The project's own target date (#2160), as the
+                        // Goal widget shows a goal's (ProjectData.dueDays).
+                        if let days = proj.dueDays(from: entry.date, isStale: freshness.isStale) {
+                            WidgetDueBadge(days: days)
+                        }
+                    }
                     HStack(spacing: 4) {
                         ProgressView(value: Double(proj.progressPct ?? 0) / 100.0)
                             .tint(progressColor(pct: proj.progressPct ?? 0))

@@ -20,6 +20,7 @@ import { DEFAULT_ALARM_PREFS } from './dialPrefs.js';
 import { buildWidgetMonthWindow } from './widgetMonthWindow.js';
 import { frameInstancesForDate } from './frameInstances.js';
 import { computeAvailableSlots } from './dayOccupancy.js';
+import { buildWidgetDueOn } from './widgetGoalsProjects.js';
 
 export const LIVE_SNAPSHOT_TIMEZONE = 'America/Denver';
 export const LIVE_SNAPSHOT_PATH = 'dayglance-ios/TestFixtures/widgetSnapshot.live.json';
@@ -121,8 +122,22 @@ const liveMonthDeadlines = (dateStr) => {
   return (dateStr === LIVE_MONTH_CROWDED_DAY || dom % 8 === 3) ? [{ title: 'Submit expense report', color: 'bg-red-500' }] : [];
 };
 
+// Two projects with their own target date (#2160) on the first projected
+// day: one with tasks, one with nothing to measure (progressPct null). They
+// ride `projectsDue` only, which the Android day widget reads and the iOS
+// widgets ignore; their tasks feed the progress figures, not the agenda.
+const LIVE_DUE_PROJECT_TASKS = [
+  { id: 'dp-t1', title: 'Order shingles', projectId: 'roof', completed: true },
+  { id: 'dp-t2', title: 'Hire roofer', projectId: 'roof', completed: false },
+];
+const liveDueProjects = (dateStr) => [
+  { id: 'roof', title: 'Renovate the roof', status: 'active', targetDate: dateStr },
+  { id: 'garden', title: 'Plan the garden', status: 'active', targetDate: dateStr },
+];
+
 export function buildLiveWidgetSnapshot() {
   const today = LIVE_SNAPSHOT_TODAY();
+  const dueProjectsDate = dateToString(projectionDates(today)[0]);
   const day = (date) => {
     const dateStr = dateToString(date);
     const prev = new Date(date);
@@ -136,6 +151,9 @@ export function buildLiveWidgetSnapshot() {
       dialFrames: liveFixtureDialFrames(dateStr),
       dayWindow: { start: '06:30', stop: '22:30' },
       coords: LIVE_SNAPSHOT_COORDS,
+      projectsDue: buildWidgetDueOn({
+        projects: liveDueProjects(dueProjectsDate), tasks: LIVE_DUE_PROJECT_TASKS, dateStr,
+      }).projects,
     });
   };
   return {
