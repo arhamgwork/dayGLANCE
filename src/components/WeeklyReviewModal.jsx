@@ -6,6 +6,8 @@ import { dateToString, formatDateRange, stripWikilinks, tagsIn } from '../utils/
 import { getOccurrencesInRange } from '../utils/recurrenceEngine.js';
 import { calculateProjectProgress, isProjectStalled } from '../utils/projectProgress.js';
 import { calculateGoalProgress } from '../utils/goalProgress.js';
+import { projectTargetDateInfo } from '../utils/projectTargetDate.js';
+import { dueThisWeek } from '../utils/dueThisWeek.js';
 import { useTranslation } from 'react-i18next';
 import { notBucketed } from '../utils/bucketList.js';
 import { formatLocalizedDate } from '../utils/localeFormatting.js';
@@ -389,6 +391,9 @@ const WeeklyReviewModal = () => {
                 const weekTotal = weekTasks.length;
                 const overallProgress = calculateProjectProgress(p.id, allTasksCombined);
                 const stalled = isProjectStalled(p.id, allTasksCombined, p, recurringTasks);
+                // A project's own target date (#2160), told to the AI the way a
+                // goal's is. A completed project's target is history, not news.
+                const target = p.status === 'completed' ? null : projectTargetDateInfo(p, todayStr);
                 return {
                   id: p.id,
                   title: p.title,
@@ -396,9 +401,10 @@ const WeeklyReviewModal = () => {
                   weekTotal,
                   overallProgressPct: overallProgress === null ? null : Math.round(overallProgress * 100),
                   stalled,
+                  daysToTarget: target ? target.days : null,
                 };
               })
-              .filter(p => p.weekTotal > 0 || p.stalled)
+              .filter(p => p.weekTotal > 0 || p.stalled || p.daysToTarget !== null)
           : [];
 
         // Stats for AI weekly summary (used by click-to-reveal prompt)
@@ -413,20 +419,10 @@ const WeeklyReviewModal = () => {
           .slice(0, 5)
           .map(t => ({ title: stripWikilinks(t.title), date: t.date, time: t.startTime, isAllDay: t.isAllDay || false }));
 
-        // Goals due in next 7 days (only goals with targetDate in range)
-        const nextWeekDueGoals = goalsProjectsEnabled
-          ? goals.filter(g => g.status === 'active' && ownedBy(g, meUserSyncId) && g.targetDate && g.targetDate >= todayStr && g.targetDate <= nextEndStr)
-              .map(g => {
-                const progress = calculateGoalProgress(g.id, projects, allTasksCombined);
-                const target = new Date(g.targetDate + 'T00:00:00');
-                const todayMidnight = new Date(todayStr + 'T00:00:00');
-                const daysLeft = Math.ceil((target - todayMidnight) / (1000 * 60 * 60 * 24));
-                const childProjects = projects.filter(p => p.goalId === g.id && p.status !== 'archived');
-                const totalTasks = allTasksCombined.filter(t => childProjects.some(p => p.id === t.projectId) && !t.archived).length;
-                const completedTasks = allTasksCombined.filter(t => childProjects.some(p => p.id === t.projectId) && !t.archived && t.completed).length;
-                return { id: g.id, title: g.title, progressPct: Math.round(progress * 100), daysLeft, totalTasks, completedTasks };
-              })
-              .sort((a, b) => a.daysLeft - b.daysLeft)
+        // Goals, and projects with their own target date (#2160), due in the
+        // next 7 days (utils/dueThisWeek.js).
+        const nextWeekDue = goalsProjectsEnabled
+          ? dueThisWeek({ goals, projects, tasks: allTasksCombined, todayStr, endStr: nextEndStr, isMine: (e) => ownedBy(e, meUserSyncId) })
           : [];
 
         // Active projects — with momentum indicator
@@ -760,34 +756,40 @@ const WeeklyReviewModal = () => {
                     );
                   })()}
 
-                  {/* Goals due this week */}
-                  {goalsProjectsEnabled && nextWeekDueGoals.length > 0 && (
+                  {/* Goals and projects due this week */}
+                  {goalsProjectsEnabled && nextWeekDue.length > 0 && (
                     <div className="mb-4">
-                      <div className={`text-xs font-semibold uppercase ${textSecondary} tracking-wider mb-2`}>{t('weeklyReview.goalsDueThisWeek')}</div>
+                      <div className={`text-xs font-semibold uppercase ${textSecondary} tracking-wider mb-2`}>{t('weeklyReview.dueThisWeek')}</div>
                       <div className="space-y-2">
-                        {nextWeekDueGoals.map(g => (
-                          <div key={g.id} className={`rounded-lg border p-3 ${darkMode ? 'border-gray-600 bg-gray-700/40' : 'border-stone-200 bg-stone-50'}`}>
-                            <div className="flex items-start justify-between gap-2 mb-2">
+                        {nextWeekDue.map(g => (
+                          <div key={`${g.kind}-${g.id}`} data-due-this-week-kind={g.kind} className={`rounded-lg border p-3 ${darkMode ? 'border-gray-600 bg-gray-700/40' : 'border-stone-200 bg-stone-50'}`}>
+                            <div className={`flex items-start justify-between gap-2 ${g.progressPct !== null || g.totalTasks > 0 ? 'mb-2' : ''}`}>
                               <div className="flex items-center gap-1.5 min-w-0">
-                                <Flag size={13} className="text-amber-400 flex-shrink-0" />
+                                {g.kind === 'project'
+                                  ? <Target size={13} className="text-amber-400 flex-shrink-0" />
+                                  : <Flag size={13} className="text-amber-400 flex-shrink-0" />}
                                 <span className={`text-sm font-medium ${textPrimary} truncate`}>{g.title}</span>
                               </div>
                               <span className={`text-xs flex-shrink-0 font-medium px-1.5 py-0.5 rounded ${g.progressPct >= 80 ? (darkMode ? 'bg-green-900/40 text-green-300' : 'bg-green-100 text-green-700') : (darkMode ? 'bg-amber-900/40 text-amber-300' : 'bg-amber-100 text-amber-700')}`}>
                                 {g.daysLeft === 0 ? t('goals.dueToday') : g.daysLeft === 1 ? t('weeklyReview.dueTomorrow') : t('goals.daysLeft', { count: g.daysLeft })}
                               </span>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <div className={`flex-1 h-1.5 rounded-full ${darkMode ? 'bg-gray-600' : 'bg-stone-200'}`}>
-                                <div
-                                  className="h-full rounded-full"
-                                  style={{ width: `${g.progressPct}%`, backgroundColor: g.progressPct >= 80 ? '#22c55e' : g.progressPct >= 40 ? '#f59e0b' : '#ef4444' }}
-                                />
+                            {(g.progressPct !== null || g.totalTasks > 0) && (
+                              <div className="flex items-center gap-2">
+                                {g.progressPct !== null && (<>
+                                  <div className={`flex-1 h-1.5 rounded-full ${darkMode ? 'bg-gray-600' : 'bg-stone-200'}`}>
+                                    <div
+                                      className="h-full rounded-full"
+                                      style={{ width: `${g.progressPct}%`, backgroundColor: g.progressPct >= 80 ? '#22c55e' : g.progressPct >= 40 ? '#f59e0b' : '#ef4444' }}
+                                    />
+                                  </div>
+                                  <span className={`text-xs ${textSecondary} flex-shrink-0`}>{g.progressPct}%</span>
+                                </>)}
+                                {g.totalTasks > 0 && (
+                                  <span className={`text-xs ${textSecondary} flex-shrink-0`}>{g.completedTasks}/{g.totalTasks}</span>
+                                )}
                               </div>
-                              <span className={`text-xs ${textSecondary} flex-shrink-0`}>{g.progressPct}%</span>
-                              {g.totalTasks > 0 && (
-                                <span className={`text-xs ${textSecondary} flex-shrink-0`}>{g.completedTasks}/{g.totalTasks}</span>
-                              )}
-                            </div>
+                            )}
                           </div>
                         ))}
                       </div>
