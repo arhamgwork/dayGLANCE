@@ -74,6 +74,8 @@ const SpotlightModal = () => {
               deleted: 'bg-red-900/40 text-red-300',
               archived: 'bg-gray-700/60 text-gray-400',
               dailynote: 'bg-indigo-900/40 text-indigo-300',
+              goal: 'bg-teal-900/40 text-teal-300',
+              area: 'bg-teal-900/40 text-teal-300',
             } : {
               scheduled: 'bg-blue-100 text-blue-700',
               event: 'bg-amber-100 text-amber-700',
@@ -83,9 +85,11 @@ const SpotlightModal = () => {
               deleted: 'bg-red-100 text-red-700',
               archived: 'bg-stone-200 text-stone-500',
               dailynote: 'bg-indigo-100 text-indigo-700',
+              goal: 'bg-teal-100 text-teal-700',
+              area: 'bg-teal-100 text-teal-700',
             };
             const matchFieldLabels = { tag: t('sched.tags'), notes: t('task.notes'), subtask: t('task.subtasks'), dailynote: t('common.dailyNote') };
-            const groupLabels = { today: t('spotlight.groupToday'), thisweek: t('spotlight.groupThisWeek'), future: t('spotlight.groupFuture'), nodate: t('spotlight.groupNoDate'), past: t('spotlight.groupPast'), deleted: t('spotlight.groupDeleted'), archived: t('spotlight.groupArchived') };
+            const groupLabels = { goals: t('goals.dashboardTitle'), today: t('spotlight.groupToday'), thisweek: t('spotlight.groupThisWeek'), future: t('spotlight.groupFuture'), nodate: t('spotlight.groupNoDate'), past: t('spotlight.groupPast'), deleted: t('spotlight.groupDeleted'), archived: t('spotlight.groupArchived') };
             let lastGroup = null;
             return spotlightResults.map((result, idx) => {
               const isSelected = idx === spotlightSelectedIndex;
@@ -130,7 +134,9 @@ const SpotlightModal = () => {
                     {(() => {
                       const isProjectTask = result.source === 'inbox' && result.task.projectId;
                       const badgeKey = isProjectTask ? 'project' : result.source;
-                      const label = isProjectTask ? 'Project' : result.source === 'dailynote' ? t('common.dailyNote') : result.sourceLabel;
+                      // Goals, projects and areas (#2131) in the user's language.
+                      const ownLabels = { dailynote: t('common.dailyNote'), goal: t('task.goal'), project: t('task.project'), area: t('goals.area') };
+                      const label = isProjectTask ? 'Project' : ownLabels[result.source] || result.sourceLabel;
                       return (
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0 ${sourceBadgeColors[badgeKey]}`}>
                           {label}

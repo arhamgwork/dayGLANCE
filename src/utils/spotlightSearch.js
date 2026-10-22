@@ -5,7 +5,17 @@
 //
 // Sources, in match order: scheduled tasks, device-calendar events, inbox
 // tasks (archived ones labelled Completed), recurring templates, the recycle
-// bin, and — when the caller supplies them — daily notes.
+// bin, and — when the caller supplies them — daily notes, then goals,
+// projects and areas (#2131).
+//
+// Goals and projects match on their title, then their notes (`description`);
+// areas on their title. Notes kept in a linked Obsidian note live in the
+// vault, not the record, and are not searched (#1672). They match only those the Goals & Projects space draws a card or a filter for:
+// not archived, visible to this user, and for a project, standalone or under
+// a goal that is itself drawn. Selecting one opens the space on it, so a
+// result with nowhere to go is left out rather than opening the space
+// unfocused. They have their own group, first: they are few, and a title hit
+// on a goal or project is usually what the search was for.
 //
 // Daily notes are opt-in via the `dailyNotes` argument on purpose. With the
 // Obsidian integration enabled the app's copy of the notes is a mirror of the
@@ -13,6 +23,7 @@
 // authoritative tool for what lives there; the caller passes `null` in that
 // case (issue #1672) so Spotlight never claims to search the vault.
 import { dateToString, extractTags } from './taskUtils.js';
+import { getProjectColor } from './colorUtils.js';
 
 export const SPOTLIGHT_MAX_RESULTS = 50;
 /** Scheduled tasks older than this many years are not searched. */
@@ -68,6 +79,35 @@ export function searchDailyNotes(dailyNotes, q) {
 }
 
 /**
+ * Search goals, projects and areas by title (and notes) for `q` (already trimmed and
+ * lower-cased). See the module comment for which ones are searchable.
+ *
+ * @returns {Array<object>} spotlight results with source 'goal' | 'project' | 'area'
+ */
+export function searchGoalsAndProjects({ goals = [], projects = [], areas = [], isVisibleForUser = () => true }, q) {
+  const results = [];
+  if (!q) return results;
+  const drawnGoals = goals.filter(g => g.status !== 'archived' && isVisibleForUser(g));
+  const goalById = new Map(drawnGoals.map(g => [g.id, g]));
+  const push = (item, source, sourceLabel, color) => {
+    let match = null;
+    if ((item.title || '').toLowerCase().includes(q)) match = { field: 'title', text: item.title };
+    else if (item.description && item.description.toLowerCase().includes(q)) match = { field: 'notes', text: item.description };
+    if (!match) return;
+    results.push({ task: { id: item.id, title: item.title, color }, source, sourceLabel, match, date: null });
+  };
+  for (const goal of drawnGoals) push(goal, 'goal', 'Goal', goal.color);
+  for (const project of projects) {
+    if (project.status === 'archived' || !isVisibleForUser(project)) continue;
+    const goal = project.goalId ? goalById.get(project.goalId) : null;
+    if (project.goalId && !goal) continue;
+    push(project, 'project', 'Project', getProjectColor(project, goal));
+  }
+  for (const area of areas) push(area, 'area', 'Area', area.color);
+  return results;
+}
+
+/**
  * Build the ranked Spotlight result list for a query.
  *
  * @param {object} args
@@ -78,6 +118,9 @@ export function searchDailyNotes(dailyNotes, q) {
  * @param {Array}  [args.recurringTasks]      recurring templates
  * @param {Array}  [args.recycleBin]          deleted tasks
  * @param {Record<string, object>|null} [args.dailyNotes]  date → note; null/undefined to skip notes
+ * @param {Array}  [args.goals]               goals; omit (or pass []) with Goals & Projects off
+ * @param {Array}  [args.projects]            projects
+ * @param {Array}  [args.areas]               goal areas
  * @param {(task:object)=>boolean} [args.isVisibleForUser]  multi-user visibility gate
  * @param {Date}   [args.now]
  * @returns {Array<object>} at most SPOTLIGHT_MAX_RESULTS results
@@ -90,6 +133,9 @@ export function buildSpotlightResults({
   recurringTasks = [],
   recycleBin = [],
   dailyNotes = null,
+  goals = [],
+  projects = [],
+  areas = [],
   isVisibleForUser = () => true,
   now = new Date(),
 }) {
@@ -158,14 +204,17 @@ export function buildSpotlightResults({
   }
   // Daily notes (only when the caller opted in — see module comment)
   results.push(...searchDailyNotes(dailyNotes, q));
+  // Goals, projects and areas (their own group, first)
+  results.push(...searchGoalsAndProjects({ goals, projects, areas, isVisibleForUser }, q));
 
   // Assign a time-based group to each result
   const todayStr = dateToString(now);
   const weekEndDate = new Date(now);
   weekEndDate.setDate(weekEndDate.getDate() + 7);
   const weekEndStr = dateToString(weekEndDate);
-  const groupOrder = { today: 0, thisweek: 1, future: 2, nodate: 3, past: 4, deleted: 5, archived: 6 };
+  const groupOrder = { goals: -1, today: 0, thisweek: 1, future: 2, nodate: 3, past: 4, deleted: 5, archived: 6 };
   const getGroup = (r) => {
+    if (r.source === 'goal' || r.source === 'project' || r.source === 'area') return 'goals';
     if (r.source === 'deleted') return 'deleted';
     if (r.source === 'archived') return 'archived';
     const d = r.date;
@@ -178,7 +227,7 @@ export function buildSpotlightResults({
   results.forEach(r => { r.group = getGroup(r); });
 
   // Sort: by group, then title match, then source priority, then date
-  const sourcePriority = { scheduled: 0, event: 1, inbox: 2, recurring: 3, deleted: 4, archived: 5, dailynote: 6 };
+  const sourcePriority = { goal: 0, project: 1, area: 2, scheduled: 0, event: 1, inbox: 2, recurring: 3, deleted: 4, archived: 5, dailynote: 6 };
   results.sort((a, b) => {
     const gA = groupOrder[a.group] ?? 6;
     const gB = groupOrder[b.group] ?? 6;

@@ -16,6 +16,14 @@ describe('resolveGoalsLink', () => {
       .toEqual({ mobileTab: 'goals', space: null, focusGoalId: null, focusProjectId: 'p 1', tab: null });
   });
 
+  it('an area (Spotlight, #2131) opens the Goals tab filtered to it; without an id or with the feature off, nothing', () => {
+    expect(resolveGoalsLink('area', q('id=a1'), { enabled: true, phone: false }))
+      .toEqual({ mobileTab: null, space: 'goals', focusGoalId: null, focusProjectId: null, tab: 'goals', areaFilter: 'a1' });
+    expect(resolveGoalsLink('area', q('id=a1'), { enabled: true, phone: true }).mobileTab).toBe('goals');
+    expect(resolveGoalsLink('area', q(''), { enabled: true, phone: false })).toBeNull();
+    expect(resolveGoalsLink('area', q('id=a1'), { enabled: false, phone: false })).toBeNull();
+  });
+
   it('does nothing while Goals & Projects is off, or for another action', () => {
     expect(resolveGoalsLink('goal', q('id=g1'), { enabled: false, phone: true })).toBeNull();
     expect(resolveGoalsLink('day', q('id=g1'), { enabled: true, phone: true })).toBeNull();

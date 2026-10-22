@@ -25,4 +25,23 @@ describe('handleSpotlightSelect', () => {
     expect(closePlanner).toHaveBeenCalled();
     vi.useRealTimers();
   });
+
+  it('opens a goal, project or area result in the Goals space (#2131)', () => {
+    const openGoalsTarget = vi.fn();
+    const closePlanner = vi.fn();
+    const { handleSpotlightSelect } = useNavigation({
+      visibleDays: 1, effectiveViewMode: 'multi',
+      selectedDate: new Date(2026, 9, 19), setSelectedDate: vi.fn(), setShowMonthView: vi.fn(),
+      setShowSpotlight: vi.fn(), isMobile: true, setMobileActiveTab: vi.fn(), setTabletActiveTab: vi.fn(),
+      setInboxProjectFilter: vi.fn(), setInboxArchivedExpanded: vi.fn(), setDailyNotesModalDate: vi.fn(),
+      calendarRef: { current: null }, closePlanner, openGoalsTarget,
+    });
+
+    handleSpotlightSelect({ source: 'goal', task: { id: 'g1' } });
+    handleSpotlightSelect({ source: 'project', task: { id: 'p1' } });
+    handleSpotlightSelect({ source: 'area', task: { id: 'a1' } });
+
+    expect(openGoalsTarget.mock.calls).toEqual([['goal', 'g1'], ['project', 'p1'], ['area', 'a1']]);
+    expect(closePlanner).toHaveBeenCalledTimes(3);
+  });
 });
