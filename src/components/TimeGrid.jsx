@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 import PastDoCard from './jobo/PastDoCard.jsx';
 import useTimelineZoom from '../hooks/useTimelineZoom.js';
 import { SCROLLING_HOUR_PX } from '../utils/timelineZoom.js';
+import { cardDoubleClickHandler } from '../utils/cardDoubleClick.js';
 
 const TimeGrid = () => {
   const {
@@ -487,6 +488,8 @@ const TimeGrid = () => {
                     dateStr,
                   });
                 }}
+                // A double-click opens the editor (utils/cardDoubleClick.js).
+                onDoubleClick={cardDoubleClickHandler({ task, isImported, isTablet, open: (target) => openMobileEditTask(target, false) })}
                 draggable={(!isImported || task.isTaskCalendar || !!task.nativeEventId) && !isTablet}
                 onDragStart={(e) => (!isImported || task.isTaskCalendar || !!task.nativeEventId) && handleDragStart(task, 'calendar', e)}
                 onDragEnd={handleDragEnd}
@@ -561,6 +564,7 @@ const TimeGrid = () => {
                   {/* Resize handle at bottom - solid white for visibility */}
                   {(!isImported || !!task.nativeEventId) && (
                     <div
+                      data-no-card-dblclick
                       onMouseDown={(e) => handleResizeStart(task, e)}
                       onTouchStart={(e) => handleTouchResizeStart(task, e)}
                       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}

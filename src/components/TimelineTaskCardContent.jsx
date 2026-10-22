@@ -234,7 +234,7 @@ const CardContent = ({ task, height, isNarrowWidth, flipNotesPanel }) => {
                     {task.completed && <Check size={10} strokeWidth={3} />}
                   </button>
                 )}
-                {task.isRecurring && <RefreshCw size={12} className="flex-shrink-0 opacity-75 hover:opacity-100 cursor-pointer" onClick={(e) => { e.stopPropagation(); setEditingRecurrenceTaskId(task.id); }} />}
+                {task.isRecurring && <RefreshCw size={12} data-no-card-dblclick className="flex-shrink-0 opacity-75 hover:opacity-100 cursor-pointer" onClick={(e) => { e.stopPropagation(); setEditingRecurrenceTaskId(task.id); }} />}
                 {task.importSource === 'obsidian' && <BookOpen size={12} className="flex-shrink-0 opacity-75" title={t('task.fromObsidian', { defaultValue: 'From Obsidian' })} />}
                 {task.obsidianRecurrence && <Repeat size={12} className="flex-shrink-0 opacity-75" title={t('task.obsidianRecurrenceManaged', { defaultValue: "Recurring in Obsidian — this task's recurrence is managed by the Tasks plugin; completing it here won't create the next instance" })} />}
                 {task.source_app === SOURCE_APPS.LASTGLANCE && <LastGlanceBadge size={12} className="flex-shrink-0" title={t('task.addedByLastGlance')} />}
@@ -328,7 +328,7 @@ const CardContent = ({ task, height, isNarrowWidth, flipNotesPanel }) => {
                     {task.completed && <Check size={10} strokeWidth={3} />}
                   </button>
                 )}
-                {task.isRecurring && <RefreshCw size={12} className="flex-shrink-0 opacity-75 hover:opacity-100 cursor-pointer" onClick={(e) => { e.stopPropagation(); setEditingRecurrenceTaskId(task.id); }} />}
+                {task.isRecurring && <RefreshCw size={12} data-no-card-dblclick className="flex-shrink-0 opacity-75 hover:opacity-100 cursor-pointer" onClick={(e) => { e.stopPropagation(); setEditingRecurrenceTaskId(task.id); }} />}
                 {task.importSource === 'obsidian' && <BookOpen size={12} className="flex-shrink-0 opacity-75" title={t('task.fromObsidian', { defaultValue: 'From Obsidian' })} />}
                 {task.obsidianRecurrence && <Repeat size={12} className="flex-shrink-0 opacity-75" title={t('task.obsidianRecurrenceManaged', { defaultValue: "Recurring in Obsidian — this task's recurrence is managed by the Tasks plugin; completing it here won't create the next instance" })} />}
                 {task.source_app === SOURCE_APPS.LASTGLANCE && <LastGlanceBadge size={12} className="flex-shrink-0" title={t('task.addedByLastGlance')} />}

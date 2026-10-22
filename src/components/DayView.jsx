@@ -12,6 +12,7 @@ import useDayViewHourHeight from '../hooks/useDayViewHourHeight.js';
 import { getHGBarsForDate } from '../hooks/useHyperGlance.js';
 import HyperGlanceBar from './HyperGlanceBar.jsx';
 import { frameColorBg, frameColorBorder } from '../utils/colorUtils.js';
+import { cardDoubleClickHandler } from '../utils/cardDoubleClick.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -51,7 +52,7 @@ function getTaskSlice(task, col, hourHeight, timeToMinutes, zoom = 1) {
 // already carries it, and card contents draw at it. DAY itself never zooms.
 export const DayViewColumn = ({ col, colIdx, hourHeight, planOnly = false, zoom = 1 }) => {
   const {
-    isTablet, currentTime,
+    isTablet, currentTime, openMobileEditTask,
     darkMode, use24HourClock,
     borderClass, textSecondary,
     expandedNotesTaskId,
@@ -440,6 +441,8 @@ export const DayViewColumn = ({ col, colIdx, hourHeight, planOnly = false, zoom 
                   visibility: isMeasured ? 'visible' : 'hidden',
                 }}
                 onClick={(e) => e.stopPropagation()}
+                // A double-click opens the editor (utils/cardDoubleClick.js).
+                onDoubleClick={cardDoubleClickHandler({ task, isImported, isTablet, open: (target) => openMobileEditTask(target, false) })}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   setTaskContextMenu({
@@ -471,6 +474,7 @@ export const DayViewColumn = ({ col, colIdx, hourHeight, planOnly = false, zoom 
                 )}
                 {canResize && (
                   <div
+                    data-no-card-dblclick
                     onMouseDown={(e) => handleResizeStart(task, e)}
                     onTouchStart={(e) => handleTouchResizeStart(task, e)}
                     onClick={(e) => e.stopPropagation()}
