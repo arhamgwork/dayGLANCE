@@ -1840,6 +1840,7 @@
     "dashboardTitle": "Objectifs et projets",
     "goalOptional": "Objectif (optionnel)",
     "addFromInbox": "Ajouter depuis la boîte de réception",
+    "addProjectToGoal": "Ajouter un projet à {{goal}}",
     "addFromInboxTo": "Ajouter à {{project}} depuis la boîte de réception",
     "filterInbox": "Filtrer la boîte de réception",
     "inboxTasks": "Tâches de la boîte de réception",

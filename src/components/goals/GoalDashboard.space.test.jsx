@@ -160,7 +160,9 @@ describe('GoalDashboard desktop space', () => {
     const fabs = main.slice(main.indexOf('data-goals-fabs'));
     expect(fabs).toContain('absolute bottom-6 right-6');
     expect(fabs).toContain('flex-col');
-    expect(fabs).toContain('aria-label="Add Goal"');
+    // A goal is on screen, so the + offers a choice (GoalsAddMenu, #2133).
+    expect(fabs).toContain('aria-label="Add"');
+    expect(fabs).toContain('aria-haspopup="menu"');
     expect(main.indexOf('data-goals-fabs')).toBeLessThan(main.indexOf('data-archived-section'));
     expect(main).toContain('pb-28');
     const projects = section(render({ desktop: true, isActive: true, initialSidebarTab: 'projects' }), 'data-goals-fabs');
@@ -255,7 +257,7 @@ describe('GoalDashboard desktop space', () => {
     expect(off).not.toContain('data-aspire-fab');
     const on = section(render({ desktop: true, isActive: true }, { aspireEnabled: true }), 'data-goals-fabs');
     expect(on).toContain('aria-label="Aspire"');
-    expect(on.indexOf('data-aspire-fab')).toBeLessThan(on.indexOf('aria-label="Add Goal"'));
+    expect(on.indexOf('data-aspire-fab')).toBeLessThan(on.indexOf('data-goals-plus'));
     expect(on).not.toContain('data-aspire-modal');
   });
 
@@ -420,13 +422,14 @@ describe('GoalDashboard embedded (phone) mode', () => {
   it('floats one contextual + over the content, above the Archived footer, with Aspire above it when on', () => {
     const goals = section(phone(), 'data-goals-fabs');
     expect(goals).toContain('absolute bottom-4 right-4');
-    expect(goals).toContain('aria-label="Add Goal"');
+    expect(goals).toContain('aria-label="Add"');
+    expect(goals).toContain('aria-haspopup="menu"');
     expect(goals).not.toContain('data-aspire-fab');
     const html = phone();
     expect(html.indexOf('data-goals-fabs')).toBeLessThan(html.indexOf('data-archived-section'));
     expect(section(phone({ initialSidebarTab: 'projects' }), 'data-goals-fabs')).toContain('aria-label="Add Project"');
     const on = section(phone({}, { aspireEnabled: true }), 'data-goals-fabs');
-    expect(on.indexOf('data-aspire-fab')).toBeLessThan(on.indexOf('aria-label="Add Goal"'));
+    expect(on.indexOf('data-aspire-fab')).toBeLessThan(on.indexOf('data-goals-plus'));
   });
 
   it('keeps the roadmap under the tabs, and only on the Goals tab', () => {

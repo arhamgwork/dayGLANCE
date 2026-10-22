@@ -1842,6 +1842,7 @@
     "dashboardTitle": "Obiettivi e progetti",
     "goalOptional": "Obiettivo (opzionale)",
     "addFromInbox": "Aggiungi dalla Posta in arrivo",
+    "addProjectToGoal": "Aggiungi progetto a {{goal}}",
     "addFromInboxTo": "Aggiungi a {{project}} dalla Posta in arrivo",
     "filterInbox": "Filtra la Posta in arrivo",
     "inboxTasks": "Attività in Posta in arrivo",

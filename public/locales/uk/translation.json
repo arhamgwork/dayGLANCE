@@ -1923,6 +1923,7 @@
     "dashboardTitle": "Цілі та проєкти",
     "goalOptional": "Ціль (необов’язково)",
     "addFromInbox": "Додати з вхідних",
+    "addProjectToGoal": "Додати проєкт до цілі «{{goal}}»",
     "addFromInboxTo": "Додати до {{project}} з вхідних",
     "filterInbox": "Фільтрувати вхідні",
     "inboxTasks": "Завдання у вхідних",
