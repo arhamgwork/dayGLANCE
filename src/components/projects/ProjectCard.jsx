@@ -12,7 +12,7 @@ import { useDayPlannerCtx } from '../../context/DayPlannerContext.jsx';
 import { useSyncCtx } from '../../context/SyncContext.jsx';
 import { useFeaturesCtx } from '../../context/FeaturesContext.jsx';
 import { calculateProjectProgress } from '../../utils/projectProgress.js';
-import { projectDeadlineInfo } from '../../utils/projectDeadline.js';
+import { projectTargetDateInfo } from '../../utils/projectTargetDate.js';
 import { isProjectFlaggedStalled } from '../../utils/stalledBadge.js';
 import { TAILWIND_TO_HEX, hexToRgba, getProjectColor } from '../../utils/colorUtils.js';
 import ProjectProgress from './ProjectProgress.jsx';
@@ -143,15 +143,15 @@ const ProjectCard = forwardRef(({ project, onEditClick, compact, dragHandleProps
   // are colored the same way as goal children.
   const projectColor = getProjectColor(project, parentGoal);
   const projectHex = toHex(projectColor);
-  // Project-level deadline badge (the project's own due date, not a task
-  // deadline). Completed projects hide it, like the Stalled badge: their due
-  // date is history. Getter called only for a project that has one, so a card
-  // without a deadline never needs the context clock.
-  const hasDeadline = !!project.deadline && project.status !== 'completed';
-  const deadlineInfo = hasDeadline
-    ? projectDeadlineInfo(project, getTodayStr ? getTodayStr() : dateToString(new Date()))
+  // Project-level target-date badge (the project's own due date, not a task
+  // deadline). Completed projects hide it, like the Stalled badge: their date
+  // is history. Getter called only for a project that has one, so a card
+  // without a target date never needs the context clock.
+  const hasTargetDate = !!project.targetDate && project.status !== 'completed';
+  const targetDateInfo = hasTargetDate
+    ? projectTargetDateInfo(project, getTodayStr ? getTodayStr() : dateToString(new Date()))
     : null;
-  const showDeadline = hasDeadline && !!deadlineInfo;
+  const showTargetDate = hasTargetDate && !!targetDateInfo;
   // Eyeball toggle (standalone cards only): hides task count, progress bars,
   // and completed tasks. Persisted on the project so it syncs and survives reloads.
   const detailsHidden = !parentGoal && !!project.detailsHidden;
@@ -454,23 +454,23 @@ const ProjectCard = forwardRef(({ project, onEditClick, compact, dragHandleProps
           <span className={`text-sm font-semibold ${textPrimary} leading-tight flex-1 min-w-0`}>
             {project.title}
           </span>
-          {showDeadline && (
+          {showTargetDate && (
             <span
-              data-project-deadline
+              data-project-target-date
               className={`flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 whitespace-nowrap ${
-                deadlineInfo.overdue
+                targetDateInfo.overdue
                   ? 'bg-red-500/15 text-red-500'
-                  : deadlineInfo.dueToday || deadlineInfo.soon
-                  ? 'bg-amber-500/15 text-amber-600'
+                  : targetDateInfo.dueToday || targetDateInfo.soon
+                  ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
                   : `${textSecondary} opacity-70`
               }`}
               title={
-                t('task.deadlineWithDate', { date: formatDeadlineDate(project.deadline), defaultValue: 'Deadline: {{date}}' })
-                + (deadlineInfo.overdue ? ` (${t('goals.daysOverdue', { count: -deadlineInfo.days })})` : '')
+                `${t('goals.target')}: ${formatDeadlineDate(project.targetDate)}`
+                + (targetDateInfo.overdue ? ` (${t('goals.daysOverdue', { count: -targetDateInfo.days })})` : '')
               }
             >
               <Calendar size={9} />
-              {formatDeadlineDate(project.deadline)}
+              {formatDeadlineDate(project.targetDate)}
             </span>
           )}
           {noteBadge}

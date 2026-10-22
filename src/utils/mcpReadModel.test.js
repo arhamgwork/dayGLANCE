@@ -486,11 +486,11 @@ describe('the read gaps closed 2026-10-04: imported events, assignees, inbox dur
   });
 });
 
-describe('projectItem — the project\'s own deadline on the wire', () => {
+describe('projectItem — the project\'s own target date on the wire', () => {
   const project = { id: 'p1', title: 'Roof', status: 'active' };
 
-  it('carries deadline (YYYY-MM-DD) when the project has one, and no key when it does not', () => {
-    expect(projectItem({ ...project, deadline: '2026-12-01' })).toMatchObject({ id: 'p1', deadline: '2026-12-01' });
-    expect(projectItem(project)).not.toHaveProperty('deadline');
+  it('carries target_date (YYYY-MM-DD) when the project has one, and no key when it does not', () => {
+    expect(projectItem({ ...project, targetDate: '2026-12-01' })).toMatchObject({ id: 'p1', target_date: '2026-12-01' });
+    expect(projectItem(project)).not.toHaveProperty('target_date');
   });
 });

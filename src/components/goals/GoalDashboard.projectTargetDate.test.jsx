@@ -9,10 +9,11 @@ import { FeaturesContext } from '../../context/FeaturesContext.jsx';
 import { SyncContext } from '../../context/SyncContext.jsx';
 import { ProjectForm } from './GoalDashboard.jsx';
 
-// The project form's deadline field (2026-10-21): a project carries its own due
-// date, independent of its tasks' deadlines. The form must show it, save it,
-// and clear it — the save rides the existing addProject/updateProject spread,
-// so this pins the fields the form hands over rather than the merge itself.
+// The project form's target-date field (2026-10-21): a project carries its own
+// due date, independent of its tasks' deadlines, under the same name and label
+// goals use for theirs. The form must show it, save it, and clear it — the save
+// rides the existing addProject/updateProject spread, so this pins the fields
+// the form hands over rather than the merge itself.
 
 const planner = {
   tasks: [], unscheduledTasks: [], isMobile: false, isTablet: false, darkMode: false, use24HourClock: false,
@@ -38,7 +39,7 @@ const wrap = (i18n, children, { projects = [], goals = [] } = {}) => (
   </I18nextProvider>
 );
 
-const project = { id: 'p1', title: 'Roof', status: 'active', deadline: '2026-11-01' };
+const project = { id: 'p1', title: 'Roof', status: 'active', targetDate: '2026-11-01' };
 
 async function renderForm(props, ctx) {
   const root = { current: null };
@@ -53,8 +54,16 @@ const titleInput = (root) => root.findAll((node) => node.type === 'input' && nod
 const buttonText = (node) => (node.children || []).filter((child) => typeof child === 'string').join('');
 const clearButtons = (root) => root.findAll((node) => node.type === 'button' && buttonText(node) === 'Clear');
 
-describe('ProjectForm deadline', () => {
-  it('prefills an existing project\'s deadline and offers Clear only when one is set', async () => {
+describe('ProjectForm target date', () => {
+  it('labels the field the way the goal form does, not as a task deadline', async () => {
+    const root = await renderForm({ initial: project, goals: [], onSave: vi.fn(), onCancel: vi.fn() }, { projects: [project] });
+    expect(dateInput(root).props['data-project-target-date']).toBe(true);
+    const labels = root.findAll((node) => node.type === 'label').map((node) => node.children.join(''));
+    expect(labels).toContain('Target date');
+    expect(labels).not.toContain('Deadline');
+  });
+
+  it('prefills an existing project\'s target date and offers Clear only when one is set', async () => {
     const root = await renderForm({ initial: project, goals: [], onSave: vi.fn(), onCancel: vi.fn() }, { projects: [project] });
     expect(dateInput(root).props.value).toBe('2026-11-01');
     expect(clearButtons(root)).toHaveLength(1);
@@ -76,7 +85,7 @@ describe('ProjectForm deadline', () => {
     await act(async () => { dateInput(root).props.onChange({ target: { value: '2026-12-01' } }); });
     await act(async () => { root.findByType('form').props.onSubmit({ preventDefault() {} }); });
     expect(onSave).toHaveBeenCalledTimes(1);
-    expect(onSave.mock.calls[0][0]).toMatchObject({ title: 'Roof', deadline: '2026-12-01' });
+    expect(onSave.mock.calls[0][0]).toMatchObject({ title: 'Roof', targetDate: '2026-12-01' });
   });
 
   it('saves an emptied date as undefined, which updateProject merges away', async () => {
@@ -84,7 +93,7 @@ describe('ProjectForm deadline', () => {
     const root = await renderForm({ initial: project, goals: [], onSave, onCancel: vi.fn() }, { projects: [project] });
     await act(async () => { dateInput(root).props.onChange({ target: { value: '' } }); });
     await act(async () => { root.findByType('form').props.onSubmit({ preventDefault() {} }); });
-    expect('deadline' in onSave.mock.calls[0][0]).toBe(true);
-    expect(onSave.mock.calls[0][0].deadline).toBeUndefined();
+    expect('targetDate' in onSave.mock.calls[0][0]).toBe(true);
+    expect(onSave.mock.calls[0][0].targetDate).toBeUndefined();
   });
 });

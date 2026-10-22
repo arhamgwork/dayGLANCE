@@ -10,11 +10,12 @@ import { SyncContext } from '../../context/SyncContext.jsx';
 import ProjectCard from './ProjectCard.jsx';
 import ProjectPlanner from './ProjectPlanner.jsx';
 
-// Where a project's own deadline becomes visible: the Goals card's header
+// Where a project's own target date becomes visible: the Goals card's header
 // badge and the Project Planner's header line (2026-10-21). Both read
-// utils/projectDeadline.js, so the states are asserted once per surface:
-// overdue red, due-soon amber, future neutral, and none/completed absent.
-// Tasks keep their own deadlines; nothing here is about a task field.
+// utils/projectTargetDate.js, so the states are asserted once per surface:
+// overdue red, due-soon amber (with the dark-mode variant), future neutral,
+// and none/completed absent. Tasks keep their own deadlines; nothing here is
+// about a task field.
 
 const TODAY = '2026-10-21';
 
@@ -58,7 +59,7 @@ const features = (projects) => ({
 const sync = { loadWikiNote: null, saveWikiNote: null, openInObsidian: null, obsidianConfig: { enabled: false }, bridgeHeartbeatRef: { current: null } };
 
 // Only the fields under test vary: the PROJECT is always standalone (no goal),
-// active unless the case says completed, and carries the deadline under test.
+// active unless the case says completed, and carries the target date under test.
 const renderCard = async (project) => renderToStaticMarkup(
   <I18nextProvider i18n={await i18n()}>
     <DayPlannerContext.Provider value={planner()}>
@@ -86,43 +87,46 @@ const renderPlanner = async (project) => renderToStaticMarkup(
 const card = { id: 'p1', title: 'Roof', status: 'active', color: 'bg-blue-500' };
 
 /** The badge's own class list, so unrelated hover: utilities cannot match. */
-const badgeClass = (html) => /data-project-deadline="true"[^>]*class="([^"]*)"/.exec(html)?.[1] ?? '';
+const badgeClass = (html) => /data-project-target-date="true"[^>]*class="([^"]*)"/.exec(html)?.[1] ?? '';
 
-describe('the project card\'s deadline badge', () => {
-  it('shows an overdue deadline in red, naming the days overdue', async () => {
-    const html = await renderCard({ ...card, deadline: '2026-10-05' });
-    expect(html).toContain('data-project-deadline');
+describe('the project card\'s target-date badge', () => {
+  it('shows an overdue target date in red, naming the days overdue', async () => {
+    const html = await renderCard({ ...card, targetDate: '2026-10-05' });
+    expect(html).toContain('data-project-target-date');
     expect(badgeClass(html)).toContain('text-red-500');
     expect(html).toMatch(/Oct\s*5/);
     expect(html).toMatch(/16d overdue/);
+    expect(html).toContain('Target:');
   });
 
-  it('shows a due-soon deadline in amber and a far one neutrally', async () => {
-    const soon = await renderCard({ ...card, deadline: '2026-10-25' });
-    expect(soon).toContain('data-project-deadline');
+  it('shows a due-soon target date in amber, matching the planner in dark mode, and a far one neutrally', async () => {
+    const soon = await renderCard({ ...card, targetDate: '2026-10-25' });
+    expect(soon).toContain('data-project-target-date');
     expect(badgeClass(soon)).toContain('text-amber-600');
-    const far = await renderCard({ ...card, deadline: '2026-12-31' });
-    expect(far).toContain('data-project-deadline');
+    // The planner header already carried the dark variant; the card did not.
+    expect(badgeClass(soon)).toContain('dark:text-amber-400');
+    const far = await renderCard({ ...card, targetDate: '2026-12-31' });
+    expect(far).toContain('data-project-target-date');
     expect(badgeClass(far)).not.toContain('text-red-500');
     expect(badgeClass(far)).not.toContain('text-amber-600');
   });
 
-  it('renders nothing without a deadline, and hides it on a completed project', async () => {
-    expect(await renderCard(card)).not.toContain('data-project-deadline');
-    expect(await renderCard({ ...card, status: 'completed', deadline: '2026-10-05' })).not.toContain('data-project-deadline');
+  it('renders nothing without a target date, and hides it on a completed project', async () => {
+    expect(await renderCard(card)).not.toContain('data-project-target-date');
+    expect(await renderCard({ ...card, status: 'completed', targetDate: '2026-10-05' })).not.toContain('data-project-target-date');
   });
 });
 
-describe('the project planner\'s deadline line', () => {
+describe('the project planner\'s target-date line', () => {
   it('carries the date beside the goal/Planner subtitle, red when overdue', async () => {
-    const html = await renderPlanner({ ...card, deadline: '2026-10-05' });
-    expect(html).toContain('data-project-deadline');
+    const html = await renderPlanner({ ...card, targetDate: '2026-10-05' });
+    expect(html).toContain('data-project-target-date');
     expect(badgeClass(html)).toContain('text-red-500');
     expect(html).toMatch(/Oct\s*5/);
     expect(html).toContain('Standalone project');
   });
 
-  it('is absent without a deadline', async () => {
-    expect(await renderPlanner(card)).not.toContain('data-project-deadline');
+  it('is absent without a target date', async () => {
+    expect(await renderPlanner(card)).not.toContain('data-project-target-date');
   });
 });

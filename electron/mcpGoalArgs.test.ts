@@ -69,17 +69,17 @@ describe('planCreateProject / planUpdateProject', () => {
     expect(planUpdateProject({ project_id: 'p1' }, false)).toMatchObject({ ok: false });
   });
 
-  it('carries the project\'s own deadline on create and update, clears it by name, and keeps dates strict', () => {
-    expect(planCreateProject({ title: 'Roof', deadline: '2026-12-01' }, false))
-      .toEqual({ ok: true, plan: { title: 'Roof', deadline: '2026-12-01' } });
-    expect(planUpdateProject({ project_id: 'p1', deadline: '2026-12-01' }, false))
-      .toEqual({ ok: true, plan: { projectId: 'p1', set: { deadline: '2026-12-01' }, clear: [] } });
-    expect(planUpdateProject({ project_id: 'p1', clear_fields: ['deadline'] }, false))
-      .toEqual({ ok: true, plan: { projectId: 'p1', set: {}, clear: ['deadline'] } });
+  it('carries the project\'s own target date on create and update, clears it by name, and keeps dates strict', () => {
+    expect(planCreateProject({ title: 'Roof', target_date: '2026-12-01' }, false))
+      .toEqual({ ok: true, plan: { title: 'Roof', targetDate: '2026-12-01' } });
+    expect(planUpdateProject({ project_id: 'p1', target_date: '2026-12-01' }, false))
+      .toEqual({ ok: true, plan: { projectId: 'p1', set: { targetDate: '2026-12-01' }, clear: [] } });
+    expect(planUpdateProject({ project_id: 'p1', clear_fields: ['target_date'] }, false))
+      .toEqual({ ok: true, plan: { projectId: 'p1', set: {}, clear: ['target_date'] } });
     // Same strict wire date every other tool takes, and set-and-clear at once is refused.
-    expect(planCreateProject({ title: 'Roof', deadline: '2026-12-1' }, false)).toMatchObject({ ok: false });
-    expect(planUpdateProject({ project_id: 'p1', deadline: 'soon' }, false)).toMatchObject({ ok: false });
-    expect(planUpdateProject({ project_id: 'p1', deadline: '2026-12-01', clear_fields: ['deadline'] }, false)).toMatchObject({ ok: false });
+    expect(planCreateProject({ title: 'Roof', target_date: '2026-12-1' }, false)).toMatchObject({ ok: false });
+    expect(planUpdateProject({ project_id: 'p1', target_date: 'soon' }, false)).toMatchObject({ ok: false });
+    expect(planUpdateProject({ project_id: 'p1', target_date: '2026-12-01', clear_fields: ['target_date'] }, false)).toMatchObject({ ok: false });
   });
 });
 

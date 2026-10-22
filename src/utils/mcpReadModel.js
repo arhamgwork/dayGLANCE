@@ -319,9 +319,9 @@ export function projectItem(p, progressTasks = []) {
   };
   if (p.goalId) item.goal_id = p.goalId;
   if (p.assignedUserSyncIds?.length) item.assignee_ids = [...p.assignedUserSyncIds];
-  // The project's own due date (2026-10-21), the same `deadline` field tasks
-  // carry; omitted when unset so unchanged consumers see no new key.
-  if (p.deadline) item.deadline = p.deadline;
+  // The project's own target date (2026-10-21), the same field a goal carries
+  // as target_date; omitted when unset so unchanged consumers see no new key.
+  if (p.targetDate) item.target_date = p.targetDate;
   const note = wireNote(p);
   if (note) item.obsidian_note = note;
   return item;

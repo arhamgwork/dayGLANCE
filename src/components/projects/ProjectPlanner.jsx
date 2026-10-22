@@ -4,7 +4,7 @@ import { useDayPlannerCtx } from '../../context/DayPlannerContext.jsx';
 import { useFeaturesCtx } from '../../context/FeaturesContext.jsx';
 import { useTranslation } from 'react-i18next';
 import { dateToString, formatDeadlineDate } from '../../utils/taskUtils.js';
-import { projectDeadlineInfo } from '../../utils/projectDeadline.js';
+import { projectTargetDateInfo } from '../../utils/projectTargetDate.js';
 import { formatLocalizedDate } from '../../utils/localeFormatting.js';
 import { getNextOccurrence } from '../../utils/recurrenceEngine.js';
 import { getProjectColor, taskColorToHex, hexToRgba } from '../../utils/colorUtils.js';
@@ -60,9 +60,9 @@ const ProjectPlanner = ({ project, onClose, initialHyperglanceOpen = false }) =>
   const parentGoal = project.goalId ? goals.find(g => g.id === project.goalId) : null;
   const projectColor = getProjectColor(project, parentGoal);
   const projectHex = taskColorToHex(projectColor);
-  // The project's own due date, beside the parent goal in the header. A
+  // The project's own target date, beside the parent goal in the header. A
   // completed project keeps its date unhighlighted (history, not a warning).
-  const deadlineInfo = projectDeadlineInfo(project, dateToString(new Date()));
+  const targetDateInfo = projectTargetDateInfo(project, dateToString(new Date()));
 
   // The notes box (hooks/useEntityNotes.js, shared with the goal detail):
   // the record's description, or the linked note's description section.
@@ -450,23 +450,23 @@ const ProjectPlanner = ({ project, onClose, initialHyperglanceOpen = false }) =>
             <span className={`text-base font-semibold ${textPrimary} truncate`}>{project.title}</span>
             <span className={`text-xs ${textSecondary}`}>
               {parentGoal ? parentGoal.title : t('planner.standaloneProject', 'Standalone project')} · Planner
-              {deadlineInfo && (
+              {targetDateInfo && (
                 <>
                   {' · '}
                   <span
-                    data-project-deadline
+                    data-project-target-date
                     className={
                       project.status === 'completed'
                         ? ''
-                        : deadlineInfo.overdue
+                        : targetDateInfo.overdue
                         ? 'text-red-500 font-medium'
-                        : deadlineInfo.dueToday || deadlineInfo.soon
+                        : targetDateInfo.dueToday || targetDateInfo.soon
                         ? 'text-amber-600 dark:text-amber-400 font-medium'
                         : ''
                     }
-                    title={t('task.deadlineWithDate', { date: formatDeadlineDate(project.deadline), defaultValue: 'Deadline: {{date}}' })}
+                    title={`${t('goals.target')}: ${formatDeadlineDate(project.targetDate)}`}
                   >
-                    {formatDeadlineDate(project.deadline)}
+                    {formatDeadlineDate(project.targetDate)}
                   </span>
                 </>
               )}
