@@ -39,7 +39,7 @@ const GlanceSidebar = ({ variant = 'desktop' }) => {
     recycleBin, setRecycleBin,
     recurringTasks, setRecurringTasks,
     selectedTags,
-    showMobileTagFilter, setShowMobileTagFilter,
+    showMobileTagFilter, setShowMobileTagFilter, setShowTagManager,
     filterableTags,
     taskContextMenu, setTaskContextMenu,
     minimizedSections,
@@ -248,6 +248,18 @@ const GlanceSidebar = ({ variant = 'desktop' }) => {
                   );
                 })}
               </div>
+              {/* Rename, merge or remove tags across tasks (#2136). */}
+              {setShowTagManager && (
+                <button
+                  type="button"
+                  data-manage-tags
+                  onClick={() => { setShowMobileTagFilter(false); setShowTagManager(true); }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 border-t text-sm text-blue-500 hover:text-blue-600 ${borderClass}`}
+                >
+                  <Hash size={12} />
+                  {t('tagManager.manage')}
+                </button>
+              )}
             </div>
           </>
           );

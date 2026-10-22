@@ -2691,6 +2691,29 @@
     "peekGone": "此任务已不在 dayGLANCE 中。",
     "peekShow": "前往任务"
   },
+  "tagManager": {
+    "manage": "管理标签…",
+    "title": "标签",
+    "subtitle": "在所有带有某个标签的任务中重命名、合并或移除该标签。",
+    "search": "查找标签",
+    "empty": "还没有标签。在任务标题中加入 #词 即可添加标签。",
+    "noMatch": "没有匹配的标签",
+    "rename": "重命名",
+    "remove": "移除",
+    "showTasks": "显示任务",
+    "hideTasks": "隐藏任务",
+    "newName": "新标签名",
+    "merge": "合并",
+    "mergeHint": "#{{to}} 已在使用：这些任务将并入其中。",
+    "invalid": "一个以字母开头的词。",
+    "whereRecurring": "重复",
+    "taskCount_one": "{{count}} 个任务",
+    "taskCount_other": "{{count}} 个任务",
+    "removeConfirm_one": "要从 {{count}} 个任务中移除 #{{tag}} 吗？",
+    "removeConfirm_other": "要从 {{count}} 个任务中移除 #{{tag}} 吗？",
+    "locked_one": "{{count}} 个 Todoist 任务保留它：其标题由 Todoist 管理。",
+    "locked_other": "{{count}} 个 Todoist 任务保留它：其标题由 Todoist 管理。"
+  },
   "undo": {
     "undone": "已撤销：{{action}}",
     "redone": "已重做：{{action}}",
@@ -2731,7 +2754,10 @@
       "smartScheduled_other": "智能日程已安排 {{count}} 个任务",
       "rescheduled_one": "已重新安排 {{count}} 个任务",
       "rescheduled_other": "已重新安排 {{count}} 个任务",
-      "voiceApplied": "已应用语音更改"
+      "voiceApplied": "已应用语音更改",
+      "tagRenamed": "已将 #{{from}} 重命名为 #{{to}}",
+      "tagMerged": "已将 #{{from}} 合并到 #{{to}}",
+      "tagRemoved": "已移除 #{{from}}"
     }
   }
 }

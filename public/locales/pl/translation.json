@@ -2797,6 +2797,35 @@
     "peekGone": "Tego zadania nie ma już w dayGLANCE.",
     "peekShow": "Przejdź do zadania"
   },
+  "tagManager": {
+    "manage": "Zarządzaj tagami…",
+    "title": "Tagi",
+    "subtitle": "Zmień nazwę, scal lub usuń tag we wszystkich zadaniach, które go mają.",
+    "search": "Znajdź tag",
+    "empty": "Brak tagów. Dodaj #słowo do tytułu zadania, aby je otagować.",
+    "noMatch": "Brak pasujących tagów",
+    "rename": "Zmień nazwę",
+    "remove": "Usuń",
+    "showTasks": "Pokaż zadania",
+    "hideTasks": "Ukryj zadania",
+    "newName": "Nowa nazwa tagu",
+    "merge": "Scal",
+    "mergeHint": "#{{to}} jest już używany: te zadania do niego dołączą.",
+    "invalid": "Jedno słowo zaczynające się od litery.",
+    "whereRecurring": "Powtarza się",
+    "taskCount_one": "{{count}} zadanie",
+    "taskCount_few": "{{count}} zadania",
+    "taskCount_many": "{{count}} zadań",
+    "taskCount_other": "{{count}} zadania",
+    "removeConfirm_one": "Usunąć #{{tag}} z {{count}} zadania?",
+    "removeConfirm_few": "Usunąć #{{tag}} z {{count}} zadań?",
+    "removeConfirm_many": "Usunąć #{{tag}} z {{count}} zadań?",
+    "removeConfirm_other": "Usunąć #{{tag}} z {{count}} zadania?",
+    "locked_one": "{{count}} zadanie z Todoist go zachowuje: Todoist zarządza jego tytułem.",
+    "locked_few": "{{count}} zadania z Todoist go zachowują: Todoist zarządza ich tytułami.",
+    "locked_many": "{{count}} zadań z Todoist go zachowuje: Todoist zarządza ich tytułami.",
+    "locked_other": "{{count}} zadania z Todoist go zachowują: Todoist zarządza ich tytułami."
+  },
   "undo": {
     "undone": "Cofnięto: {{action}}",
     "redone": "Ponowiono: {{action}}",
@@ -2843,7 +2872,10 @@
       "rescheduled_few": "Przeplanowano {{count}} zadania",
       "rescheduled_many": "Przeplanowano {{count}} zadań",
       "rescheduled_other": "Przeplanowano {{count}} zadania",
-      "voiceApplied": "Zastosowano zmiany głosowe"
+      "voiceApplied": "Zastosowano zmiany głosowe",
+      "tagRenamed": "Zmieniono #{{from}} na #{{to}}",
+      "tagMerged": "Scalono #{{from}} z #{{to}}",
+      "tagRemoved": "Usunięto #{{from}}"
     }
   }
 }

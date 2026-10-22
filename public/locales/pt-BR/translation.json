@@ -2694,6 +2694,29 @@
     "peekGone": "Esta tarefa não está mais no dayGLANCE.",
     "peekShow": "Ir para a tarefa"
   },
+  "tagManager": {
+    "manage": "Gerenciar tags…",
+    "title": "Tags",
+    "subtitle": "Renomeie, mescle ou remova uma tag em todas as tarefas que a têm.",
+    "search": "Buscar uma tag",
+    "empty": "Ainda não há tags. Adicione uma #palavra ao título de uma tarefa para marcá-la.",
+    "noMatch": "Nenhuma tag corresponde",
+    "rename": "Renomear",
+    "remove": "Remover",
+    "showTasks": "Mostrar tarefas",
+    "hideTasks": "Ocultar tarefas",
+    "newName": "Novo nome da tag",
+    "merge": "Mesclar",
+    "mergeHint": "#{{to}} já está em uso: estas tarefas se juntam a ela.",
+    "invalid": "Uma palavra, começando com uma letra.",
+    "whereRecurring": "Repete",
+    "taskCount_one": "{{count}} tarefa",
+    "taskCount_other": "{{count}} tarefas",
+    "removeConfirm_one": "Remover #{{tag}} de {{count}} tarefa?",
+    "removeConfirm_other": "Remover #{{tag}} de {{count}} tarefas?",
+    "locked_one": "{{count}} tarefa do Todoist a mantém: o Todoist gerencia o título dela.",
+    "locked_other": "{{count}} tarefas do Todoist a mantêm: o Todoist gerencia os títulos delas."
+  },
   "undo": {
     "undone": "Desfeito: {{action}}",
     "redone": "Refeito: {{action}}",
@@ -2734,7 +2757,10 @@
       "smartScheduled_other": "{{count}} tarefas agendadas pelo agendamento inteligente",
       "rescheduled_one": "{{count}} tarefa reagendada",
       "rescheduled_other": "{{count}} tarefas reagendadas",
-      "voiceApplied": "Alterações por voz aplicadas"
+      "voiceApplied": "Alterações por voz aplicadas",
+      "tagRenamed": "#{{from}} renomeada para #{{to}}",
+      "tagMerged": "#{{from}} mesclada em #{{to}}",
+      "tagRemoved": "#{{from}} removida"
     }
   }
 }

@@ -2694,6 +2694,29 @@
     "peekGone": "Diese Aufgabe gibt es in dayGLANCE nicht mehr.",
     "peekShow": "Zur Aufgabe"
   },
+  "tagManager": {
+    "manage": "Tags verwalten…",
+    "title": "Tags",
+    "subtitle": "Einen Tag in allen Aufgaben umbenennen, zusammenführen oder entfernen.",
+    "search": "Tag suchen",
+    "empty": "Noch keine Tags. Füge einem Aufgabentitel ein #Wort hinzu, um ihn zu taggen.",
+    "noMatch": "Keine passenden Tags",
+    "rename": "Umbenennen",
+    "remove": "Entfernen",
+    "showTasks": "Aufgaben anzeigen",
+    "hideTasks": "Aufgaben ausblenden",
+    "newName": "Neuer Tag-Name",
+    "merge": "Zusammenführen",
+    "mergeHint": "#{{to}} wird bereits verwendet: Diese Aufgaben kommen dazu.",
+    "invalid": "Ein Wort, das mit einem Buchstaben beginnt.",
+    "whereRecurring": "Wiederholt sich",
+    "taskCount_one": "{{count}} Aufgabe",
+    "taskCount_other": "{{count}} Aufgaben",
+    "removeConfirm_one": "#{{tag}} aus {{count}} Aufgabe entfernen?",
+    "removeConfirm_other": "#{{tag}} aus {{count}} Aufgaben entfernen?",
+    "locked_one": "{{count}} Todoist-Aufgabe behält ihn: Todoist verwaltet ihren Titel.",
+    "locked_other": "{{count}} Todoist-Aufgaben behalten ihn: Todoist verwaltet ihre Titel."
+  },
   "undo": {
     "undone": "Rückgängig gemacht: {{action}}",
     "redone": "Wiederhergestellt: {{action}}",
@@ -2734,7 +2757,10 @@
       "smartScheduled_other": "{{count}} Aufgaben mit intelligenter Planung eingeplant",
       "rescheduled_one": "{{count}} Aufgabe neu eingeplant",
       "rescheduled_other": "{{count}} Aufgaben neu eingeplant",
-      "voiceApplied": "Sprachänderungen übernommen"
+      "voiceApplied": "Sprachänderungen übernommen",
+      "tagRenamed": "#{{from}} in #{{to}} umbenannt",
+      "tagMerged": "#{{from}} mit #{{to}} zusammengeführt",
+      "tagRemoved": "#{{from}} entfernt"
     }
   }
 }

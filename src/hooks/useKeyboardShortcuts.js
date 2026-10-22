@@ -63,6 +63,7 @@ export default function useKeyboardShortcuts({
   showDayDial, setShowDayDial,
   // an open Project Planner owns its keys too (arrows, Enter)
   plannerProjectId = null,
+  showTagManager = false,
   // bucket list ('u')
   showBucketList, setShowBucketList,
   // new task ('n' / 'i')
@@ -155,7 +156,7 @@ export default function useKeyboardShortcuts({
       // Don't trigger shortcuts when a modal is open (except Escape and ? handled above)
       // An open PLANNER is modal too: it takes its own keys (ProjectPlanner),
       // and nothing behind it, the calendar or the project list, moves.
-      if (showAddTask || showFocusMode || showRoutinesDashboard || showShortcutHelp || showSpotlight || showSettings || showRemindersSettings || showWeeklyReview || showVoiceInput || showHabitModal || showFramesModal || frameAdjustModal || showRescheduleModal || showBucketList || showDayDial || plannerProjectId) {
+      if (showAddTask || showFocusMode || showRoutinesDashboard || showShortcutHelp || showSpotlight || showSettings || showRemindersSettings || showWeeklyReview || showVoiceInput || showHabitModal || showFramesModal || frameAdjustModal || showRescheduleModal || showBucketList || showDayDial || plannerProjectId || showTagManager) {
         return;
       }
       // The Goals & Projects space is not a modal: it swaps the sidebar and the
@@ -445,5 +446,5 @@ export default function useKeyboardShortcuts({
     // action callbacks (changeDate/goToToday/performUndo/performRedo/playUISound),
     // all stable or read through refs — listing them would needlessly re-bind.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [monthViewActive, selectedDate, showAddTask, showShortcutHelp, showFocusMode, showRoutinesDashboard, showHabitModal, showMonthView, showSpotlight, showSettings, showRemindersSettings, showWeeklyReview, showVoiceInput, showFramesModal, frameAdjustModal, showRescheduleModal, showGoalsDashboard, showBucketList, showDayDial, plannerProjectId, hoverPreviewTime, hoverPreviewDate, isMobile, tabletActiveTab, routinesEnabled, habitsEnabled, goalsProjectsEnabled, aiConfig, gtdFrames, canShowViewCycler, schedOnlyCycler, effectiveViewMode, hiddenViews]);
+  }, [monthViewActive, selectedDate, showAddTask, showShortcutHelp, showFocusMode, showRoutinesDashboard, showHabitModal, showMonthView, showSpotlight, showSettings, showRemindersSettings, showWeeklyReview, showVoiceInput, showFramesModal, frameAdjustModal, showRescheduleModal, showGoalsDashboard, showBucketList, showDayDial, plannerProjectId, showTagManager, hoverPreviewTime, hoverPreviewDate, isMobile, tabletActiveTab, routinesEnabled, habitsEnabled, goalsProjectsEnabled, aiConfig, gtdFrames, canShowViewCycler, schedOnlyCycler, effectiveViewMode, hiddenViews]);
 }
