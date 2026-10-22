@@ -195,7 +195,8 @@ Activity, to answer the launcher's REFRESH while the app's process is dead
 - **Headless mode is an ALLOWLIST, not a skip list.** `HeadlessRefresh.jsx`
   composes only the data layer (the store, `useDataPersistence`,
   `useSaveOnChange`, the day windows, the JOBO ledger), both sync tiers with
-  the app's own payload and apply (`hooks/useSyncEngineData.js`), and the
+  the app's own engines, payload and apply (`hooks/useSyncEngines.js`,
+  `hooks/useSyncEngineData.js`), and the
   launcher snapshot and heartbeat push. Nothing else initialises: no
   calendar fetch, Obsidian, reminders, widgets, intents or UI. It is
   never `<App headless />`: a feature that must not run headlessly is one the
@@ -255,6 +256,7 @@ every method looked up; extend it when the allowlist or the slices change.
 - **Cloud sync after an edit** → `src/hooks/useCloudSyncAfterEdit.js` (with tests): the 5-second debounce runs a full cycle, never a bare upload (#2065)
 - **Undo toast** → `src/components/UndoToast.jsx` (with tests); its state, timing (`toastDelay`) and wording stay in `src/hooks/useUndo.js` and `src/utils/undoLabels.js`
 - **Sync payload and apply** → `src/hooks/useSyncEngineData.js` (`buildSyncPayload`, `applyEngineData`, moved verbatim behind a deps object so the headless root can supply its own state; `src/headless/HeadlessRefresh.scenarios.test.jsx` walks payload → apply → state); the slice initialisers it depends on → `src/utils/storedSlices.js` and `src/utils/userScope.js`
+- **Sync engines and their wiring** → `src/hooks/useSyncEngines.js` (with tests): `useFileSyncEngine` (built in render, rebuilt on a folder change) and `useVaultSyncEngine` (built once the data loads, registered with the dirty tracker, retired with dispose), both calling through the root's callbacks ref, plus `vaultEngineData` for the settings bootstrap's one-shot engine. App and the headless root use the same hooks; each keeps only its own handlers (App: status UI, cadence, console hooks)
 
 ## Next candidates
 
@@ -265,11 +267,6 @@ wiring, and moving them only relocates them. Sizes are approximate.
 - **Calendar writeback and sync** (`syncTaskCompletionToCalDAV`,
   `syncWithCalendar`, `syncTaskCalendar`, ~500 lines): into the existing
   `useCalendarSync`.
-- **Sync engines and their wiring** (the file-tier engine creation, the
-  vault engine effect, the key-readiness gates, ~250 lines): the payload and
-  apply are out (`useSyncEngineData`); the engine construction is still in
-  App.jsx and the headless root builds its own copies. One hook taking the
-  payload/apply closures would serve both roots.
 
 ## Guidance
 
