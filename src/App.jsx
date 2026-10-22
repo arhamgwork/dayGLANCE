@@ -117,6 +117,7 @@ import EditRecurrenceModal from './components/EditRecurrenceModal.jsx';
 import ReminderToasts from './components/ReminderToasts.jsx';
 import TaskPeek from './components/TaskPeek.jsx';
 import { FOLLOW_UP_TAG_KEY, PEEK_TASK_EVENT, canFollowUp, completionFollowUpDraft, doneDateOf, normalizeFollowUpTag, resolveTaskRef, taskLink } from './utils/followUp.js';
+import { canLinkTask, findBacklinks } from './utils/taskLinks.js';
 import ObsidianSyncToast from './components/ObsidianSyncToast.jsx';
 import { useSettingsLink } from './components/settings/settingsLink.js';
 import MobileNewTaskModal from './components/MobileNewTaskModal.jsx';
@@ -8638,6 +8639,7 @@ const DayPlanner = () => {
       {peekTaskId != null && (
         <TaskPeek
           found={resolveTaskRef(peekTaskId, { tasks, unscheduledTasks, recurringTasks, recycleBin })}
+          backlinks={findBacklinks(peekTaskId, { tasks, unscheduledTasks })}
           darkMode={darkMode}
           onClose={() => setPeekTaskId(null)}
           // Going to the task leaves the form behind: offered only without one.
@@ -9311,7 +9313,8 @@ const DayPlanner = () => {
         const menuWidth = 180;
         const menuItemHeight = 36;
         const hasFollowUp = isCompleted && canFollowUp(ctxTask);
-        const menuItems = [hasEdit, hasNotes, hasEnergy, hasMoveTomorrow, hasMoveInbox, hasComplete, hasFollowUp, hasDelete].filter(Boolean).length;
+        const hasCopyLink = !!ctxTask && canLinkTask(ctxTask);
+        const menuItems = [hasEdit, hasNotes, hasEnergy, hasMoveTomorrow, hasMoveInbox, hasComplete, hasFollowUp, hasCopyLink, hasDelete].filter(Boolean).length;
         const menuHeight = menuItems * menuItemHeight + 8;
         const clampedX = Math.min(x, window.innerWidth - menuWidth - 8);
         const clampedY = Math.min(y, window.innerHeight - menuHeight - 8);
@@ -9439,6 +9442,26 @@ const DayPlanner = () => {
                 >
                   <SkipForward size={14} />
                   {t('followUp.action')}
+                </button>
+              )}
+              {/* A link to this task (#2145), to paste into another task's
+                  notes, where it opens this one in the task peek. */}
+              {hasCopyLink && (
+                <button
+                  data-copy-task-link
+                  className={`w-full text-left px-3 py-2 text-sm ${textPrimary} ${hoverBg} transition-colors flex items-center gap-2`}
+                  onClick={async () => {
+                    setTaskContextMenu(null);
+                    try {
+                      await navigator.clipboard.writeText(taskLink(ctxTask));
+                      setUndoToast({ message: t('task.linkCopied') });
+                    } catch {
+                      setUndoToast({ message: t('task.linkCopyFailed'), kind: 'warning' });
+                    }
+                  }}
+                >
+                  <Link size={14} />
+                  {t('task.copyLink')}
                 </button>
               )}
               {!isImported && (
