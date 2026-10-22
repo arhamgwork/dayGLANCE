@@ -2992,6 +2992,9 @@ const GoalDashboard = ({ embedded = false, desktop = false, isActive = false, in
       if (document.querySelector('.sched-notes-panel')) return;
       // So does an open deadline picker (a project card or PLANNER row).
       if (document.querySelector('.deadline-picker-popover')) return;
+      // And a field that cancels itself on Escape (the planner's title
+      // rename, #2132): the key cancels the edit, not the planner.
+      if (document.activeElement?.closest?.('[data-owns-escape]')) return;
       let close = null;
       // The project filter field: Escape clears it and gives focus back.
       const filterEl = filterInputRef.current;

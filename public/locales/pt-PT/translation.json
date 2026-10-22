@@ -904,6 +904,8 @@
     "clearDeadline": "Remover prazo",
     "descriptionPlaceholder": "Adicionar descrição…",
     "doubleClickToEdit": "Clique duas vezes para editar",
+    "renameTask": "Título da tarefa",
+    "clickToRename": "Clique para mudar o nome",
     "fromObsidian": "Do Obsidian",
     "holdToEditHint": "(mantenha premido para editar)",
     "obsidianRecurrenceManaged": "Recorrente no Obsidian: a recorrência desta tarefa é gerida pelo plugin Tasks; concluí-la aqui não criará a ocorrência seguinte",
@@ -2100,6 +2102,8 @@
     "showNotesSidebar": "Mostrar notas da tarefa",
     "hideNotesSidebar": "Ocultar notas da tarefa",
     "selectForNotes": "Selecione uma tarefa para ver aqui as notas dela.",
+    "resizeNotes": "Redimensionar notas",
+    "resizeNotesHint": "Arraste para redimensionar · faça duplo clique para repor",
     "notesKeysHint": "↑ ↓ mover entre tarefas · ← → mudar de lista · Enter ou duplo clique para editar a tarefa · E para editar a nota"
   },
   "bucket": {

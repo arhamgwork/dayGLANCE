@@ -904,6 +904,8 @@
     "clearDeadline": "Cancella scadenza",
     "descriptionPlaceholder": "Aggiungi descrizione…",
     "doubleClickToEdit": "Doppio clic per modificare",
+    "renameTask": "Titolo dell’attività",
+    "clickToRename": "Fai clic per rinominare",
     "fromObsidian": "Da Obsidian",
     "holdToEditHint": "(tieni premuto per modificare)",
     "obsidianRecurrenceManaged": "Ricorrente in Obsidian: la ricorrenza di questa attività è gestita dal plugin Tasks; completarla qui non creerà l’occorrenza successiva",
@@ -2102,6 +2104,8 @@
     "showNotesSidebar": "Mostra le note dell’attività",
     "hideNotesSidebar": "Nascondi le note dell’attività",
     "selectForNotes": "Seleziona un’attività per vederne qui le note.",
+    "resizeNotes": "Ridimensiona le note",
+    "resizeNotesHint": "Trascina per ridimensionare · doppio clic per ripristinare",
     "notesKeysHint": "↑ ↓ spostarsi tra le attività · ← → cambiare elenco · Invio o doppio clic per modificare l’attività · E per modificare la nota"
   },
   "bucket": {
