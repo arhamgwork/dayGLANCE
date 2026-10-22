@@ -95,6 +95,19 @@ receiver routes it by liveness and logs every request with the liveness it saw:
 | `scheduled` | no renderer in the process: a headless run is enqueued (below); the entry gains `startedAt`, `waitMs` and `headless: true` when it runs, then `ran`/`failed` from the web layer or `aborted`/`throttled`/`failed` from the worker |
 | `deferred` | no renderer, and the headless run could not be enqueued (`reason` says why) |
 
+**A live renderer in the background.** Android freezes a backgrounded app's
+processes, the WebView's renderer among them, a couple of minutes after it
+goes idle. The receiver is thawed to take the REFRESH, but the web layer that
+answers it was not: on a device a `queued` refresh once waited 392 s, until
+the app was opened, and once was never answered. So a `queued` REFRESH also
+starts `LauncherAwakeWorker`, an expedited job that runs nothing and only waits
+(at most a minute, the in-flight window) for the web layer to record an
+outcome. An app running a job is not frozen, so the app's own cycle runs in its
+one WebView as it would on screen; there is no second WebView, unlike the
+headless path. Below Android 12 the job shows the same quiet notification as a
+headless run; in a restricted standby bucket it may itself wait, but no longer
+for the app to be opened.
+
 **The headless run** (`launcher/LauncherRefreshWorker.kt`; `src/headless/` on
 the web side; the rules in CLAUDE.md, "Headless refresh"). An expedited,
 network-constrained WorkManager job boots the web bundle in a WebView with
