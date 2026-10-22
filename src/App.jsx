@@ -157,12 +157,11 @@ import useJoboDetector from './hooks/useJoboDetector.js';
 import useDailyBriefings from './hooks/useDailyBriefings.js';
 import useVoiceInput from './hooks/useVoiceInput.js';
 import useCloudSync from './hooks/useCloudSync.js';
-import { createDayGlanceEngine } from './sync/adapter.js';
+import { useFileSyncEngine, useVaultSyncEngine, vaultEngineData } from './hooks/useSyncEngines.js';
 import { resolveSyncTarget } from './sync/syncTarget.js';
 import useCloudSyncAfterEdit from './hooks/useCloudSyncAfterEdit.js';
 import { createDbEngine, resetVaultSyncCursor } from './sync/dbEngine.js';
 import { deriveBlockEnergy } from './utils/energyAxis.js';
-import { registerDbEngine } from './sync/dirtyTracker.js';
 import { isVaultEnabled } from './sync/vaultConfig.js';
 import { readThemePref, systemPrefersDark, resolveDarkMode, restoredThemePref, THEME_PREF_KEY } from './utils/themePref.js';
 import { keepImportedTask } from './sync/payloadExclusions.js';
@@ -946,15 +945,20 @@ const DayPlanner = () => {
   // ── Cloud sync engine ────────────────────────────────────────────────────
   // The orchestration (download → validate → merge → apply → upload, with
   // backoff, hard-stops, 412 retry, follow-up queueing, etc.) lives in
-  // @glance-apps/sync. App.jsx now owns only the data callbacks (built later
-  // in the file) and the React-driven triggers (debounce timer, 60-second
-  // poll, visibility/focus listeners) further down.
+  // @glance-apps/sync. Both engines and their wiring to the data are
+  // hooks/useSyncEngines.js, shared with the headless root; App.jsx owns the
+  // data callbacks (built later in the file), its status UI and the
+  // React-driven triggers (debounce timer, 60-second poll, visibility/focus
+  // listeners) further down.
   //
-  // The callbacks dereference engineCallbacksRef at call time so the engine
-  // sees fresh closures every cycle — the engine itself is constructed once.
+  // The engines dereference engineCallbacksRef at call time so they see fresh
+  // closures every cycle — each engine itself is constructed once.
   const engineCallbacksRef = useRef({});
+  // The file-tier engine (useFileSyncEngine, below).
   const cloudSyncEngineRef = useRef(null);
-  // GLANCEvault row-grained DB transport (opt-in, runs ALONGSIDE the file tier).
+  // GLANCEvault row-grained DB transport (opt-in, runs ALONGSIDE the file tier),
+  // built further down (useVaultSyncEngine); declared here for the callbacks
+  // set up before it.
   const dbEngineRef = useRef(null);
   // GLANCEvault status surfaced in the Cloud Sync settings (independent of the
   // WebDAV file-tier status).
@@ -964,17 +968,15 @@ const DayPlanner = () => {
   // Count of synced rows the last cycle couldn't decrypt (skipped/quarantined by
   // the engine) — surfaced in Cloud Sync settings so a key mismatch is visible.
   const [vaultSkipped, setVaultSkipped] = useState(0);
-  const engineFolderRef = useRef(null);
   // Normalized here as well as on save, so a folder stored before #2037 with a
   // leading or trailing slash stops producing doubled slashes in the URL.
   const syncFolder = normalizeSyncFolder(cloudSyncConfig?.syncFolder);
   const autoBackupProviders = useMemo(() => createAutoBackupProvidersForFolder(syncFolder), [syncFolder]);
-  if (!cloudSyncEngineRef.current || engineFolderRef.current !== syncFolder) {
-    engineFolderRef.current = syncFolder;
-    cloudSyncEngineRef.current = createDayGlanceEngine({
-      buildPayload:       () => engineCallbacksRef.current.buildPayload?.(),
-      buildBackupPayload: () => engineCallbacksRef.current.buildBackupPayload?.(),
-      applyPayload:       (data, opts) => engineCallbacksRef.current.applyPayload?.(data, opts),
+  useFileSyncEngine({
+    callbacksRef: engineCallbacksRef,
+    engineRef: cloudSyncEngineRef,
+    syncFolder,
+    handlers: {
       onStatusChange:     (status) => setCloudSyncStatus(prev => {
         // Guard so a queued 'idle' (from the 3 s/5 s auto-revert) doesn't
         // overwrite a new in-flight cycle the user kicked off in the meantime.
@@ -987,12 +989,11 @@ const DayPlanner = () => {
         setCloudSyncConflict({ remoteData, remoteModified, etag }),
       onPassphraseRequired: () => setSyncKeyReady(false),
       onFirstSyncReload:    () => window.location.reload(),
-      getSyncRetentionDays: () => engineCallbacksRef.current.syncRetentionDays ?? 90,
-    }, { appFolderName: syncFolder });
-    // Visibility/focus listeners + 60 s poll call through this ref so they
-    // always run the latest engine method without a closure refresh.
-    cloudSyncDownloadRef.current = () => cloudSyncEngineRef.current.download();
-  }
+    },
+  });
+  // Visibility/focus listeners + 60 s poll call through this ref so they
+  // always run the latest engine method without a closure refresh.
+  cloudSyncDownloadRef.current = () => cloudSyncEngineRef.current.download();
 
   // Cloud sync: a changed sync target (server, account or folder) invalidates what
   // this device knows about the remote, so reconfiguration must not be followed by
@@ -2567,17 +2568,14 @@ const DayPlanner = () => {
   // inert when the vault is disabled — createDbEngine returns null and nothing
   // below runs, so file-only devices behave exactly as before. Push-on-write is
   // handled by the 3 s debounce in dirtyTracker (wired from useSaveOnChange);
-  // this effect adds the cadence backstop (initial + focus + 5-min interval).
+  // onEngine below adds the cadence backstop (initial + focus + 5-min interval).
   // See docs/glancevault-stage2.md.
-  useEffect(() => {
-    if (isTrayMode || !dataLoaded || !isVaultEnabled()) return;
-    const engine = createDbEngine({
-      getData:    () => engineCallbacksRef.current.buildPayload?.()?.data,
-      commitData: (data) => engineCallbacksRef.current.applyPayload?.(data, { allowEmpty: true }),
-      // Lets the snapshot-delete classifier apply the SAME imported-task
-      // exclusion rule buildSyncPayload uses (payloadExclusions.js) — a
-      // baseline row of an excluded class is neither a delete nor a glitch.
-      isMultiUserEnabled: () => engineCallbacksRef.current.multiUserEnabled === true,
+  useVaultSyncEngine({
+    callbacksRef: engineCallbacksRef,
+    engineRef: dbEngineRef,
+    dataLoaded,
+    active: !isTrayMode,
+    handlers: {
       onStatusChange: (s) => {
         setVaultStatus(s);
         if (s === 'success') {
@@ -2590,53 +2588,44 @@ const DayPlanner = () => {
         setVaultSkipped(count);
         if (count > 0) setUndoToast({ message: t('sync.form.vaultSkipped', { count }), kind: 'warning' });
       },
-    });
-    if (!engine) return;
-    dbEngineRef.current = engine;
-    registerDbEngine(engine);
-    setVaultLastSynced(engine.getLastSynced?.() || null);
-    const runCycle = () => engine.dbSyncCycle().catch(() => { /* surfaced via onError */ });
-    // Console maintenance hooks (2026-09-05 stray-row finding). A vault row
-    // this device no longer holds and whose seq the pull cursor has passed
-    // is unreachable by every ordinary path; these are the two ways to reach
-    // it from the developer console, documented in the companion spec.
-    //   __dayglance.purgeVaultRow('tasks:<id>')  marks the entity dirty and
-    //     runs a cycle: absent locally, it is pushed as a soft-delete (fleet-
-    //     wide, LWW against any newer copy); present locally, it is merely
-    //     re-upserted.
-    //   __dayglance.resyncVault()  clears the sync cursors and reloads, so
-    //     the next cycle full-pulls and LWW-merges; every tombstoned row the
-    //     vault still holds is then dropped AND deleted at the apply gate.
-    window.__dayglance = {
-      purgeVaultRow: (entityId) => {
-        const id = String(entityId || '');
-        if (!/^[a-zA-Z]+:.+$/.test(id)) { console.warn('[dayglance] purgeVaultRow: expected "<kind>:<id>", e.g. tasks:obsidian-dg-xxxxxxxx'); return false; }
-        engine.markDirty(id);
-        console.info('[dayglance] purgeVaultRow: marked dirty, running a sync cycle:', id);
-        runCycle();
-        return true;
-      },
-      resyncVault: () => { resetVaultSyncCursor(); window.location.reload(); },
-    };
-    runCycle(); // initial
-    const onVisible = () => { if (document.visibilityState === 'visible') runCycle(); };
-    document.addEventListener('visibilitychange', onVisible);
-    const interval = setInterval(runCycle, 5 * 60 * 1000);
-    return () => {
-      document.removeEventListener('visibilitychange', onVisible);
-      clearInterval(interval);
-      registerDbEngine(null);
-      if (window.__dayglance) delete window.__dayglance;
-      // Cancels any pending deferred cooldown-retry and makes stray timer
-      // firings no-ops — a timer must never run a cycle against a dead engine.
-      engine.dispose?.();
-      dbEngineRef.current = null;
-    };
-    // Keyed on dataLoaded (sets up the DB engine once). setUndoToast/t are read
-    // when surfacing an error toast; adding t would tear down the engine on a
-    // mere language change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataLoaded]);
+    },
+    // The app's own use of the engine: its status, the cadence and the console hooks.
+    onEngine: (engine) => {
+      setVaultLastSynced(engine.getLastSynced?.() || null);
+      const runCycle = () => engine.dbSyncCycle().catch(() => { /* surfaced via onError */ });
+      // Console maintenance hooks (2026-09-05 stray-row finding). A vault row
+      // this device no longer holds and whose seq the pull cursor has passed
+      // is unreachable by every ordinary path; these are the two ways to reach
+      // it from the developer console, documented in the companion spec.
+      //   __dayglance.purgeVaultRow('tasks:<id>')  marks the entity dirty and
+      //     runs a cycle: absent locally, it is pushed as a soft-delete (fleet-
+      //     wide, LWW against any newer copy); present locally, it is merely
+      //     re-upserted.
+      //   __dayglance.resyncVault()  clears the sync cursors and reloads, so
+      //     the next cycle full-pulls and LWW-merges; every tombstoned row the
+      //     vault still holds is then dropped AND deleted at the apply gate.
+      window.__dayglance = {
+        purgeVaultRow: (entityId) => {
+          const id = String(entityId || '');
+          if (!/^[a-zA-Z]+:.+$/.test(id)) { console.warn('[dayglance] purgeVaultRow: expected "<kind>:<id>", e.g. tasks:obsidian-dg-xxxxxxxx'); return false; }
+          engine.markDirty(id);
+          console.info('[dayglance] purgeVaultRow: marked dirty, running a sync cycle:', id);
+          runCycle();
+          return true;
+        },
+        resyncVault: () => { resetVaultSyncCursor(); window.location.reload(); },
+      };
+      runCycle(); // initial
+      const onVisible = () => { if (document.visibilityState === 'visible') runCycle(); };
+      document.addEventListener('visibilitychange', onVisible);
+      const interval = setInterval(runCycle, 5 * 60 * 1000);
+      return () => {
+        document.removeEventListener('visibilitychange', onVisible);
+        clearInterval(interval);
+        if (window.__dayglance) delete window.__dayglance;
+      };
+    },
+  });
 
   // ── Config field timestamp tracking ──────────────────────────────────────
   // Tracks when habitsEnabled/routinesEnabled/goalsProjectsEnabled/obsidianConfig
@@ -7967,8 +7956,7 @@ const DayPlanner = () => {
       let bootErr = null;
       let bootCode = null;
       const eng = createDbEngine({
-        getData:    () => engineCallbacksRef.current.buildPayload?.()?.data,
-        commitData: (data) => engineCallbacksRef.current.applyPayload?.(data, { allowEmpty: true }),
+        ...vaultEngineData(engineCallbacksRef),
         onStatusChange: (s) => setVaultStatus(s),
         onError:    (msg, code) => { if (msg) { bootErr = msg; bootCode = code; } },
         onRowsSkipped: (count) => setVaultSkipped(count),
