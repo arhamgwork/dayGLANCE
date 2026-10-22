@@ -57,6 +57,7 @@ import GoalProgress from './GoalProgress.jsx';
 import ProjectCard from '../projects/ProjectCard.jsx';
 import ConfirmDialog from '../ConfirmDialog.jsx';
 import AspireModal from '../AspireModal.jsx';
+import GoalsAddMenu from './GoalsAddMenu.jsx';
 import UserAssignmentPicker from '../UserAssignmentPicker.jsx';
 import { emitGoalCreate } from '../../intents/emitGoalCreate.js';
 import { INTENT_CONFIG_KEY } from '../../intents/useIntentPoller.js';
@@ -1601,6 +1602,7 @@ const MobileDashboard = ({
   onNewProject,
   isActive = false,
   controlsCollapsed = false,
+  onPageGoalChange,   // the carousel's goal, for the "+" (GoalsAddMenu)
 }) => {
   const { darkMode, textPrimary, textSecondary, hoverBg, cardBg, borderClass } = useDayPlannerCtx();
   const {
@@ -1647,6 +1649,8 @@ const MobileDashboard = ({
   const totalPagesRef = useRef(totalPages);
   useEffect(() => { totalPagesRef.current = totalPages; }, [totalPages]);
   useEffect(() => { pageRef.current = page; }, [page]);
+  const pageGoalId = goals[page]?.id ?? null;
+  useEffect(() => { onPageGoalChange?.(pageGoalId); }, [pageGoalId, onPageGoalChange]);
 
   // A swipe or a chip picks its goal the moment it is committed: the chip
   // lights up first and the pages then slide to it. While that slide runs,
@@ -2656,6 +2660,11 @@ const GoalDashboard = ({ embedded = false, desktop = false, isActive = false, in
   const filterInputRef = useRef(null);
   // Aspire (experimental): the placeholder modal opened from the FAB stack.
   const [showAspire, setShowAspire] = useState(false);
+  // The Goals tab's "+" choice (GoalsAddMenu, #2133), and the phone carousel's
+  // page goal, which MobileDashboard reports so the "+" can name it.
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [mobilePageGoalId, setMobilePageGoalId] = useState(null);
+  const plusRef = useRef(null);
   // Phone: the controls under Goals | Projects hidden by its chevron. A
   // per-device preference; storage can be missing or throw (private mode,
   // tests), and then it simply starts expanded.
@@ -2758,6 +2767,18 @@ const GoalDashboard = ({ embedded = false, desktop = false, isActive = false, in
     if (goalsViewMode === 'timeline') setSelectedRoadmapGoalId(id);
   };
 
+  // The goal the Goals tab's "+" offers to add a project to: the one on
+  // screen. The Roadmap's open detail panel, else the phone carousel's page,
+  // else the sidebar selection (both fall back to the first active goal). None
+  // in the Roadmap with no goal open, or with no goals at all: then the "+"
+  // adds a goal directly, as it always did, with no menu in the way.
+  const fabGoal = sidebarTab !== 'goals' ? null
+    : goalsViewMode === 'timeline' ? selectedRoadmapGoal
+      : embedded ? (sortedGoals.find(g => g.id === mobilePageGoalId) || sortedGoals[findDefaultActiveIdx(sortedGoals)] || null)
+        : selectedGoal;
+  // A menu naming a goal that is no longer on screen is closed, not retargeted.
+  useEffect(() => { setAddMenuOpen(false); }, [sidebarTab, fabGoal?.id]);
+
   // Focus request from outside the space (a goal ring in the calendar sidebar,
   // a project card's future session…): select that goal. The phone's carousel
   // consumes the same id itself (MobileDashboard), so only the desktop space
@@ -2825,10 +2846,14 @@ const GoalDashboard = ({ embedded = false, desktop = false, isActive = false, in
   const keysImplRef = useRef(null);
   keysImplRef.current = {
       setTab: setSidebarTab,
-      // 'n': a new goal on the Goals tab, a new standalone project on Projects
+      // 'n': the "+" — on the Goals tab its menu (project in the goal on
+      // screen, or a goal), or a goal when there is none to name; a new
+      // standalone project on Projects
       newItem: () => {
-        if (sidebarTab === 'goals') setGoalForm({ editing: null });
-        else setProjectForm({ editing: null, defaultGoalId: null });
+        if (sidebarTab === 'goals') {
+          if (fabGoal) setAddMenuOpen(true);
+          else setGoalForm({ editing: null });
+        } else setProjectForm({ editing: null, defaultGoalId: null });
       },
       // '/': the project filter (switching to the Projects tab if needed)
       focusFilter: () => {
@@ -3078,8 +3103,16 @@ const GoalDashboard = ({ embedded = false, desktop = false, isActive = false, in
   );
 
   // The FAB stack both layouts float over their content: Aspire (when on)
-  // above a contextual + — Add Goal on the Goals tab, Add Project on Projects.
+  // above a contextual + — on the Goals tab a choice between a project in the
+  // goal on screen and a new goal (GoalsAddMenu), or a goal straight away when
+  // there is no goal to name; Add Project on Projects.
   const goalsTab = sidebarTab === 'goals';
+  const plusLabel = !goalsTab ? t('common.addProject') : fabGoal ? t('common.add') : t('common.addGoal');
+  const onPlus = () => {
+    if (!goalsTab) onNewProject(null);
+    else if (fabGoal) setAddMenuOpen(open => !open);
+    else setGoalForm({ editing: null });
+  };
   const fabStack = (className) => (
     <div data-goals-fabs className={`${className} z-10 flex flex-col items-center gap-2 pointer-events-none`}>
       {aspireEnabled && (
@@ -3096,15 +3129,31 @@ const GoalDashboard = ({ embedded = false, desktop = false, isActive = false, in
           <Compass size={24} />
         </button>
       )}
-      <button
-        type="button"
-        onClick={() => (goalsTab ? setGoalForm({ editing: null }) : onNewProject(null))}
-        className="pointer-events-auto w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 active:bg-blue-800 flex items-center justify-center transition-colors"
-        title={desktop ? `${goalsTab ? t('common.addGoal') : t('common.addProject')} (N)` : undefined}
-        aria-label={goalsTab ? t('common.addGoal') : t('common.addProject')}
-      >
-        <Plus size={28} />
-      </button>
+      <div className="relative">
+        {addMenuOpen && fabGoal && (
+          <GoalsAddMenu
+            goalTitle={fabGoal.title}
+            onAddProject={() => onNewProject(fabGoal.id)}
+            onAddGoal={() => setGoalForm({ editing: null })}
+            onClose={() => setAddMenuOpen(false)}
+            darkMode={darkMode}
+            anchorRef={plusRef}
+          />
+        )}
+        <button
+          ref={plusRef}
+          type="button"
+          onClick={onPlus}
+          className="pointer-events-auto w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 active:bg-blue-800 flex items-center justify-center transition-colors"
+          title={desktop ? `${plusLabel} (N)` : undefined}
+          aria-label={plusLabel}
+          aria-haspopup={goalsTab && fabGoal ? 'menu' : undefined}
+          aria-expanded={goalsTab && fabGoal ? addMenuOpen : undefined}
+          data-goals-plus
+        >
+          <Plus size={28} />
+        </button>
+      </div>
     </div>
   );
 
@@ -3160,6 +3209,7 @@ const GoalDashboard = ({ embedded = false, desktop = false, isActive = false, in
               onNewProject={onNewProject}
               isActive={isActive}
               controlsCollapsed={controlsCollapsed}
+              onPageGoalChange={setMobilePageGoalId}
             />
           )}
           {fabStack('absolute bottom-4 right-4')}
@@ -3208,8 +3258,10 @@ const GoalDashboard = ({ embedded = false, desktop = false, isActive = false, in
           the main area is the same 2px it is in the Calendar space. */}
       <div data-goals-main className={`flex-1 min-w-0 flex flex-col min-h-0 ${cardBg} border-x ${borderClass}`}>
         {/* Toolbar: List | Roadmap on the Goals tab, Open | Completed on the
-            Projects tab. Creating things lives in the sidebar pills (Add Goal /
-            Add Project), the goal card ("+ Add") and Manage Areas ("Add area").
+            Projects tab. Creating things lives in the "+" (a choice of a
+            project in the goal on screen or a new goal on the Goals tab, Add
+            Project on Projects), the goal card ("+ Add") and Manage Areas
+            ("Add area").
             content-box height: the row is 46px PLUS its border, exactly like
             the sidebar's tab row, so the two bottom lines meet. */}
         <div className={`flex items-center gap-3 px-5 border-b ${borderClass} flex-shrink-0`} style={{ height: 'var(--header-row-h)', boxSizing: 'content-box' }}>

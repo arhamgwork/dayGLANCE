@@ -1837,6 +1837,7 @@
     "dashboardTitle": "目标与项目",
     "goalOptional": "目标（可选）",
     "addFromInbox": "从收件箱添加",
+    "addProjectToGoal": "为「{{goal}}」添加项目",
     "addFromInboxTo": "从收件箱添加到 {{project}}",
     "filterInbox": "筛选收件箱",
     "inboxTasks": "收件箱任务",

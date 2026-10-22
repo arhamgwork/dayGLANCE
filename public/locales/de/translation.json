@@ -1840,6 +1840,7 @@
     "dashboardTitle": "Ziele & Projekte",
     "goalOptional": "Ziel (optional)",
     "addFromInbox": "Aus dem Eingang hinzufügen",
+    "addProjectToGoal": "Projekt zu „{{goal}}“ hinzufügen",
     "addFromInboxTo": "Aus dem Eingang zu {{project}} hinzufügen",
     "filterInbox": "Eingang filtern",
     "inboxTasks": "Aufgaben im Eingang",

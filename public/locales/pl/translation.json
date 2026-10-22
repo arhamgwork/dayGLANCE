@@ -1917,6 +1917,7 @@
     "dashboardTitle": "Cele i projekty",
     "goalOptional": "Cel (opcjonalnie)",
     "addFromInbox": "Dodaj ze skrzynki",
+    "addProjectToGoal": "Dodaj projekt do celu {{goal}}",
     "addFromInboxTo": "Dodaj do {{project}} ze skrzynki",
     "filterInbox": "Filtruj skrzynkę",
     "inboxTasks": "Zadania w skrzynce",
