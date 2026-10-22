@@ -6,6 +6,7 @@ import { mergeArrayById, mergeSyncData as upstreamMergeSyncData, pruneTombstones
 import { canonicalJson } from './sync/snapshotMergeExplain.js';
 import { mergeDeferrals } from './utils/deferrals.js';
 import { mergePlanTrail, sameTrail } from './utils/planTrail.js';
+import { earlierCreatedAt } from './utils/createdAt.js';
 import {
   TOMBSTONE_BUNDLE_KEYS,
   tombstoneCutoff,
@@ -689,6 +690,32 @@ export const mergeSyncData = (local, remote, retentionDays) => {
           if (!sameTrail(trail, r?.planTrail)) result.remoteChanged = true;
         }
       }
+    }
+  }
+
+  // `createdAt` (utils/createdAt.js) is write-once like `originalPlan`, so a
+  // winner without it only means that side never had it. It is merged rather
+  // than carried, keeping the EARLIER stamp: either side may hold one, and in
+  // the rare case both do (two devices met the same id), the earlier is the
+  // creation and the choice does not depend on which side is local. Recurring
+  // templates carry it too (a series is created once), hence the fourth list.
+  for (const listKey of ['tasks', 'unscheduledTasks', 'recycleBin', 'recurringTasks']) {
+    const mergedList = result.data[listKey];
+    if (!Array.isArray(mergedList)) continue;
+    const localById = new Map((local?.[listKey] || []).map((t) => [String(t?.id), t]));
+    const remoteById = new Map((remote?.[listKey] || []).map((t) => [String(t?.id), t]));
+    for (const item of mergedList) {
+      if (!item) continue;
+      const l = localById.get(String(item.id));
+      const r = remoteById.get(String(item.id));
+      const created = earlierCreatedAt(l?.createdAt, r?.createdAt);
+      if (created === undefined) continue;
+      // Compared BEFORE the assignment: the merged item is often the very
+      // object one side passed in, so setting it first would make that side
+      // look as if it already had the value, and it would never be written.
+      if (l && l.createdAt !== created) result.localChanged = true;
+      if (r && r.createdAt !== created) result.remoteChanged = true;
+      if (item.createdAt !== created) item.createdAt = created;
     }
   }
 

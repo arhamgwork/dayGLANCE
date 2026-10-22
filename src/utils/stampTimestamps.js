@@ -62,6 +62,13 @@
 // has already stamped on its own; a copy gaining it later is sync carrying it,
 // never a user's edit. Stripped like `originalPlan`.
 //
+// `createdAt` (utils/createdAt.js) is stamped by the persist pass the first
+// time this device stores a task it created, once, and never rewritten; sync
+// carries it to the other devices. Its appearance is bookkeeping, never a
+// user's edit, so it is stripped like `originalPlan`: otherwise the save that
+// stamps it would re-stamp `lastModified` too, and on a copy that arrived
+// without it, a fabricated stamp could out-rank a real completion elsewhere.
+//
 // `obsidianNoteLinkSeen` / `obsidianNoteLinkSeenAt` are the Obsidian merge's
 // record of when it last saw a task line carry the link to its note
 // (utils/mergeObsidianTasks.js). The merge bumps the stamp whenever the note's
@@ -85,7 +92,7 @@ function normalizeField(task) {
   // set by the move that already stamps, and cleared when the line is next
   // observed untimed. Clearing it is not an edit anyone should out-rank.
   const { lastModified: _omit, obsidianClearedTime: _marker, originalPlan: _baseline, deferrals: _slips, planTrail: _stops,
-    obsidianNoteLinkSeen: _linkSeen, obsidianNoteLinkSeenAt: _linkSeenAt, clientId: _launcherWrite, ...rest } = task;
+    obsidianNoteLinkSeen: _linkSeen, obsidianNoteLinkSeenAt: _linkSeenAt, clientId: _launcherWrite, createdAt: _created, ...rest } = task;
   return { ...rest, notes: rest.notes ?? '', subtasks: rest.subtasks ?? [], archived: rest.archived ?? false, priority: rest.priority ?? 0, starredDate: rest.starredDate ?? null, deadline: rest.deadline ?? null };
 }
 

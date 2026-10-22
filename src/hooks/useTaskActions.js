@@ -3,6 +3,7 @@ import { toInboxCopy } from '../utils/inboxMove.js';
 import { stripBucketId } from '../utils/bucketList.js';
 import { stripSpans } from '../utils/quickAddParser.js';
 import { dateToString, extractTags, formatDeadlineDate, completionTimestamp, stripWikilinks } from '../utils/taskUtils.js';
+import { carryCreatedAt, createdTimestamp } from '../utils/createdAt.js';
 import { TASK_COLORS } from '../utils/colorUtils.js';
 import { triggerHaptic } from '../native.js';
 import { isCalendarEventRow } from '../utils/eventNotes.js';
@@ -195,6 +196,10 @@ export default function useTaskActions({
         notes: draftNotes,
         subtasks: draftSubtasks,
         ...(obsidianMeta ?? {}),
+        // The persist pass never stamps an Obsidian task (utils/createdAt.js:
+        // it cannot tell one made here from a line read from the vault), so
+        // the one made here is stamped at its creation.
+        ...(obsidianMeta ? { createdAt: createdTimestamp() } : {}),
         ...(newTask.projectId ? { projectId: newTask.projectId } : {}),
         ...(newTask.assignedUserSyncIds?.length ? { assignedUserSyncIds: newTask.assignedUserSyncIds } : {}),
       };
@@ -599,6 +604,7 @@ export default function useTaskActions({
         id: crypto.randomUUID(), title,
         startTime: isAllDay ? '00:00' : startTime, duration, color,
         isAllDay, date: nextDateStr, completed: false, notes: '', subtasks: [],
+        ...carryCreatedAt(template),
       }]);
       setUndoToast({ message: said, actionable: true });
       playUISound('slide');

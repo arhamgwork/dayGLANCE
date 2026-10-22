@@ -319,8 +319,9 @@ describe('saveData feeds the baseline back into state', () => {
 
     useDataPersistence(saveProps({ tasks: [task], setTasks })).saveData();
 
-    expect(setTasks).toHaveBeenCalledTimes(1);
-    const updated = setTasks.mock.calls[0][0]([task]); // functional update
+    // A task new to this device also gets its createdAt written back, so the
+    // functional updates are applied in turn, as React would.
+    const updated = setTasks.mock.calls.reduce((list, [update]) => update(list), [task]);
     expect(updated[0].originalPlan).toEqual({ date: '2026-09-17', startTime: '09:00', duration: 60 });
   });
 
@@ -329,7 +330,8 @@ describe('saveData feeds the baseline back into state', () => {
     // must be a no-op or the two bounce forever.
     const useDataPersistence = await loadHookAs('main');
     const { props } = makeProps();
-    const already = { ...task, originalPlan: { date: '2026-09-17', startTime: '09:00', duration: 60 } };
+    // It carries its createdAt too, which a stored task on its second pass has.
+    const already = { ...task, createdAt: '2026-09-16T08:00:00-05:00', originalPlan: { date: '2026-09-17', startTime: '09:00', duration: 60 } };
 
     useDataPersistence(saveProps({ tasks: [already], setTasks: props.setTasks })).saveData();
 
@@ -795,5 +797,131 @@ describe('loadData drops references to deleted projects and goals (#2137)', () =
     const tasks = setters.setTasks.mock.calls[0][0]([]);
     expect(tasks.find(t => t.id === 't1').projectId).toBe('gone');
     expect(setters.setDataLoaded).toHaveBeenCalledWith(true);
+  });
+});
+
+// #2135: the persist pass stamps `createdAt` on a task this device created,
+// and on nothing else (utils/createdAt.js has the rules).
+describe('saveData stamps createdAt on tasks created on this device', () => {
+  let store;
+  const memoryStorage = () => {
+    store = new Map();
+    return {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => { store.set(k, String(v)); },
+      removeItem: (k) => { store.delete(k); },
+    };
+  };
+  const stored = (key) => JSON.parse(store.get(key) || '[]');
+  const saveProps = (setters, over = {}) => ({
+    ...setters,
+    tasks: [], unscheduledTasks: [], recycleBin: [], recurringTasks: [], todayRoutines: [],
+    darkMode: false, syncUrl: '', taskCalendarUrl: '', syncRetentionDays: 0,
+    completedTaskUids: new Set(), routineDefinitions: [], routinesDate: '',
+    removedTodayRoutineIds: {}, habits: [], habitLogs: {}, habitsEnabled: false,
+    routinesEnabled: false, gtdFrames: {}, goals: [], projects: [], areas: [],
+    goalsProjectsEnabled: false, unscheduledOrderTimestamp: null,
+    ...over,
+  });
+  // Every functional update a setter received, applied in turn, as React would.
+  const settled = (setter, list) => setter.mock.calls.reduce((acc, [update]) => update(acc), list);
+  const STAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/;
+
+  beforeEach(() => { globalThis.localStorage = memoryStorage(); });
+  afterEach(() => { delete globalThis.localStorage; delete globalThis.window; });
+
+  it('stamps a new inbox task in storage AND in state', async () => {
+    const useDataPersistence = await loadHookAs('main');
+    const { props } = makeProps();
+    const fresh = { id: 'n1', title: 'New idea' };
+    useDataPersistence(saveProps(props, { unscheduledTasks: [fresh] })).saveData();
+
+    expect(stored('day-planner-unscheduled')[0].createdAt).toMatch(STAMP);
+    // State is what the sync payload reads; a stamp only in storage never syncs.
+    const inState = settled(props.setUnscheduledTasks, [fresh]);
+    expect(inState[0].createdAt).toBe(stored('day-planner-unscheduled')[0].createdAt);
+  });
+
+  it('stamps a new scheduled task and a new recurring series, but nothing in the bin', async () => {
+    const useDataPersistence = await loadHookAs('main');
+    const { props } = makeProps();
+    useDataPersistence(saveProps(props, {
+      tasks: [{ id: 's1', title: 'Call', date: '2026-10-22', startTime: '09:00' }],
+      recurringTasks: [{ id: 'r1', title: 'Gym', recurrence: { type: 'daily', startDate: '2026-10-22' } }],
+      recycleBin: [{ id: 'b1', title: 'Gone' }],
+    })).saveData();
+
+    expect(stored('day-planner-tasks')[0].createdAt).toMatch(STAMP);
+    expect(stored('day-planner-recurring-tasks')[0].createdAt).toMatch(STAMP);
+    expect(stored('day-planner-recycle-bin')[0]).not.toHaveProperty('createdAt');
+  });
+
+  it('never backfills a task that was already stored', async () => {
+    store.set('day-planner-unscheduled', JSON.stringify([{ id: 'old', title: 'Legacy', lastModified: '2026-01-01T00:00:00.000Z' }]));
+    const useDataPersistence = await loadHookAs('main');
+    const { props } = makeProps();
+    useDataPersistence(saveProps(props, { unscheduledTasks: [{ id: 'old', title: 'Legacy', lastModified: '2026-01-01T00:00:00.000Z' }] })).saveData();
+
+    expect(stored('day-planner-unscheduled')[0]).not.toHaveProperty('createdAt');
+    expect(props.setUnscheduledTasks).not.toHaveBeenCalled();
+  });
+
+  it('does not stamp a task that only moved between lists (inbox → scheduled, bin → inbox)', async () => {
+    store.set('day-planner-unscheduled', JSON.stringify([{ id: 'm1', title: 'Was in the inbox' }]));
+    store.set('day-planner-recycle-bin', JSON.stringify([{ id: 'm2', title: 'Was in the bin' }]));
+    const useDataPersistence = await loadHookAs('main');
+    const { props } = makeProps();
+    useDataPersistence(saveProps(props, {
+      tasks: [{ id: 'm1', title: 'Was in the inbox', date: '2026-10-22', startTime: '10:00' }],
+      unscheduledTasks: [{ id: 'm2', title: 'Was in the bin' }],
+    })).saveData();
+
+    expect(stored('day-planner-tasks')[0]).not.toHaveProperty('createdAt');
+    expect(stored('day-planner-unscheduled')[0]).not.toHaveProperty('createdAt');
+  });
+
+  it('does not stamp what arrives during a remote apply, and never stamps it later either', async () => {
+    const useDataPersistence = await loadHookAs('main');
+    const { props } = makeProps();
+    const suppressTimestampRef = { current: true };
+    const synced = { id: 'x1', title: 'Made on the phone', lastModified: '2026-10-20T00:00:00.000Z' };
+    useDataPersistence(saveProps(props, { unscheduledTasks: [synced], suppressTimestampRef })).saveData();
+    expect(stored('day-planner-unscheduled')[0]).not.toHaveProperty('createdAt');
+
+    // The next ordinary pass finds it stored: known, so still not stamped.
+    suppressTimestampRef.current = false;
+    useDataPersistence(saveProps(props, { unscheduledTasks: [{ ...synced }], suppressTimestampRef })).saveData();
+    expect(stored('day-planner-unscheduled')[0]).not.toHaveProperty('createdAt');
+  });
+
+  it('does not stamp calendar, Todoist or Obsidian rows, or a row that says "not known"', async () => {
+    const useDataPersistence = await loadHookAs('main');
+    const { props } = makeProps();
+    useDataPersistence(saveProps(props, {
+      tasks: [
+        { id: 'c1', title: 'Feed event', imported: true, date: '2026-10-22', startTime: '08:00' },
+        { id: 'o1', title: 'From the vault', importSource: 'obsidian', date: '2026-10-22', startTime: '11:00' },
+        { id: 'k1', title: 'Old series, moved', createdAt: null, date: '2026-10-22', startTime: '12:00' },
+      ],
+      unscheduledTasks: [{ id: 'todoist:a:1', title: 'From Todoist', importSource: 'todoist', imported: false, todoist: { accountId: 'a', id: '1' } }],
+    })).saveData();
+
+    for (const row of stored('day-planner-tasks')) {
+      expect(row.createdAt === undefined || row.createdAt === null).toBe(true);
+    }
+    expect(stored('day-planner-unscheduled')[0]).not.toHaveProperty('createdAt');
+  });
+
+  it('keeps an existing createdAt exactly, and its arrival does not re-stamp lastModified', async () => {
+    const was = { id: 'e1', title: 'Old', lastModified: '2026-01-01T00:00:00.000Z' };
+    store.set('day-planner-unscheduled', JSON.stringify([was]));
+    const useDataPersistence = await loadHookAs('main');
+    const { props } = makeProps();
+    const arrived = { ...was, createdAt: '2025-12-31T09:00:00-05:00' };
+    useDataPersistence(saveProps(props, { unscheduledTasks: [arrived] })).saveData();
+
+    const [row] = stored('day-planner-unscheduled');
+    expect(row.createdAt).toBe('2025-12-31T09:00:00-05:00');
+    expect(row.lastModified).toBe('2026-01-01T00:00:00.000Z');
   });
 });

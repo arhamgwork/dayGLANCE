@@ -9,6 +9,7 @@ import {
   weekDatesFor,
   buildWeek,
   buildUsers,
+  inboxItem,
   handleMcpRequest,
 } from './mcpReadModel.js';
 
@@ -152,7 +153,7 @@ describe('buildUnscheduledItems', () => {
     const { items } = buildUnscheduledItems(state);
     expect(items).toEqual([{
       id: 'u1', type: 'task', title: 'Buy milk', priority: 2,
-      completed: false, deadline: '2026-08-20', notes: 'oat',
+      completed: false, created_at: null, completed_at: null, deadline: '2026-08-20', notes: 'oat',
     }]);
   });
 
@@ -479,8 +480,53 @@ describe('the read gaps closed 2026-10-04: imported events, assignees, inbox dur
     }, { method: 'list_bucket_list' });
     expect(r.ok).toBe(true);
     expect(r.data.lists.map((l) => [l.id, l.heading, l.items.map((i) => i.id)])).toEqual([['b1', 'Anytime', ['k1']], ['b2', 'Maybe later', ['k3']]]);
-    expect(r.data.lists[0].items[0]).toEqual({ id: 'k1', type: 'task', title: 'Learn Welsh', completed: false, duration_minutes: 30, bucket_id: 'b1' });
+    expect(r.data.lists[0].items[0]).toEqual({ id: 'k1', type: 'task', title: 'Learn Welsh', completed: false, created_at: null, completed_at: null, duration_minutes: 30, bucket_id: 'b1' });
     // Default headings stand in when the config has none.
     expect(handleMcpRequest({ unscheduledTasks: [] }, { method: 'list_bucket_list' }).data.lists.map((l) => l.heading)).toEqual(['Anytime', 'Someday']);
+  });
+});
+
+// #2135: when a task was created and completed, in the wire's local convention
+// (no offsets, no timestamps), null when not known.
+describe('created_at and completed_at on the wire', () => {
+  // The suite runs in UTC (vitest.config.js), so a stamp's local reading here
+  // is its UTC reading.
+  it('carries both on an inbox item, local date and HH:MM', () => {
+    const item = inboxItem({ id: 'u1', title: 'Done', completed: true, createdAt: '2026-10-19T09:14:00+00:00', completedAt: '2026-10-21T16:02:30Z' });
+    expect(item.created_at).toEqual({ date: '2026-10-19', time: '09:14' });
+    expect(item.completed_at).toEqual({ date: '2026-10-21', time: '16:02' });
+  });
+
+  it('reads a local-offset stamp on this machine\'s clock, and a bare date with no time', () => {
+    const item = inboxItem({ id: 'u2', title: 'Old', completed: true, createdAt: '2026-10-19T23:30:00-05:00', completedAt: '2026-08-01' });
+    expect(item.created_at).toEqual({ date: '2026-10-20', time: '04:30' });
+    expect(item.completed_at).toEqual({ date: '2026-08-01', time: null });
+  });
+
+  it('is null when not known, and completed_at is null on an open task even with a stale stamp', () => {
+    const item = inboxItem({ id: 'u3', title: 'Reopened', completed: false, completedAt: '2026-10-21T16:02:30Z' });
+    expect(item.created_at).toBeNull();
+    expect(item.completed_at).toBeNull();
+  });
+
+  it('rides scheduled blocks and recurring occurrences, never events', () => {
+    const r = handleMcpRequest({
+      tasks: [
+        { id: 't1', title: 'Call', date: '2026-10-22', startTime: '09:00', duration: 30, createdAt: '2026-10-20T08:00:00Z' },
+        { id: 'e1', title: 'Feed event', imported: true, date: '2026-10-22', startTime: '10:00', duration: 30, createdAt: '2026-10-20T08:00:00Z' },
+      ],
+      recurringTasks: [{
+        id: 'r1', title: 'Gym', startTime: '07:00', duration: 60, recurrence: { type: 'daily', startDate: '2026-10-01' },
+        createdAt: '2026-10-01T06:00:00Z', completedDates: ['2026-10-22'], completedDatesTimestamps: { '2026-10-22': '2026-10-22T08:05:00Z' },
+      }],
+    }, { method: 'get_day', params: { date: '2026-10-22' } });
+    expect(r.ok).toBe(true);
+    const byId = Object.fromEntries(r.data.blocks.map((b) => [b.id, b]));
+    expect(byId.t1.created_at).toEqual({ date: '2026-10-20', time: '08:00' });
+    expect(byId.t1.completed_at).toBeNull();
+    const gym = r.data.blocks.find((b) => b.type === 'recurring_task');
+    expect(gym.created_at).toEqual({ date: '2026-10-01', time: '06:00' });
+    expect(gym.completed_at).toEqual({ date: '2026-10-22', time: '08:05' });
+    expect(byId.e1).not.toHaveProperty('created_at');
   });
 });

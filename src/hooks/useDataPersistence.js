@@ -5,6 +5,7 @@ import { stampOriginalPlan, applyBaselines } from '../utils/originalPlan.js';
 import { stampDeferrals, applyDeferrals } from '../utils/deferrals.js';
 import { inBookkeepingWindow, markBookkeepingChange } from '../utils/localEditStamp.js';
 import { stampPlanTrail, applyPlanTrail } from '../utils/planTrail.js';
+import { stampCreatedAt, applyCreatedAt, createdTimestamp } from '../utils/createdAt.js';
 import { rolloverRemovedTodayRoutineIds, startOfTodayIso } from './useRoutines.js';
 
 // Read-only CalDAV/ICS-subscription events (importSource 'sync', non-task,
@@ -58,6 +59,10 @@ const sameInputs = (a, b) => a.length === b.length && a.every((v, i) => Object.i
 // behind the pass) takes the full path, as before.
 const rowCache = new Map(); // storage key -> { context, value, inputById, outputById }
 const rowId = (row) => String(row?.id);
+
+// The task lists an id can live in. A task moving between them keeps its id,
+// so "new to this device" means absent from all four (utils/createdAt.js).
+const TASK_LIST_KEYS = ['day-planner-tasks', 'day-planner-unscheduled', 'day-planner-recycle-bin', 'day-planner-recurring-tasks'];
 
 export default function useDataPersistence({
   // setters for loadData
@@ -446,6 +451,37 @@ export default function useDataPersistence({
       }
     };
 
+    // Every task id this device has stored, in any task list, as storage holds
+    // it before this pass writes anything: what tells a task CREATED here from
+    // one that only moved between lists (utils/createdAt.js). Read through the
+    // row cache where it still matches storage, parsed otherwise, and only when
+    // a pass actually has rows to consider.
+    let storedIds = null;
+    const storedTaskIds = () => {
+      if (storedIds) return storedIds;
+      storedIds = new Set();
+      for (const key of TASK_LIST_KEYS) {
+        const cache = rowCache.get(key);
+        let raw;
+        try { raw = localStorage.getItem(key); } catch { raw = undefined; }
+        if (cache && raw != null && raw === cache.value) {
+          for (const id of cache.outputById.keys()) storedIds.add(id);
+        } else {
+          for (const row of readStored(key)) if (row && row.id != null) storedIds.add(rowId(row));
+        }
+      }
+      return storedIds;
+    };
+    // Stamp `createdAt` on the rows new to this device, and put it into state as
+    // well as storage, for the reason the baseline below spells out. Not while a
+    // remote apply is being persisted: those tasks were created elsewhere.
+    const stampCreated = (rows, setter) => {
+      if (suppressTimestampRef.current) return rows;
+      const created = stampCreatedAt(rows, storedTaskIds(), { now: createdTimestamp() });
+      if (created !== rows) setter(prev => applyCreatedAt(prev, created));
+      return created;
+    };
+
     // The task pipeline (baselines, deferrals, plan trail, stamps), skipped
     // with the bucket when nothing in it has moved since this pass wrote it,
     // and run only on the rows that did otherwise (#2140).
@@ -460,9 +496,10 @@ export default function useDataPersistence({
         // remote apply for the same reason as the baseline — a reschedule made on
         // another device is that device's to count, and counting it again here would
         // inflate every task on every sync.
+        const createdTasks = stampCreated(rows, setTasks);
         const plannedTasks = suppressTimestampRef.current
-          ? rows
-          : stampOriginalPlan(rows, prevStoredTasks);
+          ? createdTasks
+          : stampOriginalPlan(createdTasks, prevStoredTasks);
         const countedTasks = suppressTimestampRef.current
           ? plannedTasks
           : stampDeferrals(plannedTasks, prevStoredTasks);
@@ -475,7 +512,7 @@ export default function useDataPersistence({
           ? countedTasks
           : stampPlanTrail(countedTasks, prevStoredTasks);
         // The apply* write-backs match by id, so a subset of rows is enough.
-        if (plannedTasks !== rows) setTasks(prev => applyBaselines(prev, plannedTasks));
+        if (plannedTasks !== createdTasks) setTasks(prev => applyBaselines(prev, plannedTasks));
         if (countedTasks !== plannedTasks) setTasks(prev => applyDeferrals(prev, countedTasks));
         if (trailedTasks !== countedTasks) setTasks(prev => applyPlanTrail(prev, trailedTasks));
         return stampTaskTimestamps(trailedTasks, 'day-planner-tasks', prevStoredTasks);
@@ -486,16 +523,20 @@ export default function useDataPersistence({
     // The other task-shaped arrays are stamped against their own stored copy;
     // the suppress flag is an input because it decides whether they stamp.
     const suppressed = suppressTimestampRef.current;
-    const stampOnly = (key) => (rows, prev) => stampTaskTimestamps(rows, key, prev);
-    for (const [key, rows] of [
-      ['day-planner-unscheduled', unscheduledTasks],
-      ['day-planner-recycle-bin', recycleBin],
-      ['day-planner-recurring-tasks', recurringTasks],
-      ['day-planner-today-routines', todayRoutines],
+    // The inbox and the recurring series also get `createdAt`; the bin holds
+    // only tasks that already lived in one of those lists, and routines are not
+    // tasks.
+    const stampOnly = (key, setter) => (rows, prev) =>
+      stampTaskTimestamps(setter ? stampCreated(rows, setter) : rows, key, prev);
+    for (const [key, rows, setter] of [
+      ['day-planner-unscheduled', unscheduledTasks, setUnscheduledTasks],
+      ['day-planner-recycle-bin', recycleBin, null],
+      ['day-planner-recurring-tasks', recurringTasks, setRecurringTasks],
+      ['day-planner-today-routines', todayRoutines, null],
     ]) {
       const inputs = [rows, suppressed];
       if (unchanged(key, inputs)) continue;
-      saveRows(key, rows, stampRows(key, rows, stampOnly(key)), inputs);
+      saveRows(key, rows, stampRows(key, rows, stampOnly(key, setter)), inputs);
     }
 
     // Prune completedTaskUids to the retention window to prevent unbounded growth.
