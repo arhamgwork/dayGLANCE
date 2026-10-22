@@ -356,6 +356,36 @@ describe('HeadlessRefresh', () => {
     }
   });
 
+  // The file tier's idle gate (@glance-apps/sync 2.3.0, #2142) skips a poll
+  // only when the local data's JSON matches the last quiet cycle's. A payload
+  // whose `data` carried the clock would differ on every poll, and the gate
+  // would never engage: every poll would merge the whole file, as before.
+  it('builds the same payload data twice when nothing changed, minutes apart', async () => {
+    seedStorage(ls);
+    const { bridge, calls } = fakeBridge();
+    globalThis.window.DayGlanceNative = bridge;
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-10-19T12:00:00Z') });
+    try {
+      const built = [];
+      const factory = vi.fn((callbacks) => ({
+        sync: async () => {
+          built.push(await callbacks.buildPayload());
+          vi.setSystemTime(new Date('2026-10-19T12:05:00Z'));
+          built.push(await callbacks.buildPayload());
+        },
+        getLastSynced: () => '2026-10-19T10:00:00.000Z',
+      }));
+      await mount({ bridge: () => bridge, createFileEngine: factory, createVaultEngine: () => null, now: () => new Date() });
+      await until(() => calls.headlessDone.length > 0);
+
+      expect(built).toHaveLength(2);
+      expect(built[1].lastModified).not.toBe(built[0].lastModified);
+      expect(JSON.stringify(built[1].data)).toBe(JSON.stringify(built[0].data));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('the store supplies every dep the sync payload and apply read', () => {
     // A key the store does not carry is a slice the headless payload would
     // send as undefined with a fresh lastModified; the hook names it.

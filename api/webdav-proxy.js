@@ -1,5 +1,6 @@
 import { rejectIfBlocked } from './_proxyGuard.js';
 import { safeRequest, SsrfError } from './_ssrfGuard.mjs';
+import { readBody } from './_readBody.mjs';
 
 // Disable Vercel's default body parser so we can forward raw request bodies
 // (e.g. text/calendar) without them being mangled or rejected as unsupported.
@@ -8,15 +9,6 @@ export const config = {
     bodyParser: false,
   },
 };
-
-function readRawBody(req) {
-  return new Promise((resolve, reject) => {
-    let data = '';
-    req.on('data', chunk => data += chunk);
-    req.on('end', () => resolve(data));
-    req.on('error', reject);
-  });
-}
 
 export default async function handler(req, res) {
   // Handle CORS preflight
@@ -69,7 +61,7 @@ export default async function handler(req, res) {
 
     let body = null;
     if (req.method !== 'GET' && req.method !== 'HEAD') {
-      const rawBody = await readRawBody(req);
+      const rawBody = await readBody(req);
       if (rawBody) body = rawBody;
     }
 
