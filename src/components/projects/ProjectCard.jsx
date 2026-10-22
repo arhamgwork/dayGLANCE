@@ -451,28 +451,34 @@ const ProjectCard = forwardRef(({ project, onEditClick, compact, dragHandleProps
               <GripVertical size={14} />
             </div>
           )}
-          <span className={`text-sm font-semibold ${textPrimary} leading-tight flex-1 min-w-0`}>
-            {project.title}
-          </span>
-          {showTargetDate && (
-            <span
-              data-project-target-date
-              className={`flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 whitespace-nowrap ${
-                targetDateInfo.overdue
-                  ? 'bg-red-500/15 text-red-500'
-                  : targetDateInfo.dueToday || targetDateInfo.soon
-                  ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-                  : `${textSecondary} opacity-70`
-              }`}
-              title={
-                `${t('goals.target')}: ${formatDeadlineDate(project.targetDate)}`
-                + (targetDateInfo.overdue ? ` (${t('goals.daysOverdue', { count: -targetDateInfo.days })})` : '')
-              }
-            >
-              <Calendar size={9} />
-              {formatDeadlineDate(project.targetDate)}
+          {/* The target date sits under the title, not beside it: beside it,
+              the header's buttons squeezed a phone-width title until it ran
+              under the badge. A long one-word title wraps rather than overflow. */}
+          <div data-project-title-block className="flex-1 min-w-0 flex flex-col items-start gap-1">
+            <span className={`text-sm font-semibold ${textPrimary} leading-tight break-words max-w-full`}>
+              {project.title}
             </span>
-          )}
+            {showTargetDate && (
+              <span
+                data-project-target-date
+                className={`flex items-center gap-0.5 text-[10px] py-0.5 rounded-full font-medium whitespace-nowrap ${
+                  targetDateInfo.overdue
+                    ? 'px-1.5 bg-red-500/15 text-red-500'
+                    : targetDateInfo.dueToday || targetDateInfo.soon
+                    ? 'px-1.5 bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                    // No pill, so no inset: the date lines up under the title.
+                    : `${textSecondary} opacity-70`
+                }`}
+                title={
+                  `${t('goals.target')}: ${formatDeadlineDate(project.targetDate)}`
+                  + (targetDateInfo.overdue ? ` (${t('goals.daysOverdue', { count: -targetDateInfo.days })})` : '')
+                }
+              >
+                <Calendar size={9} />
+                {formatDeadlineDate(project.targetDate)}
+              </span>
+            )}
+          </div>
           {noteBadge}
           {project.hyperglance?.enabled && project.status !== 'completed' && !project.archived && (() => {
               const instance = getActiveHGInstance(project, currentTimeMinutes);
