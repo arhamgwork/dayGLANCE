@@ -1,10 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  AlertCircle, BookOpen, Calendar, Check, CheckSquare,
-  ExternalLink, FileText, GripVertical, Inbox, MoreHorizontal,
-  NotebookPen, Pencil, RefreshCw, Settings, SkipForward,
-  Target, Trash2,
-  Phone,
+  AlertCircle, Calendar, Check, GripVertical, Inbox, MoreHorizontal,
+  NotebookPen, Pencil, RefreshCw, Settings, SkipForward, Target, Trash2,
 } from 'lucide-react';
 import ViewCycler from './ViewCycler.jsx';
 import MobileViewToggle from './MobileViewToggle.jsx';
@@ -16,7 +13,7 @@ import DayViewAllDaySection from './DayViewAllDaySection.jsx';
 import AllDayTaskCard from './AllDayTaskCard.jsx';
 import { WEEK_GUTTER_W } from './WeekView.jsx';
 import { isNativeAndroid, nativeUpdateEvent } from '../native.js';
-import { renderTitle, getLinkUrl, hasNotesOrSubtasks, isLinkOnlyTask, hasOnlySubtasks, isObsidianNoteOnlyTask, openNoteAction, isPhoneOnlyTask } from '../utils/textFormatting.jsx';
+import { renderTitle, hasNotesOrSubtasks, isLinkOnlyTask, openNoteAction, NoteIcon, noteActionTarget } from '../utils/textFormatting.jsx';
 import { dateToString, extractWikilinks, formatDeadlineDate, formatShortDate, stripWikilinks } from '../utils/taskUtils.js';
 import { findRunningTask } from '../utils/runningTask.js';
 import { HABIT_COLORS, HABIT_ICONS } from '../constants/habits.js';
@@ -506,9 +503,9 @@ const CalendarHeader = () => {
                     onMouseLeave={() => { if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current); }}
                     onClick={(e) => { e.stopPropagation(); if (isLinkOnlyTask(task)) { if (!longPressTriggeredRef.current) openNoteAction(task); longPressTriggeredRef.current = false; } else { setExpandedNotesTaskId(prev => prev === task.id ? null : task.id); } }}
                     className={`notes-toggle-button hover:bg-white/20 rounded p-1 transition-colors ${hasNotesOrSubtasks(task) || extractWikilinks(task.title).length > 0 ? '' : 'opacity-40'}`}
-                    title={isLinkOnlyTask(task) ? `${getLinkUrl(task)} (hold to edit)` : 'Notes & subtasks'}
+                    title={isLinkOnlyTask(task) ? `${noteActionTarget(task)} (hold to edit)` : 'Notes & subtasks'}
                   >
-                    {isPhoneOnlyTask(task) ? <Phone size={14} /> : isLinkOnlyTask(task) ? <ExternalLink size={14} /> : hasOnlySubtasks(task) ? <CheckSquare size={14} /> : isObsidianNoteOnlyTask(task) ? <BookOpen size={14} /> : <FileText size={14} />}
+                    <NoteIcon task={task} size={14} />
                   </button>
                   <button onClick={(e) => { e.stopPropagation(); postponeDeadlineTask(task.id); }} className="hover:bg-white/20 rounded p-1 transition-colors" title={t('sched.postponeTomorrow')}>
                     <SkipForward size={14} />
@@ -768,9 +765,9 @@ const CalendarHeader = () => {
                         }
                       }}
                       className={`notes-toggle-button hover:bg-white/20 rounded p-1 transition-colors ${hasNotesOrSubtasks(task) || extractWikilinks(task.title).length > 0 ? '' : 'opacity-40'}`}
-                      title={isLinkOnlyTask(task) ? `${getLinkUrl(task)} (hold to edit)` : "Notes & subtasks"}
+                      title={isLinkOnlyTask(task) ? `${noteActionTarget(task)} (hold to edit)` : "Notes & subtasks"}
                     >
-                      {isPhoneOnlyTask(task) ? <Phone size={14} /> : isLinkOnlyTask(task) ? <ExternalLink size={14} /> : hasOnlySubtasks(task) ? <CheckSquare size={14} /> : isObsidianNoteOnlyTask(task) ? <BookOpen size={14} /> : <FileText size={14} />}
+                      <NoteIcon task={task} size={14} />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); postponeDeadlineTask(task.id); }}

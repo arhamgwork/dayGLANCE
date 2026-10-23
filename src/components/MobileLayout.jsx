@@ -1,18 +1,17 @@
 import React, { useState, useRef } from 'react';
 import Wordmark from './Wordmark';
 import {
-  Activity, AlertCircle, AlertTriangle, Archive, BarChart3, Bell, BookOpen, BrainCircuit,
-  Calendar, CalendarDays, Check, CheckCircle, CheckSquare, ChevronDown,
-  ChevronLeft, ChevronRight, ChevronUp, Clock, Cloud, ExternalLink,
-  Eye, FileText, Filter, Flag, Flame, FolderOpen, GitBranch, Globe, GripVertical, Hash, HelpCircle,
-  Inbox, Key, Layers, LayoutGrid, Link, Loader, Menu, Mic, Minus, Moon, MoreHorizontal,
-  NotebookPen, Plus, RefreshCw, Save, Search, Settings, SkipForward, Sparkles,
-  Sun, Target, Telescope, Trash2, TrendingUp, Trophy, Undo2, Upload, Volume2, VolumeX,
-  Wifi, X, Zap,
-  Phone,
+  Activity, AlertCircle, AlertTriangle, Archive, BarChart3, Bell,
+  BookOpen, BrainCircuit, Calendar, CalendarDays, Check, CheckCircle,
+  ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock, Cloud, Eye,
+  Filter, Flag, Flame, FolderOpen, GitBranch, Globe, GripVertical, Hash,
+  HelpCircle, Inbox, Key, Layers, LayoutGrid, Link, Loader, Menu, Mic,
+  Minus, Moon, MoreHorizontal, NotebookPen, Plus, RefreshCw, Save, Search,
+  Settings, SkipForward, Sparkles, Sun, Target, Telescope, Trash2,
+  TrendingUp, Trophy, Undo2, Upload, Volume2, VolumeX, Wifi, X, Zap,
 } from 'lucide-react';
 import { isNativeAndroid } from '../native.js';
-import { renderTitle, getLinkUrl, hasNotesOrSubtasks, isLinkOnlyTask, hasOnlySubtasks, isObsidianNoteOnlyTask, openNoteAction, isPhoneOnlyTask } from '../utils/textFormatting.jsx';
+import { renderTitle, hasNotesOrSubtasks, isLinkOnlyTask, openNoteAction, NoteIcon } from '../utils/textFormatting.jsx';
 import { dateToString, extractTags, extractWikilinks, formatDate, formatDateRange, formatDeadlineDate, formatShortDate } from '../utils/taskUtils.js';
 import { formatLocalizedDate, localizedWeekdays } from '../utils/localeFormatting.js';
 import { findRunningTask } from '../utils/runningTask.js';

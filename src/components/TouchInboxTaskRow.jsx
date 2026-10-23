@@ -1,10 +1,7 @@
 import React, { memo, useMemo } from 'react';
-import {
-  AlertCircle, Archive, BookOpen, Calendar, Check, CheckSquare, ExternalLink,
-  FileText, Settings, Telescope, Phone,
-} from 'lucide-react';
+import { AlertCircle, Archive, Calendar, Check, Settings, Telescope } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { renderTitle, hasNotesOrSubtasks, isLinkOnlyTask, hasOnlySubtasks, isObsidianNoteOnlyTask, openNoteAction, isPhoneOnlyTask } from '../utils/textFormatting.jsx';
+import { renderTitle, hasNotesOrSubtasks, isLinkOnlyTask, openNoteAction, NoteIcon } from '../utils/textFormatting.jsx';
 import { dateToString, extractWikilinks, formatDeadlineDate } from '../utils/taskUtils.js';
 import NotesSubtasksPanel from './NotesSubtasksPanel.jsx';
 import DeadlinePickerPopover from './DeadlinePickerPopover.jsx';
@@ -149,7 +146,7 @@ function TouchInboxTaskRow({
                   }}
                   className={`notes-toggle-button hover:bg-white/20 rounded p-1 transition-colors ${hasNotesOrSubtasks(task) || wikilinks.length > 0 ? '' : 'opacity-40'}`}
                 >
-                  {isPhoneOnlyTask(task) ? <Phone size={14} /> : isLinkOnlyTask(task) ? <ExternalLink size={14} /> : hasOnlySubtasks(task) ? <CheckSquare size={14} /> : isObsidianNoteOnlyTask(task) ? <BookOpen size={14} /> : <FileText size={14} />}
+                  <NoteIcon task={task} size={14} />
                 </button>
                 <div className="deadline-picker-container relative">
                   <button
