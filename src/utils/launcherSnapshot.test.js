@@ -18,6 +18,12 @@ const base = (patch = {}) => ({
 });
 
 describe('buildLauncherSnapshot', () => {
+  it("carries the app's own Inbox count when given one, and leaves it out otherwise", () => {
+    expect(buildLauncherSnapshot(base({ inboxCount: 4 })).inboxCount).toBe(4);
+    expect(buildLauncherSnapshot(base({ inboxCount: 0 })).inboxCount).toBe(0);
+    expect('inboxCount' in buildLauncherSnapshot(base())).toBe(false);
+  });
+
   it('merges scheduled, inbox and recurring rows, keeps ids, and never duplicates one', () => {
     const snap = buildLauncherSnapshot(base({
       tasks: [{ id: 't1', title: 'Run #training', date: TODAY, startTime: '07:30', duration: 45, color: 'bg-green-500', projectId: 'p1', clientId: 'w-9' }],

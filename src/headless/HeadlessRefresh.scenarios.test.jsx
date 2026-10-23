@@ -163,6 +163,8 @@ describe('HeadlessRefresh', () => {
     const snapshot = calls.updateLauncherSnapshot[0];
     // It cannot read the device calendar, and says so: the shell keeps the last events.
     expect(snapshot.carryDeviceEvents).toBe(true);
+    // The Inbox count through the app's own filter and stored preferences.
+    expect(snapshot.inboxCount).toBe(1);
     // …and tells the provider how to read it itself: the stored filter and edits.
     expect(snapshot.deviceCalendar).toMatchObject({ filter: ['cal-1'], overrides: { 'ev-9': { title: 'Moved' } } });
     expect(snapshot.tasks.map((t) => t.title)).toEqual(expect.arrayContaining(['Local task', 'From the other device']));

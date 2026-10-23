@@ -107,6 +107,8 @@ const keep = (t, isVisibleForUser) => t && !t.archived && !t.isExample && isVisi
  * @param {Array} input.projects @param {Array} input.goals
  * @param {boolean} input.goalsProjectsEnabled
  * @param {Function} input.isVisibleForUser
+ * @param {?number} [input.inboxCount]  the Inbox count as the app shows it, with its filters and
+ *   user lens (utils/inboxFilter.js); the launcher's Inbox complication shows it. Null: left out.
  * @param {Array} input.todayRoutines @param {object} input.routineCompletions  id → the date completed
  * @param {boolean} input.routinesEnabled
  * @param {Function} input.frameInstancesForDate  (Date) → frame instances (utils/frameInstances.js)
@@ -134,6 +136,7 @@ export function buildLauncherSnapshot({
   now, todayStr,
   tasks = [], unscheduledTasks = [], expandedRecurringTasks = [],
   projects = [], goals = [], goalsProjectsEnabled = false, isVisibleForUser = () => true,
+  inboxCount = null,
   todayRoutines = [], routineCompletions = {}, routinesEnabled = true,
   frameInstancesForDate = () => [], getDayWindow = () => null,
   weatherCoords = null, weatherHourlyByDate = null, weatherTempUnit = 'fahrenheit', dialAlarm = null,
@@ -255,6 +258,7 @@ export function buildLauncherSnapshot({
     updatedAt,
     timezone,
     today: todayStr,
+    ...(Number.isFinite(inboxCount) ? { inboxCount } : {}),
     tasks: rows,
     goals: goalRows,
     projects: projectRows,

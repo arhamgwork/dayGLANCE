@@ -18,6 +18,7 @@ same trigger (every data change while the app runs), and pushes through
 
 ```
 { version: 1, updatedAt, timezone, today,
+  inboxCount,                                   // the Inbox count as this app shows it (below)
   tasks:    [{ id, title, date, startTime, duration, isAllDay, completed, completedAt,
                colorHex, priority, notes, projectId, deadline, source: "dayglance"|"calendar",
                energy, clientId, recurringId, native }],   // scheduled, Inbox (date null), recurring occurrences;
@@ -36,10 +37,19 @@ same trigger (every data change while the app runs), and pushes through
   carryDeviceEvents: true }                       // headless only: this snapshot could not read the calendar
 ```
 
+**`inboxCount`** is the number the app's own Inbox badge and dial complication
+show: the Inbox through the user's filters (priority, project, tag, completed,
+standalone) and the multi-user lens, without Bucket List, archived or example
+tasks (`utils/inboxFilter.js`, the one filter all of them use). The task rows
+carry every visible Inbox task, so counting them overcounts; the launcher's
+Inbox complication shows `inboxCount` and counts rows only for a build that
+sends none. The filter preferences are device-local, and the headless refresh
+reads them from the same storage, so both paths send the same number.
+
 `LauncherProvider` (`dayglance-android/.../launcher/`) serves it read-only at
 `content://com.dayglance.app.launcher/<collection>` for `tasks`, `goals`,
 `projects`, `routines`, `frames`, `weather`, `dayShape` (one row) and `meta` (one row:
-version, updatedAt, timezone, today, handledWrites). Each cursor has `_id`,
+version, updatedAt, timezone, today, inboxCount, handledWrites). Each cursor has `_id`,
 `id` and `json` columns, the row as JSON. Every push calls `notifyChange` on
 the authority, so a `ContentObserver` registered on any collection URI sees
 every change. `insert`, `update` and `delete` throw.

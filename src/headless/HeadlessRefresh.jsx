@@ -42,6 +42,7 @@ import { createDayGlanceEngine } from '../sync/adapter.js';
 import { createDbEngine } from '../sync/dbEngine.js';
 import { normalizeSyncFolder } from '../utils/syncFolder.js';
 import { buildLauncherSnapshot } from '../utils/launcherSnapshot.js';
+import { inboxFromStorage, inboxCountOf } from '../utils/inboxFilter.js';
 import { latestSyncedAt } from '../utils/launcherHeartbeat.js';
 import { nativeBridge, nativeTouchLauncherHeartbeat, nativeRecordLauncherRefresh } from '../native.js';
 import { readLauncherLedger } from '../intents/launcherWrites.js';
@@ -263,6 +264,8 @@ export default function HeadlessRefresh({
           tasks, unscheduledTasks,
           expandedRecurringTasks: recurringTasks.length ? expandRecurringTasks(recurringTasks, { rangeStart, rangeEnd, today: todayStr }) : [],
           projects, goals, goalsProjectsEnabled, isVisibleForUser,
+          // The same filter and stored preferences the app's Inbox uses.
+          inboxCount: inboxCountOf(inboxFromStorage({ tasks, unscheduledTasks, recurringTasks, projects, goalsProjectsEnabled, isVisibleForUser })),
           todayRoutines: allTodayRoutines.filter(ownedBy), routineCompletions, routinesEnabled,
           frameInstancesForDate: (date) => frameInstancesForDate(gtdFrames.filter(ownedBy), dateToString(date)),
           getDayWindow,
