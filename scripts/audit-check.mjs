@@ -73,6 +73,15 @@ const ACK = {
     reason: 'Unbounded precision specifiers in a format string can hang the process. Only the desktop packager\'s logger uses it, on the build machine, with its own format strings. No patched version (every release affected).',
     review: '2026-12-31',
   },
+  // Published 2026-10-23, along with GHSA-x562-297c-g43g (electron), which is
+  // FIXED by the move to ^43.7.6. This one is FIXED for the zod that ships
+  // (MCP server, intents): package.json now asks for ^4.6.7, so that
+  // copy cannot fall back into the affected range. What remains is jimp's:
+  'GHSA-mrhx-c7xc-m3w5': {
+    disposition: 'accept', pkg: 'zod 3 (via jimp, devDependency: @jimp/plugin-*)',
+    reason: 'Validating an oversized constrained collection can exhaust memory. jimp pins zod ^3 for its plugin option schemas, and zod 3 has no patched release (the fix is 4.6.6; 3.25.76 is the last 3.x). jimp is a devDependency that nothing in the repo imports, so no outside input reaches it. Revisit when jimp moves to zod 4, or drop jimp.',
+    review: '2026-12-31',
+  },
 };
 
 const res = spawnSync('npm', ['audit', '--json'], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });

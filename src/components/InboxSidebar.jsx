@@ -1,11 +1,9 @@
 import React, { useState, useRef, useMemo } from 'react';
 import {
-  AlertCircle, Archive, BookOpen, BrainCircuit,
-  Calendar, Check, CheckSquare, ExternalLink,
-  FileText, Filter, Inbox, Pencil, Plus, Settings, Telescope,
-  Phone,
+  AlertCircle, Archive, BrainCircuit, Calendar, Check, Filter, Inbox,
+  Pencil, Plus, Settings, Telescope,
 } from 'lucide-react';
-import { renderTitle, getLinkUrl, hasNotesOrSubtasks, isLinkOnlyTask, hasOnlySubtasks, isObsidianNoteOnlyTask, openNoteAction, isPhoneOnlyTask } from '../utils/textFormatting.jsx';
+import { renderTitle, hasNotesOrSubtasks, isLinkOnlyTask, openNoteAction, NoteIcon, noteActionTarget } from '../utils/textFormatting.jsx';
 import { dateToString, extractWikilinks, formatDeadlineDate } from '../utils/taskUtils.js';
 import NotesSubtasksPanel from './NotesSubtasksPanel.jsx';
 import InboxTaskRow from './InboxTaskRow.jsx';
@@ -369,7 +367,7 @@ const InboxSidebar = ({ variant = 'desktop' }) => {
                       }}
                       className={`notes-toggle-button hover:bg-white/20 rounded p-1 transition-colors ${hasNotesOrSubtasks(task) || extractWikilinks(task.title).length > 0 ? '' : 'opacity-40'}`}
                     >
-                      {isPhoneOnlyTask(task) ? <Phone size={14} /> : isLinkOnlyTask(task) ? <ExternalLink size={14} /> : hasOnlySubtasks(task) ? <CheckSquare size={14} /> : isObsidianNoteOnlyTask(task) ? <BookOpen size={14} /> : <FileText size={14} />}
+                      <NoteIcon task={task} size={14} />
                     </button>
                     <div className="deadline-picker-container relative">
                       <button

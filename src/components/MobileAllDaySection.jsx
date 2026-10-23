@@ -1,11 +1,9 @@
 import React from 'react';
 import {
-  AlertCircle, BookOpen, Calendar, Check, CheckSquare,
-  ExternalLink, FileText, GripVertical, Inbox,
-  RefreshCw, Settings, SkipForward, Trash2,
-  Phone,
+  AlertCircle, Calendar, Check, FileText, GripVertical, Inbox, RefreshCw,
+  Settings, SkipForward, Trash2,
 } from 'lucide-react';
-import { renderTitle, getLinkUrl, hasNotesOrSubtasks, isLinkOnlyTask, hasOnlySubtasks, isObsidianNoteOnlyTask, openNoteAction, isPhoneOnlyTask } from '../utils/textFormatting.jsx';
+import { renderTitle, hasNotesOrSubtasks, isLinkOnlyTask, openNoteAction, NoteIcon } from '../utils/textFormatting.jsx';
 import { dateToString, extractWikilinks, formatDeadlineDate } from '../utils/taskUtils.js';
 import DeadlinePickerPopover from './DeadlinePickerPopover.jsx';
 import { useDayPlannerCtx } from '../context/DayPlannerContext.jsx';
@@ -180,7 +178,7 @@ const MobileAllDaySection = () => {
                             }}
                             className={`notes-toggle-button hover:bg-white/20 rounded p-1 transition-colors flex-shrink-0 ${hasNotesOrSubtasks(task) ? '' : 'opacity-40'}`}
                           >
-                            {isPhoneOnlyTask(task) ? <Phone size={14} /> : isLinkOnlyTask(task) ? <ExternalLink size={14} /> : hasOnlySubtasks(task) ? <CheckSquare size={14} /> : isObsidianNoteOnlyTask(task) ? <BookOpen size={14} /> : <FileText size={14} />}
+                            <NoteIcon task={task} size={14} />
                           </button>
                           {task.recurrenceType !== 'daily' && (
                           <button
@@ -319,7 +317,7 @@ const MobileAllDaySection = () => {
                       }}
                       className={`notes-toggle-button hover:bg-white/20 rounded p-1 transition-colors flex-shrink-0 ${hasNotesOrSubtasks(task) ? '' : 'opacity-40'}`}
                     >
-                      {isPhoneOnlyTask(task) ? <Phone size={14} /> : isLinkOnlyTask(task) ? <ExternalLink size={14} /> : hasOnlySubtasks(task) ? <CheckSquare size={14} /> : isObsidianNoteOnlyTask(task) ? <BookOpen size={14} /> : <FileText size={14} />}
+                      <NoteIcon task={task} size={14} />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); postponeDeadlineTask(task.id); }}
