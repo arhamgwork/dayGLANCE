@@ -117,6 +117,8 @@ const keep = (t, isVisibleForUser) => t && !t.archived && !t.isExample && isVisi
  * @param {?object} input.weatherHourlyByDate  useWeather's hourlyByDate: { 'YYYY-MM-DD': { hour: {temp, code, uv} } }
  * @param {string} [input.weatherTempUnit]  'fahrenheit' | 'celsius', the unit the temps are in
  * @param {?{on:boolean, fromMin:number}} [input.dialAlarm]  the dial's alarm-mark prefs (utils/dialPrefs.js)
+ * @param {?object} [input.dialLayers]  the dial's layer toggles (utils/dialPrefs.js loadDialLayers), which
+ *   the launcher's dial follows; null leaves them out (every layer on).
  * @param {boolean} input.use24Hour
  * @param {string} input.timezone
  * @param {number} input.updatedAt         the push's own stamp (excluded from the fingerprint)
@@ -139,7 +141,7 @@ export function buildLauncherSnapshot({
   inboxCount = null,
   todayRoutines = [], routineCompletions = {}, routinesEnabled = true,
   frameInstancesForDate = () => [], getDayWindow = () => null,
-  weatherCoords = null, weatherHourlyByDate = null, weatherTempUnit = 'fahrenheit', dialAlarm = null,
+  weatherCoords = null, weatherHourlyByDate = null, weatherTempUnit = 'fahrenheit', dialAlarm = null, dialLayers = null,
   use24Hour = false, timezone, updatedAt,
   handledWrites = [],
   sunTimes = getSunTimes,
@@ -231,6 +233,13 @@ export function buildLauncherSnapshot({
     lon: hasCoords ? weatherCoords.lon : null,
     // The dial's alarm-mark prefs, so the launcher shows the mark as the app does.
     dialAlarm: dialAlarm ? { on: dialAlarm.on !== false, fromMin: Number.isFinite(dialAlarm.fromMin) ? dialAlarm.fromMin : 18 * 60 } : null,
+    // The dial's layer toggles, so the launcher's dial draws what the app's does. Only the
+    // layers the launcher draws; focus is the app's alone. A missing key reads as on.
+    ...(dialLayers ? { dialLayers: {
+      solar: dialLayers.solar !== false, weather: dialLayers.weather !== false,
+      calendars: dialLayers.calendars !== false, routines: dialLayers.routines !== false,
+      frames: dialLayers.frames !== false,
+    } } : {}),
   };
 
   // Hourly weather per forecast date, as the dial's weather ring reads it: one

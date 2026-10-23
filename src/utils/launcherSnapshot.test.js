@@ -142,6 +142,10 @@ describe('buildLauncherSnapshot', () => {
 
   it('carries the alarm-mark prefs, defaulted where they are malformed', () => {
     expect(buildLauncherSnapshot(base({ dialAlarm: { on: false, fromMin: 21 * 60 } })).dayShape.dialAlarm).toEqual({ on: false, fromMin: 1260 });
+    // The layer toggles the launcher's dial follows: only the layers it draws, a missing key on.
+    expect(buildLauncherSnapshot(base({ dialLayers: { solar: true, weather: false, calendars: false, routines: true, focus: false } })).dayShape.dialLayers)
+      .toEqual({ solar: true, weather: false, calendars: false, routines: true, frames: true });
+    expect('dialLayers' in buildLauncherSnapshot(base()).dayShape).toBe(false);
     expect(buildLauncherSnapshot(base({ dialAlarm: {} })).dayShape.dialAlarm).toEqual({ on: true, fromMin: 1080 });
   });
 
