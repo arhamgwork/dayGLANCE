@@ -1,6 +1,7 @@
 import { useMemo, useCallback } from 'react';
 import { dateToString, extractTags } from '../utils/taskUtils.js';
-import { filterableTagsOf, liveInboxProjectFilter as liveProjectFilterOf, liveInboxTagFilter as liveTagFilterOf, filterInboxTasks } from '../utils/inboxFilter.js';
+import { notBucketed } from '../utils/bucketList.js';
+import { liveInboxProjectFilter as liveProjectFilterOf, liveInboxTagFilter as liveTagFilterOf, filterInboxTasks } from '../utils/inboxFilter.js';
 
 export default function useComputedViews({
   tasks,
@@ -24,28 +25,26 @@ export default function useComputedViews({
     [tasks, selectedDate]
   );
 
-  // All unique tags from all task sources (excludes imported events)
-  const allTags = useMemo(() => {
-    const tagSet = new Set();
-    tasks.filter(t => !t.imported).forEach(task => {
-      extractTags(task.title).forEach(tag => tagSet.add(tag));
-    });
-    unscheduledTasks.filter(t => !t.imported).forEach(task => {
-      extractTags(task.title).forEach(tag => tagSet.add(tag));
-    });
-    recurringTasks.forEach(template => {
-      extractTags(template.title).forEach(tag => tagSet.add(tag));
-    });
-    return Array.from(tagSet).sort();
-  }, [tasks, unscheduledTasks, recurringTasks]);
-
-  // Tags offered by the GLANCE tag-filter UIs (utils/inboxFilter.js). allTags
-  // stays complete for the #-autocomplete and AI context, where bucket
+  // Every tag in use, and the ones the GLANCE tag filters offer, in one pass
+  // over the tasks (#2143; it was two). Imported events are left out of both.
+  // Bucket List items count for allTags only: their tasks never appear in the
+  // filtered views, so a bucket-only tag would be a filter option that matches
+  // nothing, but allTags feeds the #-autocomplete and AI context, where bucket
   // vocabulary is useful.
-  const filterableTags = useMemo(
-    () => filterableTagsOf({ tasks, unscheduledTasks, recurringTasks }),
-    [tasks, unscheduledTasks, recurringTasks],
-  );
+  const { allTags, filterableTags } = useMemo(() => {
+    const all = new Set();
+    const filterable = new Set();
+    const add = (title, offered) => {
+      for (const tag of extractTags(title)) {
+        all.add(tag);
+        if (offered) filterable.add(tag);
+      }
+    };
+    for (const task of tasks) if (!task.imported) add(task.title, true);
+    for (const task of unscheduledTasks) if (!task.imported) add(task.title, notBucketed(task));
+    for (const template of recurringTasks) add(template.title, true);
+    return { allTags: Array.from(all).sort(), filterableTags: Array.from(filterable).sort() };
+  }, [tasks, unscheduledTasks, recurringTasks]);
 
   // Incomplete scheduled tasks from today (used by rescheduling feature)
   const incompleteTodayTasks = useMemo(() => {

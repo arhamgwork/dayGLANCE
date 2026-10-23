@@ -31,7 +31,9 @@ const tagsInto = (set, title) => extractTags(title).forEach((tag) => set.add(tag
 /**
  * Tags the GLANCE tag-filter UIs offer: every task's, but no Bucket List
  * item's (its tasks never appear in the filtered views, so a bucket-only tag
- * would be a filter that matches nothing) and no imported event's.
+ * would be a filter that matches nothing) and no imported event's. The same
+ * rules as useComputedViews' one-pass filterableTags, which builds allTags
+ * alongside; inboxFilter.test.js holds the two Inboxes equal.
  */
 export function filterableTagsOf({ tasks = [], unscheduledTasks = [], recurringTasks = [] }) {
   const set = new Set();
