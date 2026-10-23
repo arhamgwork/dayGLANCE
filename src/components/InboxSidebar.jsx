@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   AlertCircle, Archive, BrainCircuit, Calendar, Check, Filter, Inbox,
   Pencil, Plus, Settings, Telescope,
@@ -6,6 +6,7 @@ import {
 import { renderTitle, hasNotesOrSubtasks, isLinkOnlyTask, openNoteAction, NoteIcon, noteActionTarget } from '../utils/textFormatting.jsx';
 import { dateToString, extractWikilinks, formatDeadlineDate } from '../utils/taskUtils.js';
 import NotesSubtasksPanel from './NotesSubtasksPanel.jsx';
+import InboxTaskRow from './InboxTaskRow.jsx';
 import SuggestionAutocomplete from './SuggestionAutocomplete.jsx';
 import DeadlinePickerPopover from './DeadlinePickerPopover.jsx';
 import InboxFilterPopover from './InboxFilterPopover.jsx';
@@ -66,6 +67,22 @@ const InboxSidebar = ({ variant = 'desktop' }) => {
     goalsProjectsEnabled, projects, projectFilter, setProjectFilter,
     aiSubtasksLoadingForTask, generateAISubtasks,
   } = useFeaturesCtx();
+
+  // The desktop rows' handlers (InboxTaskRow, #2143): one ref, refreshed on
+  // every render, so the memoized rows keep stable props and still call the
+  // latest functions.
+  const rowActions = useRef(null);
+  rowActions.current = {
+    setTaskContextMenu, handleDragStart, handleDragEnd, toggleComplete,
+    handleEditInputChange, handleEditKeyDown, saveTaskTitle, applySuggestionForEdit, editingInputRef,
+    startEditingTask, setProjectFilter, setInboxProjectFilter, setInboxPriorityFilter,
+    setHideCompletedInbox, setHideProjectTasksInbox, setHideStandaloneTasksInbox,
+    longPressTriggeredRef, longPressTimerRef, setExpandedNotesTaskId, setShowDeadlinePicker,
+    openMobileEditTask, sendTaskToBucket, archiveInboxTask, cyclePriority,
+    updateTaskNotes, addSubtask, toggleSubtask, deleteSubtask, updateSubtaskTitle, generateAISubtasks,
+    loadWikiNote, saveWikiNote, openInObsidian,
+  };
+  const projectsById = useMemo(() => new Map((projects || []).map(p => [p.id, p])), [projects]);
 
   const [showInboxFilter, setShowInboxFilter] = useState(false);
   const inboxFilterBtnRef = useRef(null);
@@ -140,240 +157,29 @@ const InboxSidebar = ({ variant = 'desktop' }) => {
         </p>
       ) : (
         filteredUnscheduledTasks.map(task => (
-        <div
+        <InboxTaskRow
           key={task.id}
-          data-task-id={task.id}
-          className="notes-panel-container"
-        >
-          <div
-            data-ctx-menu
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setTaskContextMenu({
-                x: e.clientX, y: e.clientY,
-                taskId: task.id,
-                isRecurring: false,
-                isImported: false,
-                isAllDay: false,
-                dateStr: dateToString(new Date()),
-              });
-            }}
-            draggable
-            onDragStart={(e) => handleDragStart(task, 'inbox', e)}
-            onDragEnd={handleDragEnd}
-            className={`${task.color} rounded-lg p-3 cursor-move shadow-sm ${task.completed ? 'opacity-50' : ''} relative ${task.isExample ? 'border-2 border-dashed border-white/50' : ''}`}
-          >
-            {task.isExample && (
-              <span className="absolute -top-2 -right-2 bg-yellow-400 text-yellow-900 text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
-                {t('common.example')}
-              </span>
-            )}
-            <div className="flex items-start justify-between text-white">
-              <div className="flex items-start gap-2 flex-1 min-w-0">
-                <button
-                  onClick={() => toggleComplete(task.id, true)}
-                  className={`mt-0.5 rounded flex-shrink-0 ${task.completed ? 'bg-white/40' : 'bg-white/20'} border-2 border-white w-4 h-4 flex items-center justify-center hover:bg-white/30 transition-colors`}
-                >
-                  {task.completed && <Check size={10} strokeWidth={3} />}
-                </button>
-                <div className="flex-1 min-w-0">
-                  {editingTaskId === task.id ? (
-                    <div className="relative tag-autocomplete-container">
-                      <input
-                        type="text"
-                        value={editingTaskText}
-                        onChange={(e) => handleEditInputChange(e, true)}
-                        onKeyDown={(e) => handleEditKeyDown(e, true)}
-                        onBlur={() => {
-                          setTimeout(() => {
-                            if (!showSuggestions) {
-                              saveTaskTitle(true);
-                            }
-                          }, 100);
-                        }}
-                        autoFocus
-                        className="w-full bg-white/20 text-white font-medium text-sm px-1 py-0.5 rounded border border-white/30 outline-none focus:bg-white/30"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      {showSuggestions && suggestionContext === 'editing' && (
-                        <SuggestionAutocomplete
-                          suggestions={suggestions}
-                          selectedIndex={selectedSuggestionIndex}
-                          onSelect={(suggestion) => applySuggestionForEdit(suggestion, editingInputRef.current, true)}
-                          cardBg={cardBg}
-                          borderClass={borderClass}
-                          textPrimary={textPrimary}
-                          hoverBg={hoverBg}
-                        />
-                      )}
-                    </div>
-                  ) : (
-                    <div
-                      className={`font-medium text-sm ${task.completed ? 'line-through' : ''} cursor-text`}
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        startEditingTask(task, true);
-                      }}
-                      title={t('task.doubleClickToEdit')}
-                    >
-                      {renderTitle(task.title)}
-                    </div>
-                  )}
-                  <div className="text-xs opacity-90 mt-1 flex items-center gap-2 flex-wrap">
-                    <span>{t('common.minutesShort', { count: task.duration })}</span>
-                    {task.deadline && (
-                      <span className="flex items-center gap-1">
-                        <AlertCircle size={10} />
-                        {formatDeadlineDate(task.deadline)}
-                      </span>
-                    )}
-                    {goalsProjectsEnabled && task.projectId && (() => {
-                      const proj = projects.find(p => p.id === task.projectId);
-                      if (!proj) return null;
-                      return (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const active = projectFilter === task.projectId;
-                            setProjectFilter(active ? null : task.projectId);
-                            setInboxProjectFilter(active ? [] : [task.projectId]);
-                            if (!active) { setInboxPriorityFilter(0); setHideCompletedInbox(false); setHideProjectTasksInbox(false); setHideStandaloneTasksInbox(true); } else { setHideProjectTasksInbox(true); setHideStandaloneTasksInbox(false); }
-                          }}
-                          className={`inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-full bg-white/25 hover:bg-white/40 text-white font-medium transition-colors flex-shrink-0 ${projectFilter === task.projectId ? 'ring-1 ring-white/60' : ''}`}
-                          title={projectFilter === task.projectId
-                            ? t('sched.clearProjectFilter')
-                            : t('sched.filterProject', { project: proj.title, defaultValue: 'Filter: {{project}}' })}
-                        >
-                          {proj.title}
-                        </button>
-                      );
-                    })()}
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                <div className="flex items-start gap-1">
-                  <button
-                    onMouseDown={() => {
-                      if (isLinkOnlyTask(task)) {
-                        longPressTriggeredRef.current = false;
-                        longPressTimerRef.current = setTimeout(() => {
-                          longPressTriggeredRef.current = true;
-                          setExpandedNotesTaskId(prev => prev === task.id ? null : task.id);
-                        }, 500);
-                      }
-                    }}
-                    onMouseUp={() => {
-                      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
-                    }}
-                    onMouseLeave={() => {
-                      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (isLinkOnlyTask(task)) {
-                        if (!longPressTriggeredRef.current) {
-                          openNoteAction(task);
-                        }
-                        longPressTriggeredRef.current = false;
-                      } else {
-                        setExpandedNotesTaskId(prev => prev === task.id ? null : task.id);
-                      }
-                    }}
-                    className={`hover:bg-white/20 rounded p-1 transition-colors ${hasNotesOrSubtasks(task) || extractWikilinks(task.title).length > 0 ? '' : 'opacity-40'}`}
-                    title={isLinkOnlyTask(task)
-                      ? `${noteActionTarget(task)} ${t('task.holdToEditHint')}`
-                      : t('sched.notesSubtasks')}
-                  >
-                    <NoteIcon task={task} size={14} />
-                  </button>
-                  <div className="deadline-picker-container relative">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowDeadlinePicker(showDeadlinePicker === task.id ? null : task.id);
-                      }}
-                      className={`hover:bg-white/20 rounded p-1 transition-colors ${task.deadline ? 'bg-white/20' : 'opacity-40'}`}
-                      title={task.deadline
-                        ? t('task.deadlineWithDate', { date: formatDeadlineDate(task.deadline), defaultValue: 'Deadline: {{date}}' })
-                        : t('task.setDeadline', { defaultValue: 'Set deadline' })}
-                    >
-                      <Calendar size={14} />
-                    </button>
-                    {showDeadlinePicker === task.id && (
-                      <DeadlinePickerPopover
-                        taskId={task.id}
-                        currentDeadline={task.deadline}
-                        onClose={() => setShowDeadlinePicker(null)}
-                      />
-                    )}
-                  </div>
-                  <button
-                    onClick={() => openMobileEditTask(task, true)}
-                    className="hover:bg-white/20 rounded p-1 transition-colors"
-                    title={t('common.edit')}
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  {!task.completed && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); sendTaskToBucket(task.id); }}
-                      className="hover:bg-white/20 rounded p-1 transition-colors opacity-40 hover:opacity-100"
-                      title={t('bucket.sendToBucket')}
-                    >
-                      <Telescope size={14} />
-                    </button>
-                  )}
-                </div>
-                <div className="flex items-center justify-between mt-1">
-                  {task.completed ? (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); archiveInboxTask(task.id); }}
-                      className="flex items-center gap-0.5 hover:bg-white/20 rounded px-1.5 py-1 transition-colors opacity-60 hover:opacity-100"
-                      title={t('task.archiveTask', { defaultValue: 'Archive task' })}
-                    >
-                      <Archive size={11} className="text-white" />
-                    </button>
-                  ) : <span />}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      cyclePriority(task.id);
-                    }}
-                    className="flex gap-0.5 hover:bg-white/20 rounded px-2 py-1.5 transition-colors"
-                    title={priorityLabels[pendingPriorities[task.id] ?? task.priority ?? 0]}
-                  >
-                    {[0, 1, 2].map(i => (
-                      <span
-                        key={i}
-                        className={`w-2 h-0.5 rounded-full bg-white ${i < (pendingPriorities[task.id] ?? task.priority ?? 0) ? 'opacity-100' : 'opacity-30'}`}
-                      />
-                    ))}
-                  </button>
-                </div>
-              </div>
-            </div>
-            {expandedNotesTaskId === task.id && (
-              <NotesSubtasksPanel
-                task={task}
-                isInbox={true}
-                darkMode={darkMode}
-                updateTaskNotes={updateTaskNotes}
-                addSubtask={addSubtask}
-                toggleSubtask={toggleSubtask}
-                deleteSubtask={deleteSubtask}
-                updateSubtaskTitle={updateSubtaskTitle}
-                aiConfig={aiConfig}
-                aiSubtasksLoadingForTask={aiSubtasksLoadingForTask}
-                onGenerateSubtasks={generateAISubtasks}
-                wikilinks={extractWikilinks(task.title).length > 0 ? extractWikilinks(task.title) : undefined}
-                onLoadWikiNote={extractWikilinks(task.title).length > 0 ? loadWikiNote : undefined}
-                onSaveWikiNote={extractWikilinks(task.title).length > 0 ? saveWikiNote : undefined}
-                onOpenInObsidian={extractWikilinks(task.title).length > 0 ? openInObsidian : undefined}
-              />
-            )}
-          </div>
-        </div>
+          task={task}
+          actions={rowActions}
+          isEditing={editingTaskId === task.id}
+          editingText={editingTaskId === task.id ? editingTaskText : ''}
+          showSuggestions={editingTaskId === task.id && showSuggestions}
+          suggestions={editingTaskId === task.id ? suggestions : null}
+          selectedSuggestionIndex={editingTaskId === task.id ? selectedSuggestionIndex : 0}
+          suggestionContext={editingTaskId === task.id ? suggestionContext : null}
+          notesOpen={expandedNotesTaskId === task.id}
+          deadlinePickerOpen={showDeadlinePicker === task.id}
+          pendingPriority={pendingPriorities[task.id]}
+          project={goalsProjectsEnabled && task.projectId ? projectsById.get(task.projectId) || null : null}
+          projectFilterActive={!!task.projectId && projectFilter === task.projectId}
+          darkMode={darkMode}
+          cardBg={cardBg}
+          borderClass={borderClass}
+          textPrimary={textPrimary}
+          hoverBg={hoverBg}
+          aiConfig={aiConfig}
+          aiSubtasksLoadingForTask={expandedNotesTaskId === task.id ? aiSubtasksLoadingForTask : null}
+        />
       ))
     )}
     </div>
