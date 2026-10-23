@@ -931,6 +931,7 @@
     "holdToEditHint": "(przytrzymaj, aby edytować)",
     "obsidianRecurrenceManaged": "Powtarzane w Obsidian: powtarzanie tego zadania jest zarządzane przez wtyczkę Tasks; ukończenie go tutaj nie utworzy następnego wystąpienia",
     "openLink": "Otwórz link",
+    "openLinkedTask": "Otwórz zadanie",
     "priorityUnavailableForProject": "Niedostępne dla zadań projektu",
     "unscheduledHint": "(dodaj do karty projektu, bez daty/godziny)",
     "deferredTimes": "Odłożone raz",

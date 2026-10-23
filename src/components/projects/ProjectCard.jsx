@@ -2,10 +2,9 @@ import React, { forwardRef, useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import ConfirmDialog from '../ConfirmDialog.jsx';
 import {
-  AlertTriangle, BookOpen, Calendar, CheckCircle2, CheckSquare, ChevronDown,
-  Clock, Edit2, ExternalLink, Eye, EyeOff, FileText, GripVertical, LayoutDashboard,
+  AlertTriangle, BookOpen, Calendar, CheckCircle2, CheckSquare,
+  ChevronDown, Clock, Edit2, Eye, EyeOff, GripVertical, LayoutDashboard,
   LogIn, Plus, Square, Trash2, X, Zap,
-  Phone,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDayPlannerCtx } from '../../context/DayPlannerContext.jsx';
@@ -20,7 +19,7 @@ import RecurringSeriesRow from './RecurringSeriesRow.jsx';
 import NotesSubtasksPanel from '../NotesSubtasksPanel.jsx';
 import DeadlinePickerPopover from '../DeadlinePickerPopover.jsx';
 import AddFromInbox from './AddFromInbox.jsx';
-import { renderTitle, hasNotesOrSubtasks, isLinkOnlyTask, hasOnlySubtasks, getLinkUrl, isObsidianNoteOnlyTask, openNoteAction, isPhoneOnlyTask } from '../../utils/textFormatting.jsx';
+import { renderTitle, hasNotesOrSubtasks, isLinkOnlyTask, openNoteAction, NoteIcon, noteActionTarget } from '../../utils/textFormatting.jsx';
 import { dateToString, extractWikilinks, completionTimestamp, formatDeadlineDate } from '../../utils/taskUtils.js';
 import { getNextOccurrence } from '../../utils/recurrenceEngine.js';
 import { getActiveHGInstance } from '../../hooks/useHyperGlance.js';
@@ -680,9 +679,9 @@ const ProjectCard = forwardRef(({ project, onEditClick, compact, dragHandleProps
                     className={`notes-toggle-button flex-shrink-0 p-1 rounded transition-colors ${hoverBg} ${
                       hasNotesOrSubtasks(task) || extractWikilinks(task.title).length > 0 ? `${textSecondary} opacity-70` : `${textSecondary} opacity-25`
                     }`}
-                    title={isLinkOnlyTask(task) ? `${getLinkUrl(task)} (${t('common.edit')})` : t('sched.notesSubtasks')}
+                    title={isLinkOnlyTask(task) ? `${noteActionTarget(task)} (${t('common.edit')})` : t('sched.notesSubtasks')}
                   >
-                    {isPhoneOnlyTask(task) ? <Phone size={10} /> : isLinkOnlyTask(task) ? <ExternalLink size={10} /> : hasOnlySubtasks(task) ? <CheckSquare size={10} /> : isObsidianNoteOnlyTask(task) ? <BookOpen size={10} /> : <FileText size={10} />}
+                    <NoteIcon task={task} size={10} />
                   </button>
                   {/* Deadline — unscheduled project tasks are inbox tasks, so
                       this is the inbox's deadline button and picker. */}
