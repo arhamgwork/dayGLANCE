@@ -41,6 +41,7 @@ import { evaluateSnapshotPush } from './utils/widgetSnapshotDedupe.js';
 import { buildLauncherSnapshot, launcherSnapshotFingerprint } from './utils/launcherSnapshot.js';
 import { latestSyncedAt } from './utils/launcherHeartbeat.js';
 import { readLauncherLedger } from './intents/launcherWrites.js';
+import { runLauncherRefreshCycle } from './intents/launcherRefreshCycle.js';
 import { buildWidgetSnapshot, readCachedSteps } from './utils/widgetSnapshot.js';
 import { loadAlarmPrefs } from './utils/dialPrefs.js';
 import { buildProjectedDay, projectionDates, guardSnapshotSize } from './utils/widgetDayProjection.js';
@@ -1881,10 +1882,12 @@ const DayPlanner = () => {
   touchLauncherHeartbeatRef.current = touchLauncherHeartbeat;
   // One full pass of every configured tier, awaited, for the launcher's REFRESH.
   // One tier after the other (the headless root does the same, and says why).
-  const runLauncherSyncCycle = useCallback(async () => {
-    if (cloudSyncConfig?.enabled && cloudSyncEngineRef.current?.sync) await cloudSyncEngineRef.current.sync();
-    if (dbEngineRef.current?.dbSyncCycle) await dbEngineRef.current.dbSyncCycle();
-  }, [cloudSyncConfig?.enabled]);
+  // Says when no cycle completed (launcherRefreshCycle.js), so the launcher
+  // never logs a skipped cycle as `ran`.
+  const runLauncherSyncCycle = useCallback(() => runLauncherRefreshCycle({
+    file: cloudSyncConfig?.enabled ? cloudSyncEngineRef.current : null,
+    vault: dbEngineRef.current,
+  }), [cloudSyncConfig?.enabled]);
 
   useAndroidIntentBridge({
     tasks, unscheduledTasks, recurringTasks, projects,

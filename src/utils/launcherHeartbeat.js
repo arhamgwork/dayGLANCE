@@ -28,6 +28,8 @@ export const REFRESH_OUTCOMES = Object.freeze({
   DEFERRED: 'deferred',
   /** The sync cycle ran and the snapshot was pushed. */
   RAN: 'ran',
+  /** No complete cycle ran (one already in flight, a failure cooldown); `reason` says why. */
+  SKIPPED: 'skipped',
   /** The sync cycle threw; `reason` says why. */
   FAILED: 'failed',
 });

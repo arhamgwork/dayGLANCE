@@ -636,6 +636,13 @@ export function createDbEngine(callbacks = {}) {
 
   // In-flight guard so a debounced push never overlaps a cadence-triggered cycle.
   let syncing = false;
+  // When the cycle in flight started, and a promise that settles when it ends:
+  // a caller that must know the vault is current (the launcher's REFRESH) joins
+  // the cycle in flight through waitForCycle instead of taking the guard's
+  // silent return for a completed cycle.
+  let cycleStartedAt = 0;
+  let cycleSettled = null;
+  let settleCycle = () => {};
 
   // CYCLE-RATE BRAKE (finding (e), PR #1449 repro): a failed cycle — above all a
   // rate-limited one — must not be immediately eligible for the next trigger
@@ -806,7 +813,8 @@ export function createDbEngine(callbacks = {}) {
   const dbSyncCycle = async () => {
     if (disposed) return;
     if (typeof callbacks.getData !== 'function') return;
-    if (syncing) return;
+    // Not a completed cycle, and says so: `skipped` on a result is a row count.
+    if (syncing) return { cycleSkipped: 'in-flight', since: cycleStartedAt };
     // Failure/429 cooldown gate — see the breaker note above. A gated cycle
     // performs no network traffic and no status churn, but the TRIGGER is not
     // lost: it arms (or coalesces into) the deferred retry, which re-runs the
@@ -824,6 +832,8 @@ export function createDbEngine(callbacks = {}) {
       return { applied: 0, skipped: 0, skippedEntityIds: [], throttled: true, retryInMs: gate.waitMs, retryPending: true };
     }
     syncing = true;
+    cycleStartedAt = Date.now();
+    cycleSettled = new Promise((resolve) => { settleCycle = resolve; });
     callbacks.onError?.(null, null);
     // Pull-cursor value as of cycle start, for the rollback in the catch
     // below. Captured under the in-flight guard, so nothing else can move the
@@ -1447,13 +1457,26 @@ export function createDbEngine(callbacks = {}) {
       return { applied: 0, skipped: 0, skippedEntityIds: [], error: err?.message, code };
     } finally {
       syncing = false;
+      cycleSettled = null;
+      settleCycle();
     }
+  };
+
+  // Resolves true once no cycle is in flight (at once when none is), false if
+  // the one in flight is still running after `timeoutMs`. Never rejects.
+  const waitForCycle = (timeoutMs) => {
+    if (!syncing || !cycleSettled) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(false), Math.max(0, timeoutMs));
+      cycleSettled.then(() => { clearTimeout(timer); resolve(true); });
+    });
   };
 
   return {
     ...engine,
     dbSyncCycle,
     sync: dbSyncCycle,
+    waitForCycle,
     // Tear-down for the wrapper's own state: cancels any pending deferred
     // retry and makes every later dbSyncCycle call (including one from a
     // timer that already left the queue) a no-op. Call when the engine is

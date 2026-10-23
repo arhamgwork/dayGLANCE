@@ -214,6 +214,18 @@ describe('recordHandled', () => {
       expect(calls).toEqual(['sync', 'heartbeat']);
     });
 
+    it('a cycle that did not complete is recorded as skipped with its reason, never as ran', async () => {
+      const { ctx } = makeContext();
+      ctx.runSyncCycle = async () => ({ skipped: 'a vault sync has been running since 22:58:24' });
+      let touched = 0;
+      ctx.touchLauncherHeartbeat = () => { touched++; };
+      const recorded = [];
+      ctx.recordLauncherRefresh = (e) => recorded.push(e);
+      expect(await handleLauncherIntent(write('rf-skip'), ctx, io())).toMatchObject({ success: true, skipped: 'a vault sync has been running since 22:58:24' });
+      expect(recorded).toEqual([expect.objectContaining({ clientId: 'rf-skip', outcome: 'skipped', reason: 'a vault sync has been running since 22:58:24' })]);
+      expect(touched).toBe(1);
+    });
+
     it('records a failure with its reason, and still re-stamps the heartbeat', async () => {
       const { ctx } = makeContext();
       ctx.runSyncCycle = async () => { throw new Error('vault 503'); };

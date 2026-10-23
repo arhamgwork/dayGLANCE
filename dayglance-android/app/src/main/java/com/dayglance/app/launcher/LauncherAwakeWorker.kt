@@ -42,8 +42,14 @@ class LauncherAwakeWorker(
     override suspend fun doWork(): Result {
         val clientId = inputData.getString(KEY_CLIENT_ID) ?: return Result.success()
         val store = SharedDataStore(appContext)
-        withTimeoutOrNull(HOLD_MS) {
+        val heldFrom = System.currentTimeMillis()
+        val answered = withTimeoutOrNull(HOLD_MS) {
             while (!LauncherRefreshWait.answered(store.launcherRefreshEntry(clientId))) delay(POLL_MS)
+            true
+        } ?: false
+        // Not left reading `queued` forever: say it went unanswered, and how late the hold began.
+        if (!answered && store.updateLauncherRefreshIf(clientId) { LauncherRefreshWait.unansweredPatch(it, heldFrom, System.currentTimeMillis()) }) {
+            appContext.contentResolver.notifyChange(LauncherProvider.CONTENT_URI, null)
         }
         return Result.success()
     }
