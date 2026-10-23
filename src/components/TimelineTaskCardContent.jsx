@@ -1,12 +1,10 @@
 import React from 'react';
 import {
-  BookOpen, Check, CheckSquare, Clock, ExternalLink, Repeat,
-  FileText, Inbox, MapPin, MoreHorizontal,
+  BookOpen, Check, Clock, Repeat, FileText, Inbox, MapPin, MoreHorizontal,
   Pencil, RefreshCw, SkipForward, Trash2,
-  Phone,
 } from 'lucide-react';
 import { isNativeAndroid, SOURCE_APPS } from '../native.js';
-import { renderTitleWithoutTags, renderTitleWithoutWikilinks, getLinkUrl, hasNotesOrSubtasks, isLinkOnlyTask, hasOnlySubtasks, isObsidianNoteOnlyTask, openNoteAction, isPhoneOnlyTask } from '../utils/textFormatting.jsx';
+import { renderTitleWithoutTags, renderTitleWithoutWikilinks, hasNotesOrSubtasks, isLinkOnlyTask, openNoteAction, NoteIcon, noteActionTarget, isTaskLinkOnlyTask } from '../utils/textFormatting.jsx';
 import { extractTags, extractWikilinks, stripWikilinks } from '../utils/taskUtils.js';
 import SuggestionAutocomplete from './SuggestionAutocomplete.jsx';
 import LastGlanceBadge from './LastGlanceBadge.jsx';
@@ -85,11 +83,11 @@ const CardContent = ({ task, height, isNarrowWidth, flipNotesPanel }) => {
       }}
       className={`hover:bg-white/20 rounded p-1 transition-colors ${inMenu ? 'flex items-center gap-2 w-full' : ''} ${hasNotesOrSubtasks(task) || extractWikilinks(task.title).length > 0 ? '' : 'opacity-40'}`}
       title={isLinkOnlyTask(task)
-        ? `${getLinkUrl(task)} ${t('task.holdToEditHint', { defaultValue: '(hold to edit)' })}`
+        ? `${noteActionTarget(task)} ${t('task.holdToEditHint', { defaultValue: '(hold to edit)' })}`
         : t('sched.notesSubtasks')}
     >
-      {isPhoneOnlyTask(task) ? <Phone size={14} /> : isLinkOnlyTask(task) ? <ExternalLink size={14} /> : hasOnlySubtasks(task) ? <CheckSquare size={14} /> : isObsidianNoteOnlyTask(task) ? <BookOpen size={14} /> : <FileText size={14} />}
-      {inMenu && <span className="text-xs">{isLinkOnlyTask(task) ? t('task.openLink', { defaultValue: 'Open Link' }) : t('task.notes')}</span>}
+      <NoteIcon task={task} size={14} />
+      {inMenu && <span className="text-xs">{isTaskLinkOnlyTask(task) ? t('task.openLinkedTask', { defaultValue: 'Open task' }) : isLinkOnlyTask(task) ? t('task.openLink', { defaultValue: 'Open Link' }) : t('task.notes')}</span>}
     </button>
   );
 
