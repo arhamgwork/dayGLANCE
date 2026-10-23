@@ -1,8 +1,8 @@
 import React from 'react';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, CheckSquare, ExternalLink, FileSymlink, FileText, Phone } from 'lucide-react';
 import { isOnlyPhoneNumber, phoneTelUrl, canDialHere } from './phoneNumber.js';
 import { splitTitleNoteLinks, splitTitleLinks, stripTags, stripWikilinks, stripWikilinksAndTags } from './taskUtils.js';
-import { PEEK_TASK_EVENT } from './followUp.js';
+import { PEEK_TASK_EVENT, findTaskLinks } from './followUp.js';
 
 // URL detection regex for notes
 export const URL_REGEX = /https?:\/\/[^\s<>"{}|\\^`[\]]+/g;
@@ -160,30 +160,61 @@ export const isPhoneOnlyTask = (task) => {
   return canDialHere() && isOnlyPhoneNumber(task.notes);
 };
 
+// The one link to another task (utils/followUp.js) that is the whole of
+// `text`, as `{ label, id }`, else null. A link with words around it, or two
+// links, is an ordinary note.
+export const onlyTaskLink = (text) => {
+  const trimmed = typeof text === 'string' ? text.trim() : '';
+  if (!trimmed) return null;
+  const links = findTaskLinks(trimmed);
+  if (links.length !== 1 || links[0].length !== trimmed.length) return null;
+  return { label: links[0].label, id: links[0].id };
+};
+
+// Check if task's note is JUST a link to another task: the button shows that
+// task in the peek rather than the notes, the in-app twin of the URL-only
+// affordance.
+export const isTaskLinkOnlyTask = (task) => {
+  if (task.subtasks && task.subtasks.length > 0) return false;
+  return onlyTaskLink(task.notes) !== null;
+};
+
 // Check if task has only an actionable note (no subtasks, note is a single
-// URL, or a single phone number where dialing is possible). Callers that need
-// to distinguish the two kinds (icon choice) check isPhoneOnlyTask first.
+// URL, a single link to another task, or a single phone number where dialing
+// is possible). Callers that need to tell the kinds apart use noteIconFor.
 export const isLinkOnlyTask = (task) => {
   if (task.subtasks && task.subtasks.length > 0) return false;
-  return isOnlyUrl(task.notes) || isPhoneOnlyTask(task);
+  return isOnlyUrl(task.notes) || onlyTaskLink(task.notes) !== null || isPhoneOnlyTask(task);
 };
 
 // Get the actionable URL from a link-only task: the raw URL for web links
-// (unchanged behavior), a tel: URI for dialable phone-number notes.
+// (unchanged behavior), a tel: URI for dialable phone-number notes. A link to
+// another task has none: it opens in the app (openNoteAction), never as a URL.
 export const getLinkUrl = (task) => {
   const trimmed = task.notes?.trim();
   if (!trimmed) return null;
+  if (onlyTaskLink(trimmed)) return null;
   if (!isOnlyUrl(trimmed) && canDialHere() && isOnlyPhoneNumber(trimmed)) return phoneTelUrl(trimmed);
   return trimmed;
 };
 
-// Open the action a link-only note represents. Web links open in a new
-// tab/window (both native shells route them externally). Phone numbers must
-// NAVIGATE to tel: instead: the iOS shell's window.open path
+// What a link-only note's button says it opens, for its tooltip: the linked
+// task's label, else the URL.
+export const noteActionTarget = (task) => onlyTaskLink(task.notes)?.label ?? getLinkUrl(task);
+
+// Open the action a link-only note represents. A link to another task shows
+// it in the peek, as clicking the link in the note does. Web links open in a
+// new tab/window (both native shells route them externally). Phone numbers
+// must NAVIGATE to tel: instead: the iOS shell's window.open path
 // (createWebViewWith) forwards only http/https, while a navigation reaches
 // decidePolicyFor, which hands tel: to the system dialer. Both shells cancel
 // the navigation, so the app never actually leaves the page.
 export const openNoteAction = (task) => {
+  const linked = onlyTaskLink(task.notes);
+  if (linked) {
+    window.dispatchEvent(new CustomEvent(PEEK_TASK_EVENT, { detail: { id: linked.id } }));
+    return;
+  }
   const url = getLinkUrl(task);
   if (!url) return;
   if (url.startsWith('tel:')) window.location.href = url;
@@ -246,6 +277,23 @@ export const isObsidianNoteOnlyTask = (task) => {
   // lit, and the panel shows both (the report in PR #1690, F4).
   if (typeof task.notes === 'string' && task.notes.trim()) return false;
   return /\[\[[^\]]+\]\]/.test(task.title || '');
+};
+
+// The icon on a task's notes button, one rule for every card: what tapping it
+// does (dial, show the linked task, open the link) before what the notes hold.
+export const noteIconFor = (task) => {
+  if (isPhoneOnlyTask(task)) return Phone;
+  if (isTaskLinkOnlyTask(task)) return FileSymlink;
+  if (isLinkOnlyTask(task)) return ExternalLink;
+  if (hasOnlySubtasks(task)) return CheckSquare;
+  if (isObsidianNoteOnlyTask(task)) return BookOpen;
+  return FileText;
+};
+
+// noteIconFor as an element, for the JSX that used to inline the choice.
+export const NoteIcon = ({ task, ...props }) => {
+  const Icon = noteIconFor(task);
+  return <Icon {...props} />;
 };
 
 // ── Links in titles ─────────────────────────────────────────────────────────

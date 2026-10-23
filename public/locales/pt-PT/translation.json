@@ -912,6 +912,7 @@
     "holdToEditHint": "(mantenha premido para editar)",
     "obsidianRecurrenceManaged": "Recorrente no Obsidian: a recorrência desta tarefa é gerida pelo plugin Tasks; concluí-la aqui não criará a ocorrência seguinte",
     "openLink": "Abrir ligação",
+    "openLinkedTask": "Abrir tarefa",
     "priorityUnavailableForProject": "Indisponível para tarefas de projeto",
     "unscheduledHint": "(adicionar ao cartão do projeto, sem data/hora)",
     "deferredTimes": "Adiada uma vez",

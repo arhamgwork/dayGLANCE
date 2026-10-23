@@ -4,14 +4,13 @@ import React, {
 } from 'react';
 import ReactDOM from 'react-dom';
 import {
-  BookOpen, Check, CheckSquare, ChevronDown, ChevronRight, ChevronUp,
-  Clock, Edit2, ExternalLink, FileText, Inbox, LayoutGrid, RefreshCw, SkipForward, Zap,
-  Phone,
+  Check, ChevronDown, ChevronRight, ChevronUp, Clock, Edit2, Inbox,
+  LayoutGrid, RefreshCw, SkipForward, Zap,
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import TaskPlanHistory from './TaskPlanHistory.jsx';
 import TaskStarButton from './TaskStarButton.jsx';
-import { renderTitle, isLinkOnlyTask, getLinkUrl, hasNotesOrSubtasks, hasOnlySubtasks, isObsidianNoteOnlyTask, openNoteAction, isPhoneOnlyTask } from '../utils/textFormatting.jsx';
+import { renderTitle, isLinkOnlyTask, hasNotesOrSubtasks, isObsidianNoteOnlyTask, openNoteAction, noteIconFor } from '../utils/textFormatting.jsx';
 import { dateToString, stripWikilinksAndTags } from '../utils/taskUtils.js';
 import { taskColorToHex } from '../utils/colorUtils.js';
 import { formatDuration } from '../utils/formatDuration.js';
@@ -192,11 +191,7 @@ const TaskCard = React.memo(({
     minHeight: TASK_H,
   };
 
-  const NoteIcon = isPhoneOnlyTask(item) ? Phone
-    : isLinkOnlyTask(item) ? ExternalLink
-    : hasOnlySubtasks(item)      ? CheckSquare
-    : isObsidianNoteOnlyTask(item) ? BookOpen
-    : FileText;
+  const NoteIcon = noteIconFor(item);
   const hasNotes = hasNotesOrSubtasks(item) || isLinkOnlyTask(item) || isObsidianNoteOnlyTask(item);
 
   return (

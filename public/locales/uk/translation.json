@@ -935,6 +935,7 @@
     "holdToEditHint": "(утримуйте, щоб редагувати)",
     "obsidianRecurrenceManaged": "Повторюване в Obsidian: повторенням цього завдання керує плагін Tasks; завершення тут не створить наступний екземпляр",
     "openLink": "Відкрити посилання",
+    "openLinkedTask": "Відкрити завдання",
     "priorityUnavailableForProject": "Недоступно для завдань проєкту",
     "unscheduledHint": "(додати до картки проєкту, без дати/часу)",
     "deferredTimes": "Відкладено один раз",
