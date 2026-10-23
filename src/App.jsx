@@ -60,6 +60,8 @@ import { msUntilMidnightRefresh, rememberViewsForMidnight, readMidnightViews, cl
 import { computeAvailableSlots as computeAvailableSlotsPure, adjustPastConflicts } from './utils/dayOccupancy.js';
 import { frameInstancesForDate } from './utils/frameInstances.js';
 import { dateToString, localDateStr, extractTags, extractWikilinks, stripWikilinks, stripWikilinksAndTags, getRecurrenceLabel, formatDate, formatDateRange, formatShortDate, formatDeadlineDate, computeTaskCalendarTombstones, computeRecurringSeriesTombstones } from './utils/taskUtils.js';
+import { carryCreatedAt } from './utils/createdAt.js';
+import DaySummaryCallouts from './components/DaySummaryCallouts.jsx';
 import { defaultUse24HourClock, defaultWeekStartDay, formatLocalizedDate, localizedList } from './utils/localeFormatting.js';
 import { ENGLISH_DAILY_NOTE_TEMPLATE, buildLocalizedDailyNoteTemplate, buildLocalizedTaskHeading, localizeDefaultDailyNoteTemplate } from './utils/dailyNoteTemplate.js';
 import { notBucketed, demoteToBucket, normalizeBucketConfig } from './utils/bucketList.js';
@@ -78,7 +80,7 @@ import { shiftDateStr } from '@glance-apps/agenda-core';
 import { fetchIcsFeed, replaceFeedEvents, PRIMARY_FEED_ID, ICS_CALENDARS_KEY, loadIcsCalendars, isActiveIcsCalendar, hasActiveIcsCalendars, stripIcsCalendarCredentials, applyRemoteIcsCalendars, PRIMARY_CAL_META_KEY, defaultPrimaryCalendarMeta, injectPrimaryStub, splitPrimaryStub } from './utils/icsFeedSync.js';
 import { nextPerUserCalendarEntry } from './utils/perUserCalendarEntry.js';
 import { TASK_COLORS, TAILWIND_TO_HEX, getProjectColor } from './utils/colorUtils.js';
-import { calculateGoalProgress } from './utils/goalProgress.js';
+import { buildWidgetDueOn } from './utils/widgetGoalsProjects.js';
 import { resolveGoalsLink, areaFilterHides } from './utils/goalsLink.js';
 import { HABIT_ICONS, HABIT_ICON_NAMES, HABIT_COLORS } from './constants/habits.js';
 import { FRAME_COLORS } from './constants/frames.js';
@@ -115,6 +117,7 @@ import EditRecurrenceModal from './components/EditRecurrenceModal.jsx';
 import ReminderToasts from './components/ReminderToasts.jsx';
 import TaskPeek from './components/TaskPeek.jsx';
 import { FOLLOW_UP_TAG_KEY, PEEK_TASK_EVENT, canFollowUp, completionFollowUpDraft, doneDateOf, normalizeFollowUpTag, resolveTaskRef, taskLink } from './utils/followUp.js';
+import { canLinkTask, findBacklinks } from './utils/taskLinks.js';
 import ObsidianSyncToast from './components/ObsidianSyncToast.jsx';
 import { useSettingsLink } from './components/settings/settingsLink.js';
 import MobileNewTaskModal from './components/MobileNewTaskModal.jsx';
@@ -137,6 +140,8 @@ import { ZOOM_STORAGE_KEY, readZooms, withZoom } from './utils/timelineZoom.js';
 import { readCardSize, writeCardSize } from './utils/cardSize.js';
 import useWeather from './hooks/useWeather.js';
 import useTagFilter from './hooks/useTagFilter.js';
+import useTagManager from './hooks/useTagManager.js';
+import TagManagerModal from './components/TagManagerModal.jsx';
 import useOnboarding from './hooks/useOnboarding.js';
 import useDailyContent from './hooks/useDailyContent.js';
 import useHabits from './hooks/useHabits.js';
@@ -155,12 +160,11 @@ import useJoboDetector from './hooks/useJoboDetector.js';
 import useDailyBriefings from './hooks/useDailyBriefings.js';
 import useVoiceInput from './hooks/useVoiceInput.js';
 import useCloudSync from './hooks/useCloudSync.js';
-import { createDayGlanceEngine } from './sync/adapter.js';
+import { useFileSyncEngine, useVaultSyncEngine, vaultEngineData } from './hooks/useSyncEngines.js';
 import { resolveSyncTarget } from './sync/syncTarget.js';
 import useCloudSyncAfterEdit from './hooks/useCloudSyncAfterEdit.js';
 import { createDbEngine, resetVaultSyncCursor } from './sync/dbEngine.js';
 import { deriveBlockEnergy } from './utils/energyAxis.js';
-import { registerDbEngine } from './sync/dirtyTracker.js';
 import { isVaultEnabled } from './sync/vaultConfig.js';
 import { readThemePref, systemPrefersDark, resolveDarkMode, restoredThemePref, THEME_PREF_KEY } from './utils/themePref.js';
 import { keepImportedTask } from './sync/payloadExclusions.js';
@@ -944,15 +948,20 @@ const DayPlanner = () => {
   // ── Cloud sync engine ────────────────────────────────────────────────────
   // The orchestration (download → validate → merge → apply → upload, with
   // backoff, hard-stops, 412 retry, follow-up queueing, etc.) lives in
-  // @glance-apps/sync. App.jsx now owns only the data callbacks (built later
-  // in the file) and the React-driven triggers (debounce timer, 60-second
-  // poll, visibility/focus listeners) further down.
+  // @glance-apps/sync. Both engines and their wiring to the data are
+  // hooks/useSyncEngines.js, shared with the headless root; App.jsx owns the
+  // data callbacks (built later in the file), its status UI and the
+  // React-driven triggers (debounce timer, 60-second poll, visibility/focus
+  // listeners) further down.
   //
-  // The callbacks dereference engineCallbacksRef at call time so the engine
-  // sees fresh closures every cycle — the engine itself is constructed once.
+  // The engines dereference engineCallbacksRef at call time so they see fresh
+  // closures every cycle — each engine itself is constructed once.
   const engineCallbacksRef = useRef({});
+  // The file-tier engine (useFileSyncEngine, below).
   const cloudSyncEngineRef = useRef(null);
-  // GLANCEvault row-grained DB transport (opt-in, runs ALONGSIDE the file tier).
+  // GLANCEvault row-grained DB transport (opt-in, runs ALONGSIDE the file tier),
+  // built further down (useVaultSyncEngine); declared here for the callbacks
+  // set up before it.
   const dbEngineRef = useRef(null);
   // GLANCEvault status surfaced in the Cloud Sync settings (independent of the
   // WebDAV file-tier status).
@@ -962,17 +971,15 @@ const DayPlanner = () => {
   // Count of synced rows the last cycle couldn't decrypt (skipped/quarantined by
   // the engine) — surfaced in Cloud Sync settings so a key mismatch is visible.
   const [vaultSkipped, setVaultSkipped] = useState(0);
-  const engineFolderRef = useRef(null);
   // Normalized here as well as on save, so a folder stored before #2037 with a
   // leading or trailing slash stops producing doubled slashes in the URL.
   const syncFolder = normalizeSyncFolder(cloudSyncConfig?.syncFolder);
   const autoBackupProviders = useMemo(() => createAutoBackupProvidersForFolder(syncFolder), [syncFolder]);
-  if (!cloudSyncEngineRef.current || engineFolderRef.current !== syncFolder) {
-    engineFolderRef.current = syncFolder;
-    cloudSyncEngineRef.current = createDayGlanceEngine({
-      buildPayload:       () => engineCallbacksRef.current.buildPayload?.(),
-      buildBackupPayload: () => engineCallbacksRef.current.buildBackupPayload?.(),
-      applyPayload:       (data, opts) => engineCallbacksRef.current.applyPayload?.(data, opts),
+  useFileSyncEngine({
+    callbacksRef: engineCallbacksRef,
+    engineRef: cloudSyncEngineRef,
+    syncFolder,
+    handlers: {
       onStatusChange:     (status) => setCloudSyncStatus(prev => {
         // Guard so a queued 'idle' (from the 3 s/5 s auto-revert) doesn't
         // overwrite a new in-flight cycle the user kicked off in the meantime.
@@ -985,12 +992,11 @@ const DayPlanner = () => {
         setCloudSyncConflict({ remoteData, remoteModified, etag }),
       onPassphraseRequired: () => setSyncKeyReady(false),
       onFirstSyncReload:    () => window.location.reload(),
-      getSyncRetentionDays: () => engineCallbacksRef.current.syncRetentionDays ?? 90,
-    }, { appFolderName: syncFolder });
-    // Visibility/focus listeners + 60 s poll call through this ref so they
-    // always run the latest engine method without a closure refresh.
-    cloudSyncDownloadRef.current = () => cloudSyncEngineRef.current.download();
-  }
+    },
+  });
+  // Visibility/focus listeners + 60 s poll call through this ref so they
+  // always run the latest engine method without a closure refresh.
+  cloudSyncDownloadRef.current = () => cloudSyncEngineRef.current.download();
 
   // Cloud sync: a changed sync target (server, account or folder) invalidates what
   // this device knows about the remote, so reconfiguration must not be followed by
@@ -1526,6 +1532,15 @@ const DayPlanner = () => {
   recurringTasksNowRef.current = recurringTasks;
   const readRecurringTasks = useCallback(() => recurringTasksNowRef.current, []);
 
+  // The tag manager (#2136): rename, merge or remove a tag on every task.
+  const [showTagManager, setShowTagManager] = useState(false);
+  const { applyTagEdit } = useTagManager({
+    tasks, unscheduledTasks, recurringTasks,
+    setTasks, setUnscheduledTasks, setRecurringTasks, setGtdFrames,
+    setSelectedTags, setInboxTagFilter, followUpTag, setFollowUpTag,
+    pushUndo, setUndoToast,
+  });
+
   // Kept updated every render so the URL action handler reads the latest task state,
   // including tasks that loaded from persistence after the initial render.
   const urlActionContextRef = useRef(null);
@@ -1667,7 +1682,9 @@ const DayPlanner = () => {
       : prev);
   }, [meUserSyncId, setGtdFrames]);
 
-  const [taskContextMenu, setTaskContextMenu] = useState(null); // { x, y, taskId, isRecurring, isImported, isAllDay, dateStr }
+  // { x, y, taskId, isRecurring, isImported, isAllDay, dateStr, onEdit?, onNotes? }: a
+  // surface with its own editor or notes panel passes them (SchedTaskCard, #2132).
+  const [taskContextMenu, setTaskContextMenu] = useState(null);
   const [timelineContextMenu, setTimelineContextMenu] = useState(null); // { x, y, dateStr, timeMinutes }
   const [hgContextMenu, setHgContextMenu] = useState(null); // { x, y, projectId, date, isCompleted }
   const [hgAdjustModal, setHgAdjustModal] = useState(null); // { projectId, date, time, duration }
@@ -1688,6 +1705,12 @@ const DayPlanner = () => {
   // spotlight search opens we fetch a much wider window so device-calendar events
   // become searchable (see the effect near the native-calendar fetch below).
   const [spotlightNativeTasks, setSpotlightNativeTasks] = useState([]);
+
+  // Open the Goals & Projects space on a goal, a project or an area: a
+  // widget or launcher link (drainPendingDeepLinkRef) and a Spotlight result
+  // (#2131). Assigned further down, once everything it reads is in scope.
+  const openGoalsTargetRef = useRef(null);
+  const openGoalsTarget = useCallback((action, id) => openGoalsTargetRef.current?.(action, id), []);
 
   const { changeDate, goToToday, goToDate, handleSpotlightSelect } = useNavigation({
     visibleDays,
@@ -1710,6 +1733,7 @@ const DayPlanner = () => {
     setDailyNotesModalDate,
     calendarRef,
     closePlanner,
+    openGoalsTarget,
   });
 
   const {
@@ -1738,6 +1762,7 @@ const DayPlanner = () => {
     todayCompletedGoals,
     todayCompletedProjects,
     todayDueGoals,
+    todayDueProjects,
     consecutiveDayStreak,
     todayIncompleteTasks,
     allTimeIncompleteTasks,
@@ -2569,17 +2594,14 @@ const DayPlanner = () => {
   // inert when the vault is disabled — createDbEngine returns null and nothing
   // below runs, so file-only devices behave exactly as before. Push-on-write is
   // handled by the 3 s debounce in dirtyTracker (wired from useSaveOnChange);
-  // this effect adds the cadence backstop (initial + focus + 5-min interval).
+  // onEngine below adds the cadence backstop (initial + focus + 5-min interval).
   // See docs/glancevault-stage2.md.
-  useEffect(() => {
-    if (isTrayMode || !dataLoaded || !isVaultEnabled()) return;
-    const engine = createDbEngine({
-      getData:    () => engineCallbacksRef.current.buildPayload?.()?.data,
-      commitData: (data) => engineCallbacksRef.current.applyPayload?.(data, { allowEmpty: true }),
-      // Lets the snapshot-delete classifier apply the SAME imported-task
-      // exclusion rule buildSyncPayload uses (payloadExclusions.js) — a
-      // baseline row of an excluded class is neither a delete nor a glitch.
-      isMultiUserEnabled: () => engineCallbacksRef.current.multiUserEnabled === true,
+  useVaultSyncEngine({
+    callbacksRef: engineCallbacksRef,
+    engineRef: dbEngineRef,
+    dataLoaded,
+    active: !isTrayMode,
+    handlers: {
       onStatusChange: (s) => {
         setVaultStatus(s);
         if (s === 'success') {
@@ -2592,53 +2614,44 @@ const DayPlanner = () => {
         setVaultSkipped(count);
         if (count > 0) setUndoToast({ message: t('sync.form.vaultSkipped', { count }), kind: 'warning' });
       },
-    });
-    if (!engine) return;
-    dbEngineRef.current = engine;
-    registerDbEngine(engine);
-    setVaultLastSynced(engine.getLastSynced?.() || null);
-    const runCycle = () => engine.dbSyncCycle().catch(() => { /* surfaced via onError */ });
-    // Console maintenance hooks (2026-09-05 stray-row finding). A vault row
-    // this device no longer holds and whose seq the pull cursor has passed
-    // is unreachable by every ordinary path; these are the two ways to reach
-    // it from the developer console, documented in the companion spec.
-    //   __dayglance.purgeVaultRow('tasks:<id>')  marks the entity dirty and
-    //     runs a cycle: absent locally, it is pushed as a soft-delete (fleet-
-    //     wide, LWW against any newer copy); present locally, it is merely
-    //     re-upserted.
-    //   __dayglance.resyncVault()  clears the sync cursors and reloads, so
-    //     the next cycle full-pulls and LWW-merges; every tombstoned row the
-    //     vault still holds is then dropped AND deleted at the apply gate.
-    window.__dayglance = {
-      purgeVaultRow: (entityId) => {
-        const id = String(entityId || '');
-        if (!/^[a-zA-Z]+:.+$/.test(id)) { console.warn('[dayglance] purgeVaultRow: expected "<kind>:<id>", e.g. tasks:obsidian-dg-xxxxxxxx'); return false; }
-        engine.markDirty(id);
-        console.info('[dayglance] purgeVaultRow: marked dirty, running a sync cycle:', id);
-        runCycle();
-        return true;
-      },
-      resyncVault: () => { resetVaultSyncCursor(); window.location.reload(); },
-    };
-    runCycle(); // initial
-    const onVisible = () => { if (document.visibilityState === 'visible') runCycle(); };
-    document.addEventListener('visibilitychange', onVisible);
-    const interval = setInterval(runCycle, 5 * 60 * 1000);
-    return () => {
-      document.removeEventListener('visibilitychange', onVisible);
-      clearInterval(interval);
-      registerDbEngine(null);
-      if (window.__dayglance) delete window.__dayglance;
-      // Cancels any pending deferred cooldown-retry and makes stray timer
-      // firings no-ops — a timer must never run a cycle against a dead engine.
-      engine.dispose?.();
-      dbEngineRef.current = null;
-    };
-    // Keyed on dataLoaded (sets up the DB engine once). setUndoToast/t are read
-    // when surfacing an error toast; adding t would tear down the engine on a
-    // mere language change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataLoaded]);
+    },
+    // The app's own use of the engine: its status, the cadence and the console hooks.
+    onEngine: (engine) => {
+      setVaultLastSynced(engine.getLastSynced?.() || null);
+      const runCycle = () => engine.dbSyncCycle().catch(() => { /* surfaced via onError */ });
+      // Console maintenance hooks (2026-09-05 stray-row finding). A vault row
+      // this device no longer holds and whose seq the pull cursor has passed
+      // is unreachable by every ordinary path; these are the two ways to reach
+      // it from the developer console, documented in the companion spec.
+      //   __dayglance.purgeVaultRow('tasks:<id>')  marks the entity dirty and
+      //     runs a cycle: absent locally, it is pushed as a soft-delete (fleet-
+      //     wide, LWW against any newer copy); present locally, it is merely
+      //     re-upserted.
+      //   __dayglance.resyncVault()  clears the sync cursors and reloads, so
+      //     the next cycle full-pulls and LWW-merges; every tombstoned row the
+      //     vault still holds is then dropped AND deleted at the apply gate.
+      window.__dayglance = {
+        purgeVaultRow: (entityId) => {
+          const id = String(entityId || '');
+          if (!/^[a-zA-Z]+:.+$/.test(id)) { console.warn('[dayglance] purgeVaultRow: expected "<kind>:<id>", e.g. tasks:obsidian-dg-xxxxxxxx'); return false; }
+          engine.markDirty(id);
+          console.info('[dayglance] purgeVaultRow: marked dirty, running a sync cycle:', id);
+          runCycle();
+          return true;
+        },
+        resyncVault: () => { resetVaultSyncCursor(); window.location.reload(); },
+      };
+      runCycle(); // initial
+      const onVisible = () => { if (document.visibilityState === 'visible') runCycle(); };
+      document.addEventListener('visibilitychange', onVisible);
+      const interval = setInterval(runCycle, 5 * 60 * 1000);
+      return () => {
+        document.removeEventListener('visibilitychange', onVisible);
+        clearInterval(interval);
+        if (window.__dayglance) delete window.__dayglance;
+      };
+    },
+  });
 
   // ── Config field timestamp tracking ──────────────────────────────────────
   // Tracks when habitsEnabled/routinesEnabled/goalsProjectsEnabled/obsidianConfig
@@ -2720,23 +2733,25 @@ const DayPlanner = () => {
           setDesktopSpace('calendar');
           if (dayLinkEnvRef.current.phone) { setMobileActiveTab('timeline'); setMobileSettingsView('main'); }
         }
-        else if (action === 'goal' || action === 'project') {
-          const r = resolveGoalsLink(action, url.searchParams, {
-            enabled: goalsProjectsEnabled, phone: dayLinkEnvRef.current.phone,
-          });
-          if (r) {
-            if (r.space) setDesktopSpace(r.space);
-            if (r.mobileTab) { setMobileActiveTab(r.mobileTab); setMobileSettingsView('main'); }
-            // A goal the area filter hides has no card to go to: widen it.
-            const goalId = r.focusGoalId || projects.find(p => p.id === r.focusProjectId)?.goalId;
-            if (areaFilterHides(goals.find(g => g.id === goalId), goalsAreaFilter, areas)) setGoalsAreaFilter('all');
-            if (r.focusGoalId) setGoalsDashboardFocusId(r.focusGoalId);
-            if (r.focusProjectId) setGoalsDashboardFocusProjectId(r.focusProjectId);
-            if (r.tab) setGoalsDashboardFocusTab(r.tab);
-          }
-        }
+        else if (action === 'goal' || action === 'project') openGoalsTargetRef.current(action, url.searchParams);
       } catch (_) {}
     }
+  };
+  // `target` is a link's URLSearchParams, or a bare id (Spotlight). An area
+  // opens the Goals tab filtered to it; areas have no link of their own.
+  openGoalsTargetRef.current = (action, target) => {
+    const params = typeof target === 'string' ? new URLSearchParams({ id: target }) : target;
+    const r = resolveGoalsLink(action, params, { enabled: goalsProjectsEnabled, phone: dayLinkEnvRef.current.phone });
+    if (!r) return;
+    if (r.space) setDesktopSpace(r.space);
+    if (r.mobileTab) { setMobileActiveTab(r.mobileTab); setMobileSettingsView('main'); }
+    if (r.areaFilter) setGoalsAreaFilter(r.areaFilter);
+    // A goal the area filter hides has no card to go to: widen it.
+    const goalId = r.focusGoalId || projects.find(p => p.id === r.focusProjectId)?.goalId;
+    if (areaFilterHides(goals.find(g => g.id === goalId), goalsAreaFilter, areas)) setGoalsAreaFilter('all');
+    if (r.focusGoalId) setGoalsDashboardFocusId(r.focusGoalId);
+    if (r.focusProjectId) setGoalsDashboardFocusProjectId(r.focusProjectId);
+    if (r.tab) setGoalsDashboardFocusTab(r.tab);
   };
 
   // Drain pending quick-action shortcut when data finishes loading. This covers
@@ -3593,6 +3608,7 @@ const DayPlanner = () => {
     showHabitModal, showFramesModal, frameAdjustModal, showRescheduleModal,
     showDayDial, setShowDayDial,
     plannerProjectId,
+    showTagManager,
     selectedDate, hoverPreviewTime, hoverPreviewDate,
     setNewTask, setShowAddTask, setHoverPreviewTime, setHoverPreviewDate,
     routinesEnabled, setRoutinesEnabled, openRoutinesDashboardRef,
@@ -3982,6 +3998,7 @@ const DayPlanner = () => {
             date: newTask.date || parsed.dateStr,
             projectId: newTask.projectId || undefined,
             ...(mobileEditingTask.assignedUserSyncIds?.length ? { assignedUserSyncIds: mobileEditingTask.assignedUserSyncIds } : {}),
+            ...carryCreatedAt(template),
           };
           setTasks(prev => [...prev, regularTask]);
           recordDeletedTaskTombstone(parsed.templateId);
@@ -4016,6 +4033,7 @@ const DayPlanner = () => {
               subtasks: [],
               projectId: newTask.projectId || undefined,
               assignedUserSyncIds: mobileEditingTask.assignedUserSyncIds,
+              ...carryCreatedAt(recurringTasks.find(r => r.id === parsed.templateId)),
             }]);
           } else {
             // Scope picked in RecurringEditModal; nothing scoped changed when unset.
@@ -4053,6 +4071,8 @@ const DayPlanner = () => {
         exceptions: {},
         ...(newTask.projectId ? { projectId: newTask.projectId } : {}),
         assignedUserSyncIds: mobileEditingTask.assignedUserSyncIds ?? existingTask?.assignedUserSyncIds,
+        // The series is the one-off, repeated: it keeps the one-off's creation.
+        ...carryCreatedAt(existingTask),
         lastModified: new Date().toISOString()
       };
       // The original is gone, replaced by a template under a NEW id. Tombstone
@@ -5975,9 +5995,11 @@ const DayPlanner = () => {
       recurringTasks,
       recycleBin,
       dailyNotes: obsidianConfig?.enabled ? null : dailyNotes,
+      // Goals, projects and areas only while the feature is on (#2131).
+      ...(goalsProjectsEnabled ? { goals, projects, areas } : {}),
       isVisibleForUser,
     });
-  }, [showSpotlight, spotlightQuery, tasks, unscheduledTasks, recurringTasks, recycleBin, spotlightNativeTasks, dailyNotes, obsidianConfig?.enabled, isVisibleForUser]);
+  }, [showSpotlight, spotlightQuery, tasks, unscheduledTasks, recurringTasks, recycleBin, spotlightNativeTasks, dailyNotes, obsidianConfig?.enabled, goalsProjectsEnabled, goals, projects, areas, isVisibleForUser]);
 
   // Compute today's agenda for dayGLANCE section (excludes past events)
   const todayAgenda = useMemo(() => {
@@ -6404,6 +6426,8 @@ const DayPlanner = () => {
     focusToggleSubtask,
     focusDeleteSubtask,
     focusUpdateSubtaskTitle,
+    focusMoveSubtask,
+    moveSubtask,
   } = useTaskActions({
     tasks, setTasks, setEventNote,
     unscheduledTasks, setUnscheduledTasks,
@@ -6862,17 +6886,9 @@ const DayPlanner = () => {
       const dateStr = dateToString(date);
       const prev = new Date(date);
       prev.setDate(prev.getDate() - 1);
-      const goalsDue = goalsProjectsEnabled
-        ? visibleGoals
-            .filter(g => g.status === 'active' && g.targetDate === dateStr)
-            .map(g => {
-              const progressPct = Math.round(calculateGoalProgress(g.id, visibleProjects, allTasksCombined) * 100);
-              const childProjects = visibleProjects.filter(p => p.goalId === g.id && p.status !== 'archived');
-              const totalTasks = allTasksCombined.filter(t => childProjects.some(p => p.id === t.projectId) && !t.archived).length;
-              const completedTasks = allTasksCombined.filter(t => childProjects.some(p => p.id === t.projectId) && !t.archived && t.completed).length;
-              return { id: g.id, title: g.title, progressPct, totalTasks, completedTasks };
-            })
-        : [];
+      const due = goalsProjectsEnabled
+        ? buildWidgetDueOn({ goals: visibleGoals, projects: visibleProjects, tasks: allTasksCombined, dateStr })
+        : { goals: [], projects: [] };
       return buildProjectedDay({
         date,
         dateStr,
@@ -6885,7 +6901,8 @@ const DayPlanner = () => {
         dialFrames: dialFramesForDate(date),
         dayWindow: getDayWindow(dateStr),
         coords,
-        goalsDue,
+        goalsDue: due.goals,
+        projectsDue: due.projects,
         projectNameFor,
       });
     });
@@ -7647,6 +7664,7 @@ const DayPlanner = () => {
 
     // ── Tags ──────────────────────────────────────────────────────────────────
     selectedTags, setSelectedTags,
+    setShowTagManager,
     showUntagged, setShowUntagged,
     showMobileTagFilter, setShowMobileTagFilter,
     allTags, filterableTags,
@@ -7785,7 +7803,7 @@ const DayPlanner = () => {
     allTimeUnscheduledProjectDoneCount, allTimeUnscheduledProjectDoneMinutes,
     allTimeGoalsCreated, allTimeGoalsCompleted,
     allTimeProjectsCreated, allTimeProjectsCompleted,
-    todayCompletedGoals, todayCompletedProjects, todayDueGoals,
+    todayCompletedGoals, todayCompletedProjects, todayDueGoals, todayDueProjects,
     consecutiveDayStreak,
     todayIncompleteTasks, allTimeIncompleteTasks,
 
@@ -7806,7 +7824,7 @@ const DayPlanner = () => {
     moveToRecycleBin, moveToInbox, undeleteTask,
     setDeadline, clearDeadline, postponeTask, postponeDeadlineTask,
     cyclePriority, changeTaskColor,
-    toggleSubtask, addSubtask, deleteSubtask, updateSubtaskTitle, updateTaskNotes,
+    toggleSubtask, addSubtask, deleteSubtask, updateSubtaskTitle, moveSubtask, updateTaskNotes,
     startEditingTask, saveTaskTitle, cancelEditingTask,
     applySuggestionForEdit, handleEditKeyDown, handleEditInputChange,
     handleNewTaskInputChange, handleNewTaskInputKeyDown, applySuggestionForNewTask,
@@ -7972,8 +7990,7 @@ const DayPlanner = () => {
       let bootErr = null;
       let bootCode = null;
       const eng = createDbEngine({
-        getData:    () => engineCallbacksRef.current.buildPayload?.()?.data,
-        commitData: (data) => engineCallbacksRef.current.applyPayload?.(data, { allowEmpty: true }),
+        ...vaultEngineData(engineCallbacksRef),
         onStatusChange: (s) => setVaultStatus(s),
         onError:    (msg, code) => { if (msg) { bootErr = msg; bootCode = code; } },
         onRowsSkipped: (count) => setVaultSkipped(count),
@@ -8201,7 +8218,7 @@ const DayPlanner = () => {
     enterFocusMode, exitFocusMode, skipFocusPhase,
     startFocusTimer, dismissFocusStats, handleFocusTimerEnd,
     focusCompleteTask, focusToggleSubtask, focusAddSubtask,
-    focusDeleteSubtask, focusUpdateSubtaskTitle, focusUpdateTaskNotes,
+    focusDeleteSubtask, focusUpdateSubtaskTitle, focusMoveSubtask, focusUpdateTaskNotes,
     computeFocusBlockTasks,
 
     // ── HyperGLANCE ───────────────────────────────────────────────────────────
@@ -8652,9 +8669,21 @@ const DayPlanner = () => {
         />
       )}
 
+      {showTagManager && (
+        <TagManagerModal
+          tasks={tasks}
+          unscheduledTasks={unscheduledTasks}
+          recurringTasks={recurringTasks}
+          onApply={applyTagEdit}
+          onClose={() => setShowTagManager(false)}
+          darkMode={darkMode}
+        />
+      )}
+
       {peekTaskId != null && (
         <TaskPeek
           found={resolveTaskRef(peekTaskId, { tasks, unscheduledTasks, recurringTasks, recycleBin })}
+          backlinks={findBacklinks(peekTaskId, { tasks, unscheduledTasks })}
           darkMode={darkMode}
           onClose={() => setPeekTaskId(null)}
           // Going to the task leaves the form behind: offered only without one.
@@ -8846,27 +8875,12 @@ const DayPlanner = () => {
                         )}
                       </div>
                     </div>
-                    {goalsProjectsEnabled && (todayDueGoals.length > 0 || todayCompletedGoals.length > 0 || todayCompletedProjects.length > 0) && (
-                      <div className="space-y-1.5 mb-3">
-                        {todayDueGoals.map(g => (
-                          <div key={g.id} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${darkMode ? 'bg-yellow-900/30 text-yellow-300' : 'bg-yellow-50 text-yellow-700'}`}>
-                            <Flag size={14} className="flex-shrink-0" />
-                            <span className="truncate">{t('app.goalDueToday', { title: g.title })}</span>
-                          </div>
-                        ))}
-                        {todayCompletedGoals.map(g => (
-                          <div key={g.id} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${darkMode ? 'bg-amber-900/30 text-amber-300' : 'bg-amber-50 text-amber-700'}`}>
-                            <Flag size={14} className="flex-shrink-0" />
-                            <span className="truncate">{t('app.goalComplete', { title: g.title })}</span>
-                          </div>
-                        ))}
-                        {todayCompletedProjects.map(p => (
-                          <div key={p.id} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${darkMode ? 'bg-green-900/30 text-green-300' : 'bg-green-50 text-green-700'}`}>
-                            <FolderOpen size={14} className="flex-shrink-0" />
-                            <span className="truncate">{t('app.projectComplete', { title: p.title })}</span>
-                          </div>
-                        ))}
-                      </div>
+                    {goalsProjectsEnabled && (
+                      <DaySummaryCallouts
+                        dueGoals={todayDueGoals} dueProjects={todayDueProjects}
+                        completedGoals={todayCompletedGoals} completedProjects={todayCompletedProjects}
+                        darkMode={darkMode}
+                      />
                     )}
                     <div className={`space-y-3 ${textSecondary}`}>
                       <div className="flex items-center justify-between text-sm">
@@ -9343,7 +9357,8 @@ const DayPlanner = () => {
         const menuWidth = 180;
         const menuItemHeight = 36;
         const hasFollowUp = isCompleted && canFollowUp(ctxTask);
-        const menuItems = [hasEdit, hasNotes, hasEnergy, hasMoveTomorrow, hasMoveInbox, hasComplete, hasFollowUp, hasDelete].filter(Boolean).length;
+        const hasCopyLink = !!ctxTask && canLinkTask(ctxTask);
+        const menuItems = [hasEdit, hasNotes, hasEnergy, hasMoveTomorrow, hasMoveInbox, hasComplete, hasFollowUp, hasCopyLink, hasDelete].filter(Boolean).length;
         const menuHeight = menuItems * menuItemHeight + 8;
         const clampedX = Math.min(x, window.innerWidth - menuWidth - 8);
         const clampedY = Math.min(y, window.innerHeight - menuHeight - 8);
@@ -9357,7 +9372,9 @@ const DayPlanner = () => {
                 <button
                   className={`w-full text-left px-3 py-2 text-sm ${textPrimary} ${hoverBg} transition-colors flex items-center gap-2`}
                   onClick={() => {
-                    if (ctxTask) openMobileEditTask(ctxTask, isInbox);
+                    // A surface with its own editor (the Project Planner) hands it over.
+                    if (taskContextMenu.onEdit) taskContextMenu.onEdit();
+                    else if (ctxTask) openMobileEditTask(ctxTask, isInbox);
                     setTaskContextMenu(null);
                   }}
                 >
@@ -9372,7 +9389,9 @@ const DayPlanner = () => {
                   <button
                     className={`w-full text-left px-3 py-2 text-sm ${textPrimary} ${hoverBg} transition-colors flex items-center gap-2`}
                     onClick={() => {
-                      setExpandedNotesTaskId(prev => prev === taskId ? null : taskId);
+                      // A card with its own notes panel (SCHED, the planner) opens that.
+                      if (taskContextMenu.onNotes) taskContextMenu.onNotes();
+                      else setExpandedNotesTaskId(prev => prev === taskId ? null : taskId);
                       setTaskContextMenu(null);
                     }}
                   >
@@ -9384,7 +9403,8 @@ const DayPlanner = () => {
                 <button
                   className={`w-full text-left px-3 py-2 text-sm ${textPrimary} ${hoverBg} transition-colors flex items-center gap-2`}
                   onClick={() => {
-                    setExpandedNotesTaskId(prev => prev === taskId ? null : taskId);
+                    if (taskContextMenu.onNotes) taskContextMenu.onNotes();
+                    else setExpandedNotesTaskId(prev => prev === taskId ? null : taskId);
                     setTaskContextMenu(null);
                   }}
                 >
@@ -9471,6 +9491,26 @@ const DayPlanner = () => {
                 >
                   <SkipForward size={14} />
                   {t('followUp.action')}
+                </button>
+              )}
+              {/* A link to this task (#2145), to paste into another task's
+                  notes, where it opens this one in the task peek. */}
+              {hasCopyLink && (
+                <button
+                  data-copy-task-link
+                  className={`w-full text-left px-3 py-2 text-sm ${textPrimary} ${hoverBg} transition-colors flex items-center gap-2`}
+                  onClick={async () => {
+                    setTaskContextMenu(null);
+                    try {
+                      await navigator.clipboard.writeText(taskLink(ctxTask));
+                      setUndoToast({ message: t('task.linkCopied') });
+                    } catch {
+                      setUndoToast({ message: t('task.linkCopyFailed'), kind: 'warning' });
+                    }
+                  }}
+                >
+                  <Link size={14} />
+                  {t('task.copyLink')}
                 </button>
               )}
               {!isImported && (

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { BookOpen, Loader, Sparkles, X, Check, Plus, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { BookOpen, Loader, Sparkles, X, Check, Plus, ExternalLink, GripVertical } from 'lucide-react';
 import { noteTextHash } from '@glance-apps/obsidian-format';
 import { useTranslation } from 'react-i18next';
 import { isOnlyUrl, renderFormattedText } from '../utils/textFormatting.jsx';
@@ -9,6 +9,13 @@ import { isCalendarEventRow } from '../utils/eventNotes.js';
 import { noteFocusTarget } from '../utils/noteFocusTarget.js';
 import { autoSizeTextarea } from '../utils/autoSizeTextarea.js';
 import { useSyncCtx } from '../context/SyncContext.jsx';
+import { useDayPlannerCtx } from '../context/DayPlannerContext.jsx';
+import { taskLink } from '../utils/followUp.js';
+import { canLinkTask, findBacklinks, insertTaskLink, linkCandidates, pickerQueryAt } from '../utils/taskLinks.js';
+import TaskLinkPicker from './TaskLinkPicker.jsx';
+import TaskBacklinks from './TaskBacklinks.jsx';
+import { dropIndex } from '../utils/subtaskOrder.js';
+import { beginLongPressReorder } from '../utils/longPressReorder.js';
 import { aiFeatureOn } from '../ai.js';
 
 /** Format an ISO timestamp as a human-readable relative or absolute string. */
@@ -60,6 +67,9 @@ const NotesSubtasksPanel = ({
   toggleSubtask,
   deleteSubtask,
   updateSubtaskTitle,
+  // Reorders a subtask (#2176); defaults to the planner's. Focus mode passes
+  // its own, which keeps its session copy of the task in step.
+  moveSubtask: moveSubtaskProp,
   compact = true, // Use compact mode for inbox, expanded for timeline
   noAutoFocus = false,
   aiConfig,
@@ -303,9 +313,127 @@ const NotesSubtasksPanel = ({
     };
   }, []); // Empty deps = only runs on mount/unmount
 
-  const handleNotesChange = (e) => setLocalNotes(e.target.value);
+  // Task links (#2145): `@@` in the note opens a picker of tasks to link to,
+  // and the tasks whose notes link here are listed under the note. Both read
+  // the planner's lists; outside a planner (a bare test mount) there are none.
+  const planner = useDayPlannerCtx();
+  const plannerTasks = planner?.tasks;
+  const plannerInbox = planner?.unscheduledTasks;
+  const [picker, setPicker] = useState(null); // { start, caret, query } while `@@` is being typed
+  const [pickerIndex, setPickerIndex] = useState(0);
+  const notesFieldElRef = useRef(null);
+  const pickerCandidates = useMemo(() => (picker
+    ? linkCandidates({ tasks: plannerTasks || [], unscheduledTasks: plannerInbox || [] }, picker.query, { excludeId: task.id })
+    : []), [picker, plannerTasks, plannerInbox, task.id]);
+  const backlinks = useMemo(() => (!isEvent && canLinkTask(task)
+    ? findBacklinks(task.id, { tasks: plannerTasks || [], unscheduledTasks: plannerInbox || [] })
+    : []), [isEvent, task, plannerTasks, plannerInbox]);
+  const updatePicker = (el) => {
+    notesFieldElRef.current = el;
+    const caret = el.selectionStart ?? el.value.length;
+    const found = el.selectionStart === el.selectionEnd ? pickerQueryAt(el.value, caret) : null;
+    if (!found) { if (picker) setPicker(null); return; }
+    if (!picker || picker.query !== found.query) setPickerIndex(0);
+    setPicker({ ...found, caret });
+  };
+  const pickTask = (target) => {
+    if (!picker) return;
+    const next = insertTaskLink(localNotes, picker, target, taskLink);
+    setLocalNotes(next.text);
+    setPicker(null);
+    const el = notesFieldElRef.current;
+    if (el) requestAnimationFrame(() => { el.focus(); el.setSelectionRange(next.caret, next.caret); });
+  };
+
+  const handleNotesChange = (e) => { setLocalNotes(e.target.value); updatePicker(e.target); };
+
+  // Subtask reordering (#2176). A grip on each row: drag it (pointer), hold
+  // and move it (touch), or focus it and press Up/Down. The panel often sits
+  // inside a card that is itself draggable (timeline, Inbox), so every drag
+  // event the grip and rows handle stops here: the grip, being draggable
+  // itself, is the drag's source, and the card never hears of it.
+  const moveSubtask = moveSubtaskProp || planner?.moveSubtask;
+  const subtaskCount = task.subtasks?.length || 0;
+  const canReorder = !!moveSubtask && !isEvent && subtaskCount > 1;
+  const [subtaskDrag, setSubtaskDrag] = useState(null); // { id, from, over, lower }
+  const gripRefs = useRef(new Map());
+  const focusGripAfterMove = (id) => requestAnimationFrame(() => gripRefs.current.get(id)?.focus());
+  const moveTo = (id, toIndex) => moveSubtask(task.id, id, toIndex, isInbox);
+  const subtaskRowSelector = `[data-subtask-of="${typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(String(task.id)) : String(task.id)}"]`;
+  const gripProps = (subtask, idx) => ({
+    draggable: true,
+    onDragStart: (e) => {
+      e.stopPropagation();
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/x-dayglance-subtask', subtask.id); } catch { /* some browsers refuse custom types */ }
+      setSubtaskDrag({ id: subtask.id, from: idx, over: null, lower: false });
+    },
+    onDragEnd: (e) => { e.stopPropagation(); setSubtaskDrag(null); },
+    onTouchStart: (e) => {
+      e.stopPropagation();
+      beginLongPressReorder(e, {
+        idx,
+        hitSelector: subtaskRowSelector,
+        onActivate: () => setSubtaskDrag({ id: subtask.id, from: idx, over: idx, lower: false }),
+        onOver: (over) => setSubtaskDrag(d => (d ? { ...d, over, lower: over > d.from } : d)),
+        onEnd: ({ activated, fromIdx, overIdx }) => {
+          setSubtaskDrag(null);
+          if (activated && overIdx != null && overIdx !== fromIdx) moveTo(subtask.id, overIdx);
+        },
+      });
+    },
+    onKeyDown: (e) => {
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+      e.preventDefault();
+      e.stopPropagation();
+      const to = idx + (e.key === 'ArrowUp' ? -1 : 1);
+      if (to < 0 || to >= subtaskCount) return;
+      moveTo(subtask.id, to);
+      focusGripAfterMove(subtask.id);
+    },
+  });
+  const rowDropProps = (idx) => (subtaskDrag ? {
+    onDragOver: (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = 'move';
+      const rect = e.currentTarget.getBoundingClientRect();
+      const lower = e.clientY > rect.top + rect.height / 2;
+      if (subtaskDrag.over !== idx || subtaskDrag.lower !== lower) setSubtaskDrag(d => (d ? { ...d, over: idx, lower } : d));
+    },
+    onDrop: (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const drag = subtaskDrag;
+      setSubtaskDrag(null);
+      if (drag) moveTo(drag.id, dropIndex(drag.from, idx, drag.lower));
+    },
+  } : {});
 
   const handleNotesKeyDown = (e) => {
+    // The picker has the arrows, Enter, Tab and Escape while it is open; the
+    // note keeps every other key, so typing goes on narrowing it.
+    if (picker) {
+      const count = pickerCandidates.length;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        e.nativeEvent?.stopImmediatePropagation?.();
+        setPicker(null);
+        return;
+      }
+      if (count > 0 && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+        e.preventDefault();
+        setPickerIndex(i => (i + (e.key === 'ArrowDown' ? 1 : -1) + count) % count);
+        return;
+      }
+      if (count > 0 && ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab')) {
+        e.preventDefault();
+        e.stopPropagation();
+        pickTask(pickerCandidates[Math.min(pickerIndex, count - 1)].task);
+        return;
+      }
+    }
     if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault();
       if (localNotes !== ownNotes) updateTaskNotes(task.id, localNotes, isInbox);
@@ -315,6 +443,7 @@ const NotesSubtasksPanel = ({
   };
 
   const handleNotesBlur = () => {
+    setPicker(null);
     if (localNotes !== ownNotes) updateTaskNotes(task.id, localNotes, isInbox);
   };
 
@@ -506,6 +635,11 @@ const NotesSubtasksPanel = ({
               onChange={handleNotesChange}
               onKeyDown={handleNotesKeyDown}
               onBlur={handleNotesBlur}
+              // A caret moved by click or arrow key opens or closes the picker.
+              onSelect={(e) => updatePicker(e.currentTarget)}
+              // While the picker is open, Escape closes it, not what holds the
+              // note (the Goals space's chain yields to it: the planner, #2132).
+              data-owns-escape={picker ? true : undefined}
               ref={noteFieldRef('own')}
               placeholder={t('task.notesFormattingPlaceholder')}
               aria-label={t('task.notes')}
@@ -537,11 +671,15 @@ const NotesSubtasksPanel = ({
           {/* Only while the task has nothing of its own yet: a user who has
               typed notes or subtasks here has chosen this panel, and a nudge
               to move to a vault note would read as "replace what you did". */}
+          {isEditingNotes && picker && (
+            <TaskLinkPicker candidates={pickerCandidates} index={pickerIndex} onPick={pickTask} darkMode={darkMode} />
+          )}
           {obsidianEnabled && !showLinked && !isEvent && !hasLocalNotes && !(task.subtasks?.length > 0) && (
             <p data-wikilink-hint className={`text-[11px] italic mt-1 ${th.label}`}>{t('task.wikilinkHint')}</p>
           )}
         </div>
       )}
+      <TaskBacklinks backlinks={backlinks} darkMode={darkMode} className="mb-3" />
 
       {/* Subtasks section */}
       {!isEvent && (
@@ -567,8 +705,31 @@ const NotesSubtasksPanel = ({
         {/* Subtasks list */}
         {task.subtasks?.length > 0 && (
           <div className="space-y-1 mb-2">
-            {task.subtasks.map((subtask) => (
-              <div key={subtask.id} className="flex items-center gap-2 group">
+            {task.subtasks.map((subtask, idx) => (
+              <div
+                key={subtask.id}
+                data-subtask-of={String(task.id)}
+                data-drag-idx={idx}
+                {...rowDropProps(idx)}
+                className={`flex items-center gap-2 group ${subtaskDrag?.id === subtask.id ? 'opacity-40' : ''} ${
+                  subtaskDrag && subtaskDrag.over === idx && subtaskDrag.id !== subtask.id
+                    ? (subtaskDrag.lower ? 'shadow-[inset_0_-2px_0_0_rgb(59,130,246)]' : 'shadow-[inset_0_2px_0_0_rgb(59,130,246)]')
+                    : ''
+                }`}
+              >
+                {canReorder && (
+                  <button
+                    type="button"
+                    ref={(el) => { if (el) gripRefs.current.set(subtask.id, el); else gripRefs.current.delete(subtask.id); }}
+                    data-subtask-grip={subtask.id}
+                    aria-label={t('task.moveSubtask', { title: subtask.title })}
+                    title={t('task.moveSubtaskHint')}
+                    {...gripProps(subtask, idx)}
+                    className={`flex-shrink-0 -ml-1 cursor-grab active:cursor-grabbing touch-none select-none md:opacity-0 md:group-hover:opacity-60 md:focus-visible:opacity-100 opacity-40 rounded ${th.deleteBtn}`}
+                  >
+                    <GripVertical size={12} />
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => toggleSubtask(task.id, subtask.id, isInbox)}

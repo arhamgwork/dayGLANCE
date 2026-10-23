@@ -2,16 +2,16 @@ import React, { forwardRef, useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import ConfirmDialog from '../ConfirmDialog.jsx';
 import {
-  AlertTriangle, BookOpen, Calendar, CheckCircle2, CheckSquare, ChevronDown,
-  Clock, Edit2, ExternalLink, Eye, EyeOff, FileText, GripVertical, LayoutDashboard,
+  AlertTriangle, BookOpen, Calendar, CheckCircle2, CheckSquare,
+  ChevronDown, Clock, Edit2, Eye, EyeOff, GripVertical, LayoutDashboard,
   LogIn, Plus, Square, Trash2, X, Zap,
-  Phone,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDayPlannerCtx } from '../../context/DayPlannerContext.jsx';
 import { useSyncCtx } from '../../context/SyncContext.jsx';
 import { useFeaturesCtx } from '../../context/FeaturesContext.jsx';
 import { calculateProjectProgress } from '../../utils/projectProgress.js';
+import { projectTargetDateInfo } from '../../utils/projectTargetDate.js';
 import { isProjectFlaggedStalled } from '../../utils/stalledBadge.js';
 import { TAILWIND_TO_HEX, hexToRgba, getProjectColor } from '../../utils/colorUtils.js';
 import ProjectProgress from './ProjectProgress.jsx';
@@ -19,7 +19,7 @@ import RecurringSeriesRow from './RecurringSeriesRow.jsx';
 import NotesSubtasksPanel from '../NotesSubtasksPanel.jsx';
 import DeadlinePickerPopover from '../DeadlinePickerPopover.jsx';
 import AddFromInbox from './AddFromInbox.jsx';
-import { renderTitle, hasNotesOrSubtasks, isLinkOnlyTask, hasOnlySubtasks, getLinkUrl, isObsidianNoteOnlyTask, openNoteAction, isPhoneOnlyTask } from '../../utils/textFormatting.jsx';
+import { renderTitle, hasNotesOrSubtasks, isLinkOnlyTask, openNoteAction, NoteIcon, noteActionTarget } from '../../utils/textFormatting.jsx';
 import { dateToString, extractWikilinks, completionTimestamp, formatDeadlineDate } from '../../utils/taskUtils.js';
 import { getNextOccurrence } from '../../utils/recurrenceEngine.js';
 import { getActiveHGInstance } from '../../hooks/useHyperGlance.js';
@@ -142,6 +142,15 @@ const ProjectCard = forwardRef(({ project, onEditClick, compact, dragHandleProps
   // are colored the same way as goal children.
   const projectColor = getProjectColor(project, parentGoal);
   const projectHex = toHex(projectColor);
+  // Project-level target-date badge (the project's own due date, not a task
+  // deadline). Completed projects hide it, like the Stalled badge: their date
+  // is history. Getter called only for a project that has one, so a card
+  // without a target date never needs the context clock.
+  const hasTargetDate = !!project.targetDate && project.status !== 'completed';
+  const targetDateInfo = hasTargetDate
+    ? projectTargetDateInfo(project, getTodayStr ? getTodayStr() : dateToString(new Date()))
+    : null;
+  const showTargetDate = hasTargetDate && !!targetDateInfo;
   // Eyeball toggle (standalone cards only): hides task count, progress bars,
   // and completed tasks. Persisted on the project so it syncs and survives reloads.
   const detailsHidden = !parentGoal && !!project.detailsHidden;
@@ -441,9 +450,34 @@ const ProjectCard = forwardRef(({ project, onEditClick, compact, dragHandleProps
               <GripVertical size={14} />
             </div>
           )}
-          <span className={`text-sm font-semibold ${textPrimary} leading-tight flex-1 min-w-0`}>
-            {project.title}
-          </span>
+          {/* The target date sits under the title, not beside it: beside it,
+              the header's buttons squeezed a phone-width title until it ran
+              under the badge. A long one-word title wraps rather than overflow. */}
+          <div data-project-title-block className="flex-1 min-w-0 flex flex-col items-start gap-1">
+            <span className={`text-sm font-semibold ${textPrimary} leading-tight break-words max-w-full`}>
+              {project.title}
+            </span>
+            {showTargetDate && (
+              <span
+                data-project-target-date
+                className={`flex items-center gap-0.5 text-[10px] py-0.5 rounded-full font-medium whitespace-nowrap ${
+                  targetDateInfo.overdue
+                    ? 'px-1.5 bg-red-500/15 text-red-500'
+                    : targetDateInfo.dueToday || targetDateInfo.soon
+                    ? 'px-1.5 bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                    // No pill, so no inset: the date lines up under the title.
+                    : `${textSecondary} opacity-70`
+                }`}
+                title={
+                  `${t('goals.target')}: ${formatDeadlineDate(project.targetDate)}`
+                  + (targetDateInfo.overdue ? ` (${t('goals.daysOverdue', { count: -targetDateInfo.days })})` : '')
+                }
+              >
+                <Calendar size={9} />
+                {formatDeadlineDate(project.targetDate)}
+              </span>
+            )}
+          </div>
           {noteBadge}
           {project.hyperglance?.enabled && project.status !== 'completed' && !project.archived && (() => {
               const instance = getActiveHGInstance(project, currentTimeMinutes);
@@ -645,9 +679,9 @@ const ProjectCard = forwardRef(({ project, onEditClick, compact, dragHandleProps
                     className={`notes-toggle-button flex-shrink-0 p-1 rounded transition-colors ${hoverBg} ${
                       hasNotesOrSubtasks(task) || extractWikilinks(task.title).length > 0 ? `${textSecondary} opacity-70` : `${textSecondary} opacity-25`
                     }`}
-                    title={isLinkOnlyTask(task) ? `${getLinkUrl(task)} (${t('common.edit')})` : t('sched.notesSubtasks')}
+                    title={isLinkOnlyTask(task) ? `${noteActionTarget(task)} (${t('common.edit')})` : t('sched.notesSubtasks')}
                   >
-                    {isPhoneOnlyTask(task) ? <Phone size={10} /> : isLinkOnlyTask(task) ? <ExternalLink size={10} /> : hasOnlySubtasks(task) ? <CheckSquare size={10} /> : isObsidianNoteOnlyTask(task) ? <BookOpen size={10} /> : <FileText size={10} />}
+                    <NoteIcon task={task} size={10} />
                   </button>
                   {/* Deadline — unscheduled project tasks are inbox tasks, so
                       this is the inbox's deadline button and picker. */}

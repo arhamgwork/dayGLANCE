@@ -15,6 +15,7 @@
     <string name="tile_add_inbox_label">Bandeja de entrada</string>
     <string name="tile_add_scheduled_label">Tarea programada</string>
     <string name="section_goals">OBJETIVOS</string>
+    <string name="section_projects">PROYECTOS</string>
     <string name="section_overdue">VENCIDAS</string>
     <string name="section_all_day">TODO EL DÍA</string>
     <string name="section_scheduled">PROGRAMADO</string>

@@ -47,7 +47,7 @@ const SchedTaskCard = ({ task, isInbox = false, showProject = false, onEdit = nu
     formatTime, toggleComplete, openMobileEditTask, currentTime,
     postponeTask, showDeadlinePicker, setShowDeadlinePicker,
     updateTaskNotes, addSubtask, toggleSubtask, deleteSubtask, updateSubtaskTitle,
-    getDoSessionsForTask,
+    getDoSessionsForTask, setTaskContextMenu, recurringTasks, isMobile, isTablet,
   } = useDayPlannerCtx();
   const { projects, goalsProjectsEnabled, generateAISubtasks, aiSubtasksLoadingForTask, aiConfig } = useFeaturesCtx();
   const { loadWikiNote, saveWikiNote, openInObsidian } = useSyncCtx();
@@ -127,6 +127,28 @@ const SchedTaskCard = ({ task, isInbox = false, showProject = false, onEdit = nu
     else openMobileEditTask(task, isInbox);
   };
 
+  // Right-click opens the app's task menu, as on every other task surface
+  // (#2132). Edit opens what this list opens (the planner's editor), and
+  // Notes / subtasks opens this card's own panel, which the menu's shared
+  // expandedNotesTaskId does not drive. Pointer devices only: a long-press
+  // on a phone or tablet drags the row. A recurring template (the planner's
+  // Scheduled column lists them) has no date for the menu to act on.
+  const isTemplate = !isRecurring && (recurringTasks || []).some(r => r.id === task.id);
+  const handleContextMenu = setTaskContextMenu && !isMobile && !isTablet && !isTemplate ? (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setTaskContextMenu({
+      x: e.clientX, y: e.clientY,
+      taskId: task.id,
+      isRecurring,
+      isImported: !!task.imported,
+      isAllDay: !!task.isAllDay,
+      dateStr: task.date || dateToString(new Date()),
+      onEdit: () => (onOpen || onEdit || ((target) => openMobileEditTask(target, isInbox)))(task),
+      onNotes: isEvent && !task.notes ? null : () => setShowNotes(true),
+    });
+  } : undefined;
+
   const openNotesPanel = (e) => {
     e.stopPropagation();
     if (!isEvent) setShowNotes(true);
@@ -148,6 +170,7 @@ const SchedTaskCard = ({ task, isInbox = false, showProject = false, onEdit = nu
       // Where a click selects (the planner with its notes sidebar open),
       // a double-click opens the task.
       onDoubleClick={onOpen && !isEvent ? (e) => { e.stopPropagation(); onOpen(task); } : undefined}
+      onContextMenu={handleContextMenu}
       data-sched-task={task.id}
       data-selected={selected ? 'true' : undefined}
       data-drag-idx={dnd ? dnd.idx : undefined}

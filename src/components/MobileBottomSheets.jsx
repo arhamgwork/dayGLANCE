@@ -12,6 +12,7 @@ import { useDayPlannerCtx } from '../context/DayPlannerContext.jsx';
 import { useSyncCtx } from '../context/SyncContext.jsx';
 import { useFeaturesCtx } from '../context/FeaturesContext.jsx';
 import { useTranslation } from 'react-i18next';
+import DaySummaryCallouts from './DaySummaryCallouts.jsx';
 
 const MobileBottomSheets = () => {
   const {
@@ -26,7 +27,7 @@ const MobileBottomSheets = () => {
     selectedTags,
     filterableTags,
     showUntagged, setShowUntagged,
-    showMobileTagFilter, setShowMobileTagFilter,
+    showMobileTagFilter, setShowMobileTagFilter, setShowTagManager,
     showMobileDailySummary, setShowMobileDailySummary,
     showIncompleteTasks, setShowIncompleteTasks,
     dailyStatsAllTimeCollapsed, setDailyStatsAllTimeCollapsed,
@@ -41,7 +42,7 @@ const MobileBottomSheets = () => {
     allTimeScheduledCount, allTimeCompletedCount,
     totalCompletedMinutes, totalScheduledMinutes,
     consecutiveDayStreak,
-    todayCompletedGoals, todayCompletedProjects, todayDueGoals,
+    todayCompletedGoals, todayCompletedProjects, todayDueGoals, todayDueProjects,
     allTimeGoalsCreated, allTimeGoalsCompleted,
     allTimeProjectsCreated, allTimeProjectsCompleted,
     allTimeIncompleteTasks,
@@ -229,6 +230,20 @@ const MobileBottomSheets = () => {
         });
         })()}
       </div>
+      {/* Rename, merge or remove tags across tasks (#2136). */}
+      {setShowTagManager && (
+        <div className="px-4">
+          <button
+            type="button"
+            data-manage-tags
+            onClick={() => { setShowMobileTagFilter(false); setShowTagManager(true); }}
+            className={`w-full flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-sm font-medium text-blue-500 ${darkMode ? 'bg-white/5' : 'bg-stone-50'}`}
+          >
+            <Hash size={14} />
+            {t('tagManager.manage')}
+          </button>
+        </div>
+      )}
     </div>
   </div>
 )}
@@ -307,27 +322,12 @@ const MobileBottomSheets = () => {
               </div>
             </div>
             {/* Goal / Project completion callouts */}
-            {goalsProjectsEnabled && (todayDueGoals.length > 0 || todayCompletedGoals.length > 0 || todayCompletedProjects.length > 0) && (
-              <div className="space-y-1.5 mb-3">
-                {todayDueGoals.map(g => (
-                  <div key={g.id} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${darkMode ? 'bg-yellow-900/30 text-yellow-300' : 'bg-yellow-50 text-yellow-700'}`}>
-                    <Flag size={14} className="flex-shrink-0" />
-                    <span className="truncate">{t('app.goalDueToday', { title: g.title })}</span>
-                  </div>
-                ))}
-                {todayCompletedGoals.map(g => (
-                  <div key={g.id} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${darkMode ? 'bg-amber-900/30 text-amber-300' : 'bg-amber-50 text-amber-700'}`}>
-                    <Flag size={14} className="flex-shrink-0" />
-                    <span className="truncate">{t('app.goalComplete', { title: g.title })}</span>
-                  </div>
-                ))}
-                {todayCompletedProjects.map(p => (
-                  <div key={p.id} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${darkMode ? 'bg-green-900/30 text-green-300' : 'bg-green-50 text-green-700'}`}>
-                    <FolderOpen size={14} className="flex-shrink-0" />
-                    <span className="truncate">{t('app.projectComplete', { title: p.title })}</span>
-                  </div>
-                ))}
-              </div>
+            {goalsProjectsEnabled && (
+              <DaySummaryCallouts
+                dueGoals={todayDueGoals} dueProjects={todayDueProjects}
+                completedGoals={todayCompletedGoals} completedProjects={todayCompletedProjects}
+                darkMode={darkMode}
+              />
             )}
             {/* Stat rows */}
             <div className={`space-y-3 ${textSecondary}`}>

@@ -26,6 +26,7 @@ export default function useNavigation({
   setDailyNotesModalDate,
   calendarRef,
   closePlanner = () => {},
+  openGoalsTarget = () => {},
 }) {
   const changeDate = useCallback((direction) => {
     // MONTH: the chrome's arrows page whole months, keeping the day of the
@@ -82,8 +83,8 @@ export default function useNavigation({
 
   const handleSpotlightSelect = useCallback((result) => {
     setShowSpotlight(false);
-    // Every result navigates the calendar or the inbox. Searching from inside
-    // the Project Planner (#2131) would otherwise land behind its overlay.
+    // Every result navigates somewhere the Project Planner's overlay would
+    // cover: the calendar, the inbox or the Goals space (#2131).
     closePlanner();
     const { task, source } = result;
 
@@ -142,8 +143,12 @@ export default function useNavigation({
       }
       goToDate(result.date);
       setDailyNotesModalDate?.(result.date);
+    } else if (source === 'goal' || source === 'project' || source === 'area') {
+      // The Goals & Projects space on that goal, project or area, as the
+      // launcher's links open it (#2131).
+      openGoalsTarget(source, task.id);
     }
-  }, [setShowSpotlight, isMobile, setMobileActiveTab, setTabletActiveTab, setInboxProjectFilter, setInboxArchivedExpanded, setDailyNotesModalDate, calendarRef, goToDate, closePlanner]);
+  }, [setShowSpotlight, isMobile, setMobileActiveTab, setTabletActiveTab, setInboxProjectFilter, setInboxArchivedExpanded, setDailyNotesModalDate, calendarRef, goToDate, closePlanner, openGoalsTarget]);
 
   return { changeDate, goToToday, goToDate, handleSpotlightSelect };
 }

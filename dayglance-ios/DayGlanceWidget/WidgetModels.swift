@@ -138,10 +138,26 @@ struct ProjectData: Codable {
     var goalColorHex: String?
     /// The project's own colour as the app draws it (absent from older pushes).
     var colorHex: String?
+    /// The project's own target date (#2160), 'yyyy-MM-dd', in the goal's
+    /// shape; absent from older pushes. `daysUntilDue` is the push-time count.
+    var targetDate: String?
+    var daysUntilDue: Int?
     var progressPct: Int?
     var totalTasks: Int?
     var completedTasks: Int?
     var tasks: [TaskSummary]?
+}
+
+extension ProjectData {
+    /// The Project widget's due badge (#2160), in days from the entry's day,
+    /// or nil for no badge. Computed at RENDER time from `targetDate`, as the
+    /// Goal widget's is; the push-time `daysUntilDue` is only the fallback for
+    /// a date that does not parse. No badge without a target date, on a stale
+    /// snapshot, or on a completed project, whose date is history.
+    func dueDays(from now: Date, isStale: Bool, calendar: Calendar = .current) -> Int? {
+        guard !isStale, status != "completed", let target = targetDate, !target.isEmpty else { return nil }
+        return ResolvedWidgetDay.daysUntil(target, from: now, calendar: calendar) ?? daysUntilDue
+    }
 }
 
 struct TaskSummary: Codable {

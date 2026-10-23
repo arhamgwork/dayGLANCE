@@ -127,6 +127,8 @@ export default function useStats({ tasks: rawTasks, unscheduledTasks: rawUnsched
 
   // Incomplete goals due today
   const todayDueGoals = goals.filter(g => g.targetDate === todayStr && g.status === 'active');
+  // And projects with their own target date today (#2160).
+  const todayDueProjects = projects.filter(p => p.targetDate === todayStr && p.status === 'active');
 
   // Consecutive day streak — count of consecutive days (going back from today)
   // on which at least one task was completed
@@ -224,6 +226,7 @@ export default function useStats({ tasks: rawTasks, unscheduledTasks: rawUnsched
     todayCompletedGoals,
     todayCompletedProjects,
     todayDueGoals,
+    todayDueProjects,
     consecutiveDayStreak,
     todayIncompleteTasks,
     allTimeIncompleteTasks,

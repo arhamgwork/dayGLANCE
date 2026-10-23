@@ -6,6 +6,7 @@ import { mergeArrayById, mergeSyncData as upstreamMergeSyncData, pruneTombstones
 import { canonicalJson } from './sync/snapshotMergeExplain.js';
 import { mergeDeferrals } from './utils/deferrals.js';
 import { mergePlanTrail, sameTrail } from './utils/planTrail.js';
+import { earlierCreatedAt } from './utils/createdAt.js';
 import {
   TOMBSTONE_BUNDLE_KEYS,
   tombstoneCutoff,
@@ -366,6 +367,32 @@ const tombstoneMapsEqual = (a = {}, b = {}) => {
  * habit-log portion with the deterministic tie-break above so existing stuck
  * habit counts self-heal across the fleet (no manual re-touch, no package bump).
  */
+/**
+ * A writable merged item for the sticky-field passes in mergeSyncData. The
+ * upstream merge returns the callers' own objects as merged items (the
+ * winning side's copy is `local`'s or `remote`'s row itself), so a field
+ * written onto it would change the caller's data AND hide the change from the
+ * flags: the side whose object it is would then compare equal to the result.
+ * Returns a function that, on its first call, replaces the item at `index`
+ * with a shallow copy when it is one of the inputs, and returns the item to
+ * write to. `onCopy` lets a loop keep its own reference current.
+ */
+function ownedItem(list, index, l, r, onCopy) {
+  let owned = false;
+  return () => {
+    if (!owned) {
+      owned = true;
+      const current = list[index];
+      if (current === l || current === r) {
+        const copy = { ...current };
+        list[index] = copy;
+        if (onCopy) onCopy(copy);
+      }
+    }
+    return list[index];
+  };
+}
+
 export const mergeSyncData = (local, remote, retentionDays) => {
   const result = upstreamMergeSyncData(local, remote, retentionDays);
   // Unstamped local-only tasks are not zombies (restoreUnstampedLocalOnly):
@@ -619,17 +646,25 @@ export const mergeSyncData = (local, remote, retentionDays) => {
   // push churn). Restore archived:true when the merged winner OMITS it (undefined)
   // but either original side had archived:true. An explicit archived:false is a
   // real unarchive (present, not undefined) → left as-is so it still propagates.
+  //
+  // Every write below goes through `own()`. The upstream merge hands back the
+  // callers' own objects as merged items: the winning side's copy IS `l` or
+  // `r`. Writing onto it would both mutate the caller's data and make that
+  // side look as if it already held the value, so the flag that should send
+  // the corrected copy back to it was never raised.
   for (const listKey of ['tasks', 'unscheduledTasks', 'recycleBin']) {
     const mergedList = result.data[listKey];
     if (!Array.isArray(mergedList)) continue;
     const localById = new Map((local?.[listKey] || []).map((t) => [String(t.id), t]));
     const remoteById = new Map((remote?.[listKey] || []).map((t) => [String(t.id), t]));
-    for (const item of mergedList) {
+    for (let i = 0; i < mergedList.length; i += 1) {
+      let item = mergedList[i];
       if (!item) continue;
       const l = localById.get(String(item.id));
       const r = remoteById.get(String(item.id));
+      const own = ownedItem(mergedList, i, l, r, (next) => { item = next; });
       if (item.archived === undefined && (l?.archived === true || r?.archived === true)) {
-        item.archived = true;
+        own().archived = true;
         // The side whose copy we enriched needs the corrected value written back.
         if (l?.archived !== true) result.localChanged = true;
         if (r?.archived !== true) result.remoteChanged = true;
@@ -641,7 +676,7 @@ export const mergeSyncData = (local, remote, retentionDays) => {
       if (item.originalPlan === undefined) {
         const plan = l?.originalPlan ?? r?.originalPlan;
         if (plan !== undefined) {
-          item.originalPlan = plan;
+          own().originalPlan = plan;
           if (l?.originalPlan === undefined) result.localChanged = true;
           if (r?.originalPlan === undefined) result.remoteChanged = true;
         }
@@ -651,7 +686,7 @@ export const mergeSyncData = (local, remote, retentionDays) => {
       if (item.clientId === undefined) {
         const cid = l?.clientId ?? r?.clientId;
         if (cid !== undefined) {
-          item.clientId = cid;
+          own().clientId = cid;
           if (l?.clientId === undefined) result.localChanged = true;
           if (r?.clientId === undefined) result.remoteChanged = true;
         }
@@ -662,7 +697,7 @@ export const mergeSyncData = (local, remote, retentionDays) => {
       if (item.starredDate === undefined) {
         const starred = l?.starredDate !== undefined ? l.starredDate : r?.starredDate;
         if (starred !== undefined) {
-          item.starredDate = starred;
+          own().starredDate = starred;
           if (l?.starredDate === undefined) result.localChanged = true;
           if (r?.starredDate === undefined) result.remoteChanged = true;
         }
@@ -672,7 +707,7 @@ export const mergeSyncData = (local, remote, retentionDays) => {
       // corrected value written back.
       {
         const count = mergeDeferrals(l?.deferrals, r?.deferrals);
-        if (count !== undefined && count !== item.deferrals) item.deferrals = count;
+        if (count !== undefined && count !== item.deferrals) own().deferrals = count;
         if (count !== undefined) {
           if ((Number(l?.deferrals) || 0) < count) result.localChanged = true;
           if ((Number(r?.deferrals) || 0) < count) result.remoteChanged = true;
@@ -683,12 +718,37 @@ export const mergeSyncData = (local, remote, retentionDays) => {
       // keep only one side's. Either side missing a stop has to be written back.
       {
         const trail = mergePlanTrail(l?.planTrail, r?.planTrail);
-        if (trail !== undefined && !sameTrail(trail, item.planTrail)) item.planTrail = trail;
+        if (trail !== undefined && !sameTrail(trail, item.planTrail)) own().planTrail = trail;
         if (trail !== undefined) {
           if (!sameTrail(trail, l?.planTrail)) result.localChanged = true;
           if (!sameTrail(trail, r?.planTrail)) result.remoteChanged = true;
         }
       }
+    }
+  }
+
+  // `createdAt` (utils/createdAt.js) is write-once like `originalPlan`, so a
+  // winner without it only means that side never had it. It is merged rather
+  // than carried, keeping the EARLIER stamp: either side may hold one, and in
+  // the rare case both do (two devices met the same id), the earlier is the
+  // creation and the choice does not depend on which side is local. Recurring
+  // templates carry it too (a series is created once), hence the fourth list.
+  for (const listKey of ['tasks', 'unscheduledTasks', 'recycleBin', 'recurringTasks']) {
+    const mergedList = result.data[listKey];
+    if (!Array.isArray(mergedList)) continue;
+    const localById = new Map((local?.[listKey] || []).map((t) => [String(t?.id), t]));
+    const remoteById = new Map((remote?.[listKey] || []).map((t) => [String(t?.id), t]));
+    for (let i = 0; i < mergedList.length; i += 1) {
+      const item = mergedList[i];
+      if (!item) continue;
+      const l = localById.get(String(item.id));
+      const r = remoteById.get(String(item.id));
+      const created = earlierCreatedAt(l?.createdAt, r?.createdAt);
+      if (created === undefined) continue;
+      if (l && l.createdAt !== created) result.localChanged = true;
+      if (r && r.createdAt !== created) result.remoteChanged = true;
+      // Onto a copy when the item is one of the inputs (see ownedItem).
+      if (item.createdAt !== created) ownedItem(mergedList, i, l, r)().createdAt = created;
     }
   }
 

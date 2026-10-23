@@ -3,7 +3,8 @@ import { ArrowDownToLine, ArrowLeft, Eye, EyeOff, PanelRightClose, PanelRightOpe
 import { useDayPlannerCtx } from '../../context/DayPlannerContext.jsx';
 import { useFeaturesCtx } from '../../context/FeaturesContext.jsx';
 import { useTranslation } from 'react-i18next';
-import { dateToString } from '../../utils/taskUtils.js';
+import { dateToString, formatDeadlineDate } from '../../utils/taskUtils.js';
+import { projectTargetDateInfo } from '../../utils/projectTargetDate.js';
 import { formatLocalizedDate } from '../../utils/localeFormatting.js';
 import { getNextOccurrence } from '../../utils/recurrenceEngine.js';
 import { getProjectColor, taskColorToHex, hexToRgba } from '../../utils/colorUtils.js';
@@ -33,9 +34,13 @@ const IS_LONG_PRESS_ROW = isLongPressRowDevice();
 const SEND_TO_BOTTOM_MS = 15000;
 // This device's choice of the notes sidebar (desktop and landscape tablet).
 const NOTES_SIDEBAR_KEY = 'dg-planner-notes-sidebar';
+// This device's width for it, once dragged (utils/paneWidth.js, #2132).
+const NOTES_WIDTH_KEY = 'dg-planner-notes-width';
 import SchedTaskCard from '../sched/SchedTaskCard.jsx';
 import HyperGlanceEditor from './HyperGlanceEditor.jsx';
 import RecurringSeriesRow from './RecurringSeriesRow.jsx';
+import PaneResizeHandle from '../PaneResizeHandle.jsx';
+import { readPaneWidth, writePaneWidth } from '../../utils/paneWidth.js';
 import { sortByProjectOrder, applyProjectReorder, projectReorderIds, topProjectOrder, sendToBottomIds } from '../../utils/projectOrder.js';
 import { readRetiredTaskIds } from '../../utils/retiredTaskIds.js';
 
@@ -59,6 +64,9 @@ const ProjectPlanner = ({ project, onClose, initialHyperglanceOpen = false }) =>
   const parentGoal = project.goalId ? goals.find(g => g.id === project.goalId) : null;
   const projectColor = getProjectColor(project, parentGoal);
   const projectHex = taskColorToHex(projectColor);
+  // The project's own target date, beside the parent goal in the header. A
+  // completed project keeps its date unhighlighted (history, not a warning).
+  const targetDateInfo = projectTargetDateInfo(project, dateToString(new Date()));
 
   // The notes box (hooks/useEntityNotes.js, shared with the goal detail):
   // the record's description, or the linked note's description section.
@@ -141,6 +149,11 @@ const ProjectPlanner = ({ project, onClose, initialHyperglanceOpen = false }) =>
     rememberNotes(!notesPreferred);
   };
   const sidebar = wide && notesPreferred && !hyperOpen;
+  // The sidebar's dragged width; null is the automatic share of the row.
+  const [notesWidth, setNotesWidth] = useState(() => readPaneWidth(NOTES_WIDTH_KEY));
+  const notesPaneRef = useRef(null);
+  const planRowRef = useRef(null);
+  const sizedNotes = sidebar && notesWidth != null;
   const hyperPanel = wide && hyperOpen;
   const hyperPage = !wide && hyperOpen;
   const panelOpen = sidebar || hyperPanel;
@@ -446,6 +459,26 @@ const ProjectPlanner = ({ project, onClose, initialHyperglanceOpen = false }) =>
             <span className={`text-base font-semibold ${textPrimary} truncate`}>{project.title}</span>
             <span className={`text-xs ${textSecondary}`}>
               {parentGoal ? parentGoal.title : t('planner.standaloneProject', 'Standalone project')} · Planner
+              {targetDateInfo && (
+                <>
+                  {' · '}
+                  <span
+                    data-project-target-date
+                    className={
+                      project.status === 'completed'
+                        ? ''
+                        : targetDateInfo.overdue
+                        ? 'text-red-500 font-medium'
+                        : targetDateInfo.dueToday || targetDateInfo.soon
+                        ? 'text-amber-600 dark:text-amber-400 font-medium'
+                        : ''
+                    }
+                    title={`${t('goals.target')}: ${formatDeadlineDate(project.targetDate)}`}
+                  >
+                    {formatDeadlineDate(project.targetDate)}
+                  </span>
+                </>
+              )}
             </span>
           </div>
           <div data-planner-header-toggles className={`flex items-center gap-1 ${isMobile ? 'order-last w-full -ml-2 flex-wrap' : 'flex-shrink-0'}`}>
@@ -528,7 +561,8 @@ const ProjectPlanner = ({ project, onClose, initialHyperglanceOpen = false }) =>
             the sheet's two sections). */}
         {(() => { const body = (
         <div
-          className={`p-4 flex flex-col gap-4 ${isMobile ? 'flex-shrink-0' : `flex-1 min-h-0 overflow-y-auto min-w-0${panelOpen ? ' max-w-[48rem]' : ''}`}`}
+          // A dragged sidebar sets the split, so the lists take the rest.
+          className={`p-4 flex flex-col gap-4 ${isMobile ? 'flex-shrink-0' : `flex-1 min-h-0 overflow-y-auto min-w-0${panelOpen && !sizedNotes ? ' max-w-[48rem]' : ''}`}`}
           style={isMobile ? { paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' } : undefined}
         >
           {/* Notes — same interaction model as task notes panels; for a
@@ -702,7 +736,21 @@ const ProjectPlanner = ({ project, onClose, initialHyperglanceOpen = false }) =>
         ) : sidebar && (
           // The lists keep the planner's usual width and the notes take the
           // rest: half the row on a narrower screen, up to 56rem on a wide one.
-          <aside data-planner-notes className={`flex-1 min-w-[24rem] max-w-[56rem] border-l ${borderClass} overflow-y-auto p-4`} aria-label={t('task.notes', 'Notes')}>
+          // Its left edge drags to resize it (PaneResizeHandle).
+          <aside
+            ref={notesPaneRef}
+            data-planner-notes
+            className={`relative ${sizedNotes ? 'flex-none' : 'flex-1 min-w-[24rem] max-w-[56rem]'} border-l ${borderClass} p-4 flex flex-col min-h-0`}
+            style={sizedNotes ? { width: `${notesWidth}px` } : undefined}
+            aria-label={t('task.notes', 'Notes')}
+          >
+            <PaneResizeHandle
+              paneRef={notesPaneRef}
+              rowRef={planRowRef}
+              onResize={setNotesWidth}
+              onCommit={(width) => writePaneWidth(NOTES_WIDTH_KEY, width)}
+            />
+            <div className="flex-1 min-h-0 overflow-y-auto -m-4 p-4">
             {selectedTask ? (
               <TaskNotesPane
                 key={selectedTask.id}
@@ -716,10 +764,11 @@ const ProjectPlanner = ({ project, onClose, initialHyperglanceOpen = false }) =>
               <p className={`text-sm ${textSecondary}`}>{t('planner.selectForNotes')}</p>
             )}
             <p className={`mt-4 text-xs ${textSecondary} opacity-80`}>{t('planner.notesKeysHint')}</p>
+            </div>
           </aside>
         );
         if (hyperPage) return isMobile ? hyperPageBody : <div className="flex-1 min-h-0 flex">{hyperPageBody}</div>;
-        return isMobile ? body : <div className="flex-1 min-h-0 flex">{body}{aside}</div>;
+        return isMobile ? body : <div ref={planRowRef} className="flex-1 min-h-0 flex">{body}{aside}</div>;
         })()}
       </div>
     </div>

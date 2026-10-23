@@ -81,6 +81,13 @@ editing and completing it need a CalDAV write MCP does not perform, so those are
 Blocks and inbox items carry `assignee_id` when the task is assigned (multi-user), and inbox
 items carry `duration_minutes`, the duration scheduling will default to.
 
+**`created_at` and `completed_at`** ride every inbox item and every `task` and `recurring_task`
+block (not events or routines). Each is `{ date, time }` on the machine's local clock (`date`
+strict `YYYY-MM-DD`, `time` `HH:MM`, or `null` for an old completion recorded as a date only), or
+`null` when not known. `created_at` is null for tasks made before dayGLANCE recorded creation
+times; they are never backfilled. A recurring occurrence reports the series' creation and that
+date's completion. `completed_at` is null on an open task.
+
 **`daily_note` rides every day read.** `dayglance_get_today`, `dayglance_get_day` and the
 schedule resources return `daily_note`: `{ text, last_modified }` for the user's note on that
 date as dayGLANCE shows it, or `null` when the date has no note. `last_modified` is present only
@@ -143,8 +150,8 @@ exclusion applies here, not a filter argument, and `bucketId` never appears on t
 | `include_completed` | boolean | no | Default `true`. Pass `false` for open tasks only. |
 
 Returns `{ items, truncated, next_cursor, total, timezone }`. Items carry `id`, `title`,
-`priority` (0–3), `completed`, `duration_minutes`, and `deadline` / `project_id` / `notes` /
-`assignee_id` / `subtasks` when set.
+`priority` (0–3), `completed`, `created_at`, `completed_at`, `duration_minutes`, and `deadline` /
+`project_id` / `notes` / `assignee_id` / `subtasks` when set.
 
 Filtering happens before pagination: `total`, `truncated`, and `next_cursor` always describe
 the **filtered** set. A filter matching nothing returns an empty list with `total: 0`, not an
@@ -180,8 +187,9 @@ Each goal: `id`, `title`, `status`, `description`, `start_date`, `target_date` (
 `progress_percent`, `projects`, plus when present `area_id` and `area_name`, `assignee_ids`
 (multi-user), and `obsidian_note` (`{ path, name, missing }`). Each project: `id`, `title`,
 `status`, `description`, `progress_percent` (null when nothing is measurable), `tasks_done`,
-`tasks_total`, plus when present `goal_id`, `assignee_ids`, `obsidian_note`. Standalone projects
-are listed under `standalone_projects`.
+`tasks_total`, plus when present `goal_id`, `target_date` (the project's own due date,
+`YYYY-MM-DD`), `assignee_ids`, `obsidian_note`. Standalone projects are listed under
+`standalone_projects`.
 
 **A goal or project with `obsidian_note` keeps its description in that note's opening section**
 (companion spec §4.3). This tool reads it from the note: such an entity carries
@@ -433,6 +441,7 @@ assignees at creation and follows neither afterwards (the form's inheritance).
 | `title` | string | yes | |
 | `goal_id` | string | no | Omit for standalone. Unknown → `not_found`. |
 | `description` | string | no | The project's notes box. |
+| `target_date` | string | no | Local `YYYY-MM-DD` — the project's own due date, matching a goal's target date. Independent of its tasks' deadlines. |
 | `assignee_ids` | string[] | no | **Multi-user only.** Overrides the inheritance. |
 | `idempotency_key` | string | no | |
 
@@ -446,9 +455,10 @@ Field editor for projects, same contract.
 | `description` | string | no | On a project with `obsidian_note`, the opening section of that note (see below). |
 | `description_base` | string | no | As on `dayglance_update_goal`. |
 | `goal_id` | string | no | Move under another goal. `"goal"` in `clear_fields` makes it standalone. |
+| `target_date` | string | no | Local `YYYY-MM-DD` — the project's own target date. `"target_date"` in `clear_fields` removes it. |
 | `status` | `'active'` \| `'completed'` | no | `'archived'` → `validation`. Completing requires every task in the project to be completed. |
 | `assignee_ids` | string[] | no | **Multi-user only.** |
-| `clear_fields` | string[] | no | `"description"`, `"goal"`, `"assignees"` (multi-user). |
+| `clear_fields` | string[] | no | `"description"`, `"goal"`, `"assignees"` (multi-user), `"target_date"`. |
 | `idempotency_key` | string | no | |
 
 **Descriptions in linked notes.** For a goal or project with `obsidian_note`, `description` on

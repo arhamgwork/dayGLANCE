@@ -16,8 +16,7 @@
 
 import { stripWikilinksAndTags, extractTags } from './taskUtils.js';
 import { taskColorToHex } from './colorUtils.js';
-import { calculateGoalProgress } from './goalProgress.js';
-import { buildWidgetGoalsProjects } from './widgetGoalsProjects.js';
+import { buildWidgetGoalsProjects, buildWidgetDueOn } from './widgetGoalsProjects.js';
 import { buildScheduleSections, serializeWidgetTask } from './widgetDayProjection.js';
 import { computeSkySnapshot, projectDialSnapshot } from './dayDial.js';
 import { computeDaySummary } from './daySummary.js';
@@ -185,17 +184,12 @@ export function buildWidgetSnapshot({
   const allTasksCombined = [...tasks, ...unscheduledTasks].filter(isVisibleForUser);
   const visibleProjects = projects.filter(isVisibleForUser);
   const visibleGoals = goals.filter(isVisibleForUser);
-  const goalItems = goalsProjectsEnabled
-    ? visibleGoals
-        .filter(g => g.status === 'active' && g.targetDate === todayStr)
-        .map(g => {
-          const progressPct = Math.round(calculateGoalProgress(g.id, visibleProjects, allTasksCombined) * 100);
-          const childProjects = visibleProjects.filter(p => p.goalId === g.id && p.status !== 'archived');
-          const totalTasks = allTasksCombined.filter(task => childProjects.some(p => p.id === task.projectId) && !task.archived).length;
-          const completedTasks = allTasksCombined.filter(task => childProjects.some(p => p.id === task.projectId) && !task.archived && task.completed).length;
-          return { id: g.id, title: g.title, progressPct, totalTasks, completedTasks };
-        })
-    : [];
+  // Goals and projects due today (utils/widgetGoalsProjects.js): projects
+  // ride their own list so a widget that does not know them is unchanged.
+  const dueToday = goalsProjectsEnabled
+    ? buildWidgetDueOn({ goals: visibleGoals, projects: visibleProjects, tasks: allTasksCombined, dateStr: todayStr })
+    : { goals: [], projects: [] };
+  const goalItems = dueToday.goals;
 
   // ── Next Task (for Up Next widget) ───────────────────────────────────
   // Scheduled, non-completed tasks that haven't ended yet (in progress or
@@ -341,6 +335,7 @@ export function buildWidgetSnapshot({
     overdueToday: overdueTodayItems,
     habits: habitItems,
     goals: goalItems,
+    projectsDue: dueToday.projects,
     allGoals,
     allProjects,
     allDay: allDayItems,

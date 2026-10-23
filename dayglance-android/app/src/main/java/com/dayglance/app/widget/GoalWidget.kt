@@ -145,16 +145,9 @@ class GoalWidget : AppWidgetProvider() {
         // push-time value is only a fallback for a goal whose target date does
         // not parse. Not shown at all on a stale snapshot.
         val targetDate = goal.optString("targetDate", "")
-        val daysUntilDue = WidgetFreshnessRules.parseDay(targetDate)
-            ?.let { java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), it).toInt() }
-            ?: (if (goal.isNull("daysUntilDue")) null else goal.optInt("daysUntilDue"))
+        val daysUntilDue = WidgetDueRules.daysUntil(targetDate, WidgetDueRules.pushedDays(goal), java.time.LocalDate.now())
         if (showDueBadge && daysUntilDue != null && targetDate.isNotEmpty()) {
-            val dueLabel = when {
-                daysUntilDue < 0  -> context.getString(R.string.widget_due_overdue, -daysUntilDue)
-                daysUntilDue == 0 -> context.getString(R.string.widget_due_today)
-                else              -> context.getString(R.string.widget_due_left, daysUntilDue)
-            }
-            views.setTextViewText(R.id.tv_goal_widget_due, dueLabel)
+            views.setTextViewText(R.id.tv_goal_widget_due, dueLabel(context, daysUntilDue))
             views.setViewVisibility(R.id.tv_goal_widget_due, View.VISIBLE)
         } else {
             views.setViewVisibility(R.id.tv_goal_widget_due, View.GONE)

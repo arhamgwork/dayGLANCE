@@ -182,6 +182,9 @@ export function buildLauncherSnapshot({
     ? projects.map(p => ({
       id: String(p.id), title: p.title || '', goalId: p.goalId || null,
       colorHex: taskColorToHex(p.color), description: p.description || '', status: p.status || 'active',
+      // The project's own target date (#2160), the same field and form a goal
+      // row carries: a local YYYY-MM-DD, or null.
+      targetDate: p.targetDate || null,
     }))
     : [];
 

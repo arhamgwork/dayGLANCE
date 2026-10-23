@@ -14,8 +14,9 @@ vi.mock('./phoneNumber.js', async (importOriginal) => {
   return { ...actual, canDialHere: () => dialable };
 });
 
-const { isPhoneOnlyTask, isLinkOnlyTask, getLinkUrl, openNoteAction } =
+const { isPhoneOnlyTask, isLinkOnlyTask, getLinkUrl, openNoteAction, noteIconFor } =
   await import('./textFormatting.jsx');
+const { ExternalLink, FileText, Phone } = await import('lucide-react');
 
 const phoneTask = (over = {}) => ({ id: 't1', title: 'Call the dentist', notes: '+1 (415) 555-0134', ...over });
 const linkTask = (over = {}) => ({ id: 't2', title: 'Read this', notes: 'https://example.com/a', ...over });
@@ -28,6 +29,8 @@ describe('phone-note affordance (dialable platform)', () => {
     expect(isPhoneOnlyTask(phoneTask())).toBe(true);
     expect(isLinkOnlyTask(phoneTask())).toBe(true);
     expect(getLinkUrl(phoneTask())).toBe('tel:+14155550134');
+    expect(noteIconFor(phoneTask())).toBe(Phone);
+    expect(noteIconFor(linkTask())).toBe(ExternalLink);
   });
 
   it('subtasks disable the affordance, same as for links', () => {
@@ -64,6 +67,7 @@ describe('phone-note affordance (desktop: not dialable)', () => {
     expect(isLinkOnlyTask(phoneTask())).toBe(false);
     // getLinkUrl falls back to the raw note (its pre-feature behavior).
     expect(getLinkUrl(phoneTask())).toBe('+1 (415) 555-0134');
+    expect(noteIconFor(phoneTask())).toBe(FileText);
   });
 
   it('URL notes are unaffected by the capability gate', () => {

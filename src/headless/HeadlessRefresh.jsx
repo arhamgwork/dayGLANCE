@@ -9,8 +9,9 @@
 //     (useDataPersistence, useSaveOnChange), the day windows and the JOBO
 //     ledger, which the sync apply writes through;
 //   - both sync tiers: the file-tier engine (sync/adapter.js) and the
-//     GLANCEvault engine (sync/dbEngine.js), with the same payload and apply
-//     the app uses (hooks/useSyncEngineData.js);
+//     GLANCEvault engine (sync/dbEngine.js), built and wired the way the app
+//     builds them (hooks/useSyncEngines.js), with the same payload and apply
+//     (hooks/useSyncEngineData.js);
 //   - the launcher snapshot and heartbeat push (utils/launcherSnapshot.js,
 //     utils/launcherHeartbeat.js).
 // Nothing else initialises: no calendar fetch, no Obsidian, no reminders, no
@@ -36,10 +37,9 @@ import useSaveOnChange from '../hooks/useSaveOnChange.js';
 import useDayWindows from '../hooks/useDayWindows.js';
 import useJoboLedger from '../hooks/useJoboLedger.js';
 import useSyncEngineData from '../hooks/useSyncEngineData.js';
+import { useFileSyncEngine, useVaultSyncEngine } from '../hooks/useSyncEngines.js';
 import { createDayGlanceEngine } from '../sync/adapter.js';
 import { createDbEngine } from '../sync/dbEngine.js';
-import { registerDbEngine } from '../sync/dirtyTracker.js';
-import { isVaultEnabled } from '../sync/vaultConfig.js';
 import { normalizeSyncFolder } from '../utils/syncFolder.js';
 import { buildLauncherSnapshot } from '../utils/launcherSnapshot.js';
 import { latestSyncedAt } from '../utils/launcherHeartbeat.js';
@@ -122,9 +122,16 @@ export default function HeadlessRefresh({
     applyingRemoteDataRef, suppressClearPendingRef, suppressCloudUploadRef, suppressTimestampRef,
     applyRemoteDayWindows, applyRemoteJobo, stampTaskTimestamps,
   });
-  // The engines call through this ref so they always run the latest closures.
+  // The engines call through this ref so they always run the latest closures
+  // (the same shape App gives them, hooks/useSyncEngines.js).
   const callbacksRef = useRef({});
-  callbacksRef.current = { buildSyncPayload, applyEngineData, multiUserEnabled, syncRetentionDays };
+  callbacksRef.current = {
+    buildPayload: buildSyncPayload,
+    buildBackupPayload: buildSyncPayload,
+    applyPayload: applyEngineData,
+    multiUserEnabled,
+    syncRetentionDays,
+  };
 
   // What stopped a cycle, when the engine reports it rather than throwing:
   // a first-sync conflict, a missing passphrase, a transport error. Both
@@ -136,44 +143,30 @@ export default function HeadlessRefresh({
     if (!msg && !code) return;
     blockerRef.current = `${tier}: ${code || ''} ${msg || ''}`.trim();
   };
+  // The app's engines (hooks/useSyncEngines.js), with only the reports wired:
+  // no status UI, no cadence, no conflict dialog.
   const fileEngineRef = useRef(null);
-  const syncFolder = normalizeSyncFolder(cloudSyncConfig?.syncFolder);
-  if (!fileEngineRef.current && cloudSyncConfig?.enabled) {
-    fileEngineRef.current = createFileEngine({
-      buildPayload: () => callbacksRef.current.buildSyncPayload(),
-      buildBackupPayload: () => callbacksRef.current.buildSyncPayload(),
-      applyPayload: (data, opts) => callbacksRef.current.applyEngineData(data, opts),
-      onStatusChange: noop,
+  const vaultEngineRef = useRef(null);
+  useFileSyncEngine({
+    callbacksRef,
+    engineRef: fileEngineRef,
+    syncFolder: normalizeSyncFolder(cloudSyncConfig?.syncFolder),
+    enabled: !!cloudSyncConfig?.enabled,
+    createEngine: createFileEngine,
+    handlers: {
       onError: noteError('file tier'),
-      onLastSyncedChange: noop,
       onConflict: () => { blockerRef.current = 'file tier: first sync needs the user to resolve a conflict'; },
       onPassphraseRequired: () => { blockerRef.current = 'passphrase required'; },
       // The app reloads to show the remote data; here it is already in state.
-      onFirstSyncReload: noop,
-      getSyncRetentionDays: () => callbacksRef.current.syncRetentionDays ?? 90,
-    }, { appFolderName: syncFolder });
-  }
-
-  const vaultEngineRef = useRef(null);
-  useEffect(() => {
-    if (!dataLoaded || !isVaultEnabled()) return;
-    const engine = createVaultEngine({
-      getData: () => callbacksRef.current.buildSyncPayload()?.data,
-      commitData: (data) => callbacksRef.current.applyEngineData(data, { allowEmpty: true }),
-      isMultiUserEnabled: () => callbacksRef.current.multiUserEnabled === true,
-      onStatusChange: noop,
-      onError: noteError('vault'),
-      onRowsSkipped: noop,
-    });
-    if (!engine) return;
-    vaultEngineRef.current = engine;
-    registerDbEngine(engine);
-    return () => {
-      registerDbEngine(null);
-      engine.dispose?.();
-      vaultEngineRef.current = null;
-    };
-  }, [dataLoaded, createVaultEngine]);
+    },
+  });
+  useVaultSyncEngine({
+    callbacksRef,
+    engineRef: vaultEngineRef,
+    dataLoaded,
+    createEngine: createVaultEngine,
+    handlers: { onError: noteError('vault') },
+  });
 
   // ── The run ──────────────────────────────────────────────────────────────
   const [phase, setPhase] = useState('loading'); // loading | syncing | synced | done

@@ -1,12 +1,10 @@
 import React from 'react';
 import {
-  BookOpen, Check, CheckSquare, Clock, ExternalLink,
-  FileText, GripVertical, Inbox, MoreHorizontal,
-  RefreshCw, Settings, SkipForward, Trash2,
-  Phone,
+  Check, Clock, FileText, GripVertical, Inbox, MoreHorizontal, RefreshCw,
+  Settings, SkipForward, Trash2,
 } from 'lucide-react';
 import { isNativeAndroid } from '../native.js';
-import { renderTitle, getLinkUrl, hasNotesOrSubtasks, isLinkOnlyTask, hasOnlySubtasks, isObsidianNoteOnlyTask, openNoteAction, isPhoneOnlyTask } from '../utils/textFormatting.jsx';
+import { renderTitle, hasNotesOrSubtasks, isLinkOnlyTask, openNoteAction, NoteIcon, isTaskLinkOnlyTask } from '../utils/textFormatting.jsx';
 import { dateToString, extractWikilinks } from '../utils/taskUtils.js';
 import { useDayPlannerCtx } from '../context/DayPlannerContext.jsx';
 import DayWindowMarkers from './DayWindowMarkers.jsx';
@@ -423,8 +421,8 @@ const MobileTimeGrid = ({ barsMode = false, barsOverlay = null, onLaneTap, planO
                   }}
                   className={`notes-toggle-button hover:bg-white/20 rounded p-1 transition-colors ${inMenu ? 'flex items-center gap-2 w-full' : ''} ${hasNotesOrSubtasks(task) || extractWikilinks(task.title).length > 0 ? '' : 'opacity-40'}`}
                 >
-                  {isPhoneOnlyTask(task) ? <Phone size={14} /> : isLinkOnlyTask(task) ? <ExternalLink size={14} /> : hasOnlySubtasks(task) ? <CheckSquare size={14} /> : isObsidianNoteOnlyTask(task) ? <BookOpen size={14} /> : <FileText size={14} />}
-                  {inMenu && <span className="text-xs">{isLinkOnlyTask(task) ? t('task.openLink') : t('task.notes')}</span>}
+                  <NoteIcon task={task} size={14} />
+                  {inMenu && <span className="text-xs">{isTaskLinkOnlyTask(task) ? t('task.openLinkedTask') : isLinkOnlyTask(task) ? t('task.openLink') : t('task.notes')}</span>}
                 </button>
                 {task.recurrenceType !== 'daily' && (
                   <button

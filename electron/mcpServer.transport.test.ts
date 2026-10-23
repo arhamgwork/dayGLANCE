@@ -377,6 +377,58 @@ describe('the guards in front of a write, on the real request path', () => {
   });
 });
 
+describe('project writes carry the project-level target date (2026-10-21)', () => {
+  // A project's own target date, separate from any task's deadline. What the
+  // transport must prove is that the plan reaches the renderer shaped and that
+  // a malformed date is refused at the edge, before the bridge is asked.
+  const projectScript: Script = {
+    ...okScript,
+    create_project: (p) => {
+      const params = p as { projectId: string; title: string; targetDate?: string };
+      return { ok: true, data: { project: { id: params.projectId, title: params.title, ...(params.targetDate ? { target_date: params.targetDate } : {}) } } };
+    },
+    update_project: (p) => {
+      const params = p as { projectId: string; set?: { targetDate?: string } };
+      return { ok: true, data: { project: { id: params.projectId, title: 'Roof', ...(params.set?.targetDate ? { target_date: params.set.targetDate } : {}) } } };
+    },
+  };
+
+  it('create_project reaches the bridge with the target date in the plan', async () => {
+    const bridge = fakeBridge(projectScript);
+    const h = await start({ writeDeps: writeDeps(bridge.bridge) });
+    try {
+      const client = await h.connect();
+      const r = await client.callTool({ name: 'dayglance_create_project', arguments: { title: 'Roof', target_date: '2026-12-01' } });
+      expect(r.isError).toBeFalsy();
+      expect(bridge.calls).toHaveLength(1);
+      expect(bridge.calls[0]).toMatchObject({ method: 'create_project', params: { title: 'Roof', targetDate: '2026-12-01' } });
+      expect(body(r)).toMatchObject({ project: { title: 'Roof', target_date: '2026-12-01' } });
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('update_project sets it, clears it by name, and refuses a malformed date before the bridge', async () => {
+    const bridge = fakeBridge(projectScript);
+    const h = await start({ writeDeps: writeDeps(bridge.bridge) });
+    try {
+      const client = await h.connect();
+      const set = await client.callTool({ name: 'dayglance_update_project', arguments: { project_id: 'p1', target_date: '2026-12-01' } });
+      expect(set.isError).toBeFalsy();
+      expect(bridge.calls[0]).toMatchObject({ method: 'update_project', params: { projectId: 'p1', set: { targetDate: '2026-12-01' }, clear: [] } });
+      const cleared = await client.callTool({ name: 'dayglance_update_project', arguments: { project_id: 'p1', clear_fields: ['target_date'] } });
+      expect(cleared.isError).toBeFalsy();
+      expect(bridge.calls[1]).toMatchObject({ method: 'update_project', params: { projectId: 'p1', clear: ['target_date'] } });
+      const bad = await client.callTool({ name: 'dayglance_update_project', arguments: { project_id: 'p1', target_date: '2026-12-1' } });
+      expect(bad.isError).toBe(true);
+      expect(body(bad)).toMatchObject({ error: { code: 'validation' } });
+      expect(bridge.calls).toHaveLength(2);
+    } finally {
+      await h.close();
+    }
+  });
+});
+
 describe('repeating tasks over the wire (#2066)', () => {
   const seriesScript: Script = {
     ...okScript,

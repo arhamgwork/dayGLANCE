@@ -1,12 +1,10 @@
 import React, { useLayoutEffect, useReducer, useRef } from 'react';
 import {
-  BookOpen, Check, CheckSquare, Clock, ExternalLink,
-  FileText, GripVertical, Inbox, MapPin, MoreHorizontal,
-  Pencil, RefreshCw, Settings, SkipForward, Trash2,
-  Phone,
+  Check, Clock, GripVertical, Inbox, MapPin, MoreHorizontal, Pencil,
+  RefreshCw, Settings, SkipForward, Trash2,
 } from 'lucide-react';
 import { isNativeAndroid, nativeUpdateEvent } from '../native.js';
-import { renderTitleWithoutTags, getLinkUrl, hasNotesOrSubtasks, isLinkOnlyTask, hasOnlySubtasks, isObsidianNoteOnlyTask, openNoteAction, isPhoneOnlyTask } from '../utils/textFormatting.jsx';
+import { hasNotesOrSubtasks, isLinkOnlyTask, openNoteAction, NoteIcon, noteActionTarget, isTaskLinkOnlyTask } from '../utils/textFormatting.jsx';
 import { formatHourLabel } from '../utils/timeFormatting.jsx';
 import { dateToString, extractTags, extractWikilinks, stripWikilinks } from '../utils/taskUtils.js';
 import SuggestionAutocomplete from './SuggestionAutocomplete.jsx';
@@ -22,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import PastDoCard from './jobo/PastDoCard.jsx';
 import useTimelineZoom from '../hooks/useTimelineZoom.js';
 import { SCROLLING_HOUR_PX } from '../utils/timelineZoom.js';
+import { cardDoubleClickHandler } from '../utils/cardDoubleClick.js';
 
 const TimeGrid = () => {
   const {
@@ -388,10 +387,10 @@ const TimeGrid = () => {
                     }
                   }}
                   className={`hover:bg-white/20 rounded p-1 transition-colors ${inMenu ? 'flex items-center gap-2 w-full' : ''} ${hasNotesOrSubtasks(task) || extractWikilinks(task.title).length > 0 ? '' : 'opacity-40'}`}
-                  title={isLinkOnlyTask(task) ? `${getLinkUrl(task)} (hold to edit)` : "Notes & subtasks"}
+                  title={isLinkOnlyTask(task) ? `${noteActionTarget(task)} (hold to edit)` : "Notes & subtasks"}
                 >
-                  {isPhoneOnlyTask(task) ? <Phone size={14} /> : isLinkOnlyTask(task) ? <ExternalLink size={14} /> : hasOnlySubtasks(task) ? <CheckSquare size={14} /> : isObsidianNoteOnlyTask(task) ? <BookOpen size={14} /> : <FileText size={14} />}
-                  {inMenu && <span className="text-xs">{isLinkOnlyTask(task) ? 'Open Link' : 'Notes'}</span>}
+                  <NoteIcon task={task} size={14} />
+                  {inMenu && <span className="text-xs">{isTaskLinkOnlyTask(task) ? t('task.openLinkedTask') : isLinkOnlyTask(task) ? 'Open Link' : 'Notes'}</span>}
                 </button>
             );
 
@@ -487,6 +486,8 @@ const TimeGrid = () => {
                     dateStr,
                   });
                 }}
+                // A double-click opens the editor (utils/cardDoubleClick.js).
+                onDoubleClick={cardDoubleClickHandler({ task, isImported, isTablet, open: (target) => openMobileEditTask(target, false) })}
                 draggable={(!isImported || task.isTaskCalendar || !!task.nativeEventId) && !isTablet}
                 onDragStart={(e) => (!isImported || task.isTaskCalendar || !!task.nativeEventId) && handleDragStart(task, 'calendar', e)}
                 onDragEnd={handleDragEnd}
@@ -561,6 +562,7 @@ const TimeGrid = () => {
                   {/* Resize handle at bottom - solid white for visibility */}
                   {(!isImported || !!task.nativeEventId) && (
                     <div
+                      data-no-card-dblclick
                       onMouseDown={(e) => handleResizeStart(task, e)}
                       onTouchStart={(e) => handleTouchResizeStart(task, e)}
                       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}

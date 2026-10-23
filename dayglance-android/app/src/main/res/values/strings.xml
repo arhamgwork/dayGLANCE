@@ -23,6 +23,7 @@
     <!-- Agenda widget sections and badges (render-time labels; Kotlin logic
          keys on the English constants) -->
     <string name="section_goals">GOALS</string>
+    <string name="section_projects">PROJECTS</string>
     <string name="section_overdue">OVERDUE</string>
     <string name="section_all_day">ALL DAY</string>
     <string name="section_scheduled">SCHEDULED</string>
