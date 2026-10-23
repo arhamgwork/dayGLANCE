@@ -365,7 +365,11 @@ export default function useDragDrop({
     setDragPreviewTime(null);
     setDragOverAllDay(null);
     setDragOverRecycleBin(false);
-    setDragOverInbox(true);
+    // Only a task drag can land here (handleDropOnInbox drops anything else),
+    // so only a task drag lights the zone. A subtask being reordered inside an
+    // Inbox card bubbles its dragover up to here, and its drop and dragend stop
+    // inside the panel, so a ring lit for it would never be cleared (#2187).
+    setDragOverInbox(!!draggedTask);
     // Clear auto-scroll when over inbox
     if (autoScrollInterval.current) {
       clearInterval(autoScrollInterval.current);
@@ -380,7 +384,8 @@ export default function useDragDrop({
     setDragPreviewTime(null);
     setDragOverAllDay(null);
     setDragOverInbox(false);
-    setDragOverRecycleBin(true);
+    // As for the Inbox: only a task drag can be dropped here.
+    setDragOverRecycleBin(!!draggedTask);
     // Clear auto-scroll when over recycle bin
     if (autoScrollInterval.current) {
       clearInterval(autoScrollInterval.current);
