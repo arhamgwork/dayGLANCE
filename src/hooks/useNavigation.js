@@ -4,6 +4,7 @@ import { getNextOccurrence } from '../utils/recurrenceEngine.js';
 import { shiftDateByMonths } from '../utils/monthGrid.js';
 import { shiftWeekStripDate } from '../utils/weekViewDates.js';
 import { stepDayView } from '../utils/dayViewColumns.js';
+import { revealTask } from './useIncrementalList.js';
 
 export default function useNavigation({
   visibleDays,
@@ -88,10 +89,17 @@ export default function useNavigation({
     closePlanner();
     const { task, source } = result;
 
-    const scrollAndHighlight = (selector, delay = 300) => {
+    // `ownScroller`: the row is not on the calendar (an Inbox task), so it is
+    // scrolled into view in whatever list holds it, not the calendar's
+    // container (which left a task far down the Inbox off screen).
+    const scrollAndHighlight = (selector, delay = 300, { ownScroller = false } = {}) => {
       setTimeout(() => {
         const el = document.querySelector(selector);
-        if (el && calendarRef.current) {
+        if (el && ownScroller) {
+          el.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+          el.classList.add('ring-2', 'ring-blue-400');
+          setTimeout(() => el.classList.remove('ring-2', 'ring-blue-400'), 2000);
+        } else if (el && calendarRef.current) {
           const container = calendarRef.current;
           const elTop = el.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
           const scrollTarget = Math.max(0, elTop - container.clientHeight / 2 + el.offsetHeight / 2);
@@ -118,7 +126,9 @@ export default function useNavigation({
       }
       // Apply project filter for project tasks; clear it for plain inbox tasks
       setInboxProjectFilter(task.projectId ? [task.projectId] : []);
-      scrollAndHighlight(`[data-task-id="${task.id}"]`);
+      // The Inbox renders a part at a time: make sure this row is rendered.
+      revealTask(task.id);
+      scrollAndHighlight(`[data-task-id="${task.id}"]`, 300, { ownScroller: true });
     } else if (source === 'archived') {
       if (isMobile) {
         setMobileActiveTab('inbox');
