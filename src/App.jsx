@@ -44,7 +44,7 @@ import { latestSyncedAt } from './utils/launcherHeartbeat.js';
 import { readLauncherLedger } from './intents/launcherWrites.js';
 import { runLauncherRefreshCycle } from './intents/launcherRefreshCycle.js';
 import { buildWidgetSnapshot, readCachedSteps } from './utils/widgetSnapshot.js';
-import { loadAlarmPrefs } from './utils/dialPrefs.js';
+import { loadAlarmPrefs, loadDialLayers } from './utils/dialPrefs.js';
 import { buildProjectedDay, projectionDates, guardSnapshotSize } from './utils/widgetDayProjection.js';
 import { computeRecurringExpansionRange } from './utils/recurringExpansionRange.js';
 import { parseRecurringId } from './utils/recurringId.js';
@@ -6951,6 +6951,7 @@ const DayPlanner = () => {
       weatherHourlyByDate: weather?.hourlyByDate ?? null,
       weatherTempUnit,
       dialAlarm: loadAlarmPrefs(),
+      dialLayers: loadDialLayers(),
       use24Hour: use24HourClock,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       updatedAt: Date.now(),

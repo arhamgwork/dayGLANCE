@@ -9,7 +9,7 @@ import { computeDayAlignment, computeDayCompletion, computeDaylightBand, compute
 import { acquireWakeLock, releaseWakeLock } from '../utils/wakeLock.js';
 import { isNativeAndroid, isNativeApp, nativeGetNextAlarm, nativeSetImmersiveMode } from '../native.js';
 import {
-  ALARM_FROM_OPTIONS, AMBIENT_DELAY_OPTIONS, loadAlarmPrefs, loadAmbientPrefs, saveAlarmPrefs, saveAmbientPrefs,
+  ALARM_FROM_OPTIONS, AMBIENT_DELAY_OPTIONS, loadAlarmPrefs, loadAmbientPrefs, loadDialLayers, saveAlarmPrefs, saveAmbientPrefs, saveDialLayers,
 } from '../utils/dialPrefs.js';
 import { dialAlarmMark } from '../utils/nextAlarm.js';
 import DayDial from './DayDial.jsx';
@@ -32,18 +32,8 @@ const CHROME_HIDE_MS = 5_000;
 // A browsed date returns to today after this much inactivity.
 const IDLE_RETURN_MS = 5 * 60_000;
 
-// Layer visibility — a device-local view preference (same class as the
-// summary strip's collapse state): a wall panel and a phone reasonably want
-// different layers, so this deliberately does not ride the sync payload.
-const DIAL_LAYERS_KEY = 'day-planner-dial-layers';
-const DEFAULT_LAYERS = { solar: true, weather: true, calendars: true, routines: true, focus: true, frames: true };
-const loadLayers = () => {
-  try {
-    return { ...DEFAULT_LAYERS, ...JSON.parse(localStorage.getItem(DIAL_LAYERS_KEY) || '{}') };
-  } catch {
-    return DEFAULT_LAYERS;
-  }
-};
+// Layer visibility: a device-local view preference (utils/dialPrefs.js), which
+// the GLANCElauncher's dial on this device follows too.
 
 // Complications — which readouts ride the face, in the order they were
 // switched on (that order IS the slot order: top-left, top-right,
@@ -454,11 +444,11 @@ const DayDialModal = () => {
 
   // Layer toggles: solar marks, weather ring, imported calendar events.
   // Persisted per device; the panel opens from the Layers chrome button.
-  const [layers, setLayers] = useState(loadLayers);
+  const [layers, setLayers] = useState(loadDialLayers);
   const [showLayers, setShowLayers] = useState(false);
   const setLayer = (key, value) => setLayers((prev) => {
     const next = { ...prev, [key]: value };
-    try { localStorage.setItem(DIAL_LAYERS_KEY, JSON.stringify(next)); } catch { /* view pref only */ }
+    saveDialLayers(next);
     return next;
   });
   // Esc closes the panel before the dial (capture phase, same pattern as

@@ -53,7 +53,7 @@ import { isTaskVisibleForUser, isOwnedBy } from '../utils/userScope.js';
 import { readWeekStartDay, readCalendarFilter, readNativeTimeOverrides } from '../utils/storedSlices.js';
 import { getStoredWeatherCoords } from '../utils/solar.js';
 import { fetchHourlyForecast } from '../utils/weatherForecast.js';
-import { loadAlarmPrefs } from '../utils/dialPrefs.js';
+import { loadAlarmPrefs, loadDialLayers } from '../utils/dialPrefs.js';
 import { dateToString } from '../utils/taskUtils.js';
 
 const noop = () => {};
@@ -275,6 +275,7 @@ export default function HeadlessRefresh({
           weatherHourlyByDate,
           weatherTempUnit,
           dialAlarm: loadAlarmPrefs(),
+          dialLayers: loadDialLayers(),
           use24Hour: use24HourClock,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           updatedAt: Date.now(),

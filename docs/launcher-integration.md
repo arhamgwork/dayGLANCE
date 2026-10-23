@@ -29,13 +29,21 @@ same trigger (every data change while the app runs), and pushes through
   frames:   [{ id, frameId, date, start, end, name, colorHex }],       // per day, today-7 to today+34
   dayShape: { dayStartMin, dayStopMin, sunriseMin, sunsetMin, use24HourClock,
               lat, lon,                                  // the weather location, for the moon and solar elevation
-              dialAlarm: { on, fromMin } },              // the dial's alarm-mark prefs
+              dialAlarm: { on, fromMin },               // the dial's alarm-mark prefs
+              dialLayers: { solar, weather, calendars, routines, frames } },   // the dial's layer toggles (below)
   weather:  [{ id: date, date, unit: "fahrenheit"|"celsius",
                hours: [{ hour, temp, code, uv }] }],      // one row per forecast date, as the dial's ring reads it
   handledWrites: [{ clientId, taskId, action, at }],
   deviceCalendar: { filter, overrides, daysBefore, daysAfter },   // how the provider reads the calendar itself (below)
   carryDeviceEvents: true }                       // headless only: this snapshot could not read the calendar
 ```
+
+**`dayShape.dialLayers`** is the app dial's layer toggles on this device
+(`utils/dialPrefs.js`, the dial's Layers panel), so the launcher's dial draws
+what the app's dial does: sun and moon, the weather ring, imported calendar
+events, routines and frames. Focus is left out (the launcher has no focus
+data). Device-local like the toggles themselves, and read from the same
+storage by the headless refresh; a build that sends none means every layer on.
 
 **`inboxCount`** is the number the app's own Inbox badge and dial complication
 show: the Inbox through the user's filters (priority, project, tag, completed,
