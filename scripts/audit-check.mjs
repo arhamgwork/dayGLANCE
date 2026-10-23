@@ -74,7 +74,9 @@ const ACK = {
     review: '2026-12-31',
   },
   // Published 2026-10-23, along with GHSA-x562-297c-g43g (electron), which is
-  // FIXED by the move to ^43.7.6. This one is FIXED for the zod that ships
+  // FIXED by the move to ^43.7.6; GHSA-jr5w-w6x2-84p9 (electron, high, the
+  // compromised eMudhra intermediates), published hours later, is FIXED by the
+  // move to ^43.8.1 (43.8.3 resolved). This one is FIXED for the zod that ships
   // (MCP server, intents): package.json now asks for ^4.6.7, so that
   // copy cannot fall back into the affected range. What remains is jimp's:
   'GHSA-mrhx-c7xc-m3w5': {
