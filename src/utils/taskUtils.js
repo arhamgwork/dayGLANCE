@@ -76,7 +76,24 @@ export const tagsIn = (text) => [...String(text ?? '').matchAll(TAG_OR_ADDRESS)]
   .map((m) => m[2]);
 
 // Extract #hashtags from a task title (tags must start with a letter).
-export const extractTags = (title) => tagsIn(title).map(tag => tag.toLowerCase());
+//
+// Remembered by title (#2143): every tag list, filter and count re-reads every
+// title on each change, and most titles have not changed, so the regex ran
+// thousands of times per keystroke for the same answers. The arrays are
+// frozen because they are shared: a caller that wants to change one copies it.
+// The cache is bounded; past its size it starts over, which costs one pass.
+const TAG_CACHE_MAX = 20000;
+const tagCache = new Map();
+export const extractTags = (title) => {
+  const key = String(title ?? '');
+  let tags = tagCache.get(key);
+  if (!tags) {
+    if (tagCache.size >= TAG_CACHE_MAX) tagCache.clear();
+    tags = Object.freeze(tagsIn(key).map(tag => tag.toLowerCase()));
+    tagCache.set(key, tags);
+  }
+  return tags;
+};
 
 /** Drops every #tag from a text, leaving the whitespace around it and any web address whole. */
 export const stripTags = (text) => String(text ?? '').replace(TAG_OR_ADDRESS, (all, address) => (address ? all : ''));
