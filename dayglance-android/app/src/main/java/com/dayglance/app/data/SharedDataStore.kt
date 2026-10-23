@@ -151,7 +151,7 @@ class SharedDataStore(context: Context) {
     fun lastLauncherRefresh(): JSONObject? = launcherRefreshEntries().lastOrNull()
 
     /** Appends one refresh entry, keeping the log to the newest [MAX_LAUNCHER_REFRESH_LOG]. */
-    fun appendLauncherRefresh(entry: JSONObject) {
+    fun appendLauncherRefresh(entry: JSONObject) = synchronized(REFRESH_LOG_LOCK) {
         val entries = launcherRefreshEntries()
         entries.add(entry)
         writeLauncherRefreshLog(entries.takeLast(MAX_LAUNCHER_REFRESH_LOG))
@@ -167,11 +167,25 @@ class SharedDataStore(context: Context) {
 
     /** Merges [patch] into the entry with this client id (the web layer reporting an outcome). */
     fun updateLauncherRefresh(clientId: String, patch: JSONObject) {
-        val entries = launcherRefreshEntries()
-        val i = entries.indexOfLast { it.optString("clientId") == clientId }
-        if (i < 0) return
-        for (key in patch.keys()) entries[i].put(key, patch.get(key))
-        writeLauncherRefreshLog(entries)
+        updateLauncherRefreshIf(clientId) { patch }
+    }
+
+    /**
+     * Merges the patch [decide] returns for the entry with this client id, or
+     * nothing when it returns null; read and write under one lock, so the
+     * decision cannot be made against an answer that has since landed.
+     * Returns whether it wrote.
+     */
+    fun updateLauncherRefreshIf(clientId: String, decide: (JSONObject) -> JSONObject?): Boolean {
+        synchronized(REFRESH_LOG_LOCK) {
+            val entries = launcherRefreshEntries()
+            val i = entries.indexOfLast { it.optString("clientId") == clientId }
+            if (i < 0) return false
+            val patch = decide(entries[i]) ?: return false
+            for (key in patch.keys()) entries[i].put(key, patch.get(key))
+            writeLauncherRefreshLog(entries)
+            return true
+        }
     }
 
     private fun launcherRefreshEntries(): MutableList<JSONObject> {
@@ -464,6 +478,8 @@ class SharedDataStore(context: Context) {
         }
 
     companion object {
+        /** Guards the refresh log's read-modify-write: the receiver, the web layer and the workers each write it. */
+        private val REFRESH_LOG_LOCK = Any()
         private const val PREFS_NAME = "dayglance_shared"
         private const val KEY_VAULT_PATH = "obsidian_vault_path"
         private const val KEY_DIRECT_ACCESS_PATH = "direct_access_path"

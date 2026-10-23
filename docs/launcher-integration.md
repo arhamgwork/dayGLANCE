@@ -90,8 +90,9 @@ receiver routes it by liveness and logs every request with the liveness it saw:
 
 | Outcome | When |
 | --- | --- |
-| `queued` | the renderer is alive: queued and woken; the web layer runs every enabled tier to completion (one after the other), re-pushes, re-stamps the heartbeat, then reports `ran` (with `durationMs`) or `failed` (with `reason`) into the same entry |
+| `queued` | the renderer is alive: queued and woken; the web layer runs every enabled tier to completion (one after the other), re-pushes, re-stamps the heartbeat, then reports `ran` (with `durationMs`), `skipped` or `failed` (each with `reason`) into the same entry |
 | `coalesced` | a queued or scheduled refresh from the last minute has no outcome yet |
+| `unanswered` | a `queued` refresh the web layer did not answer while `LauncherAwakeWorker` held the app awake; `reason` says how long it held and how late the hold began (Android can hold the job itself back), `holdStartedAt` and `finishedAt` stamp it |
 | `scheduled` | no renderer in the process: a headless run is enqueued (below); the entry gains `startedAt`, `waitMs` and `headless: true` when it runs, then `ran`/`failed` from the web layer or `aborted`/`throttled`/`failed` from the worker |
 | `deferred` | no renderer, and the headless run could not be enqueued (`reason` says why) |
 
@@ -107,6 +108,19 @@ one WebView as it would on screen; there is no second WebView, unlike the
 headless path. Below Android 12 the job shows the same quiet notification as a
 headless run; in a restricted standby bucket it may itself wait, but no longer
 for the app to be opened.
+
+**`ran` means a cycle completed.** Both tiers return early, silently, while a
+cycle of theirs is in flight, and the vault does during a failure cooldown;
+REFRESH once took any return for a completed cycle. A cycle frozen mid-request
+then held the vault's in-flight guard, and every later REFRESH logged `ran` in
+a millisecond while nothing synced for eight hours (2026-10-22): the 1 ms
+answer also ended the keep-awake job at once, so the stuck cycle never got the
+running time to time out. Now (`src/intents/launcherRefreshCycle.js`) a vault
+cycle in flight is joined for up to 20 s, which keeps the job, and so the app,
+awake while it finishes, and is followed by a cycle of the REFRESH's own; one
+still running after that, a cooldown, a held-back pull or an engine not ready
+is `skipped` with the reason, and a cycle that failed without throwing is
+`failed`.
 
 **The headless run** (`launcher/LauncherRefreshWorker.kt`; `src/headless/` on
 the web side; the rules in CLAUDE.md, "Headless refresh"). An expedited,
