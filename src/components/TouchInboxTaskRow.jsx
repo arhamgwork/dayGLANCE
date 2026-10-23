@@ -35,7 +35,8 @@ function TouchInboxTaskRow({
   const wikilinks = extractWikilinks(task.title);
 
   return (
-    <div className="notes-panel-container">
+    // data-task-id: search finds and highlights the row (useNavigation).
+    <div className="notes-panel-container" data-task-id={task.id}>
       <div className={`relative rounded-lg ${(deadlinePickerOpen || (inlineNotes && notesOpen)) ? '' : 'overflow-hidden'}`}>
         {/* Swipe action strips */}
         <div data-swipe-strip="right" style={{ display: 'none' }} className={`absolute inset-0 ${darkMode ? 'bg-green-900/80 text-green-300' : 'bg-green-100 text-green-600'} rounded-lg flex items-center pl-3 text-xs font-medium`}>

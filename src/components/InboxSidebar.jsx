@@ -7,6 +7,7 @@ import { renderTitle, hasNotesOrSubtasks, isLinkOnlyTask, openNoteAction, NoteIc
 import { dateToString, extractWikilinks, formatDeadlineDate } from '../utils/taskUtils.js';
 import NotesSubtasksPanel from './NotesSubtasksPanel.jsx';
 import InboxTaskRow from './InboxTaskRow.jsx';
+import useIncrementalList from '../hooks/useIncrementalList.js';
 import SuggestionAutocomplete from './SuggestionAutocomplete.jsx';
 import DeadlinePickerPopover from './DeadlinePickerPopover.jsx';
 import InboxFilterPopover from './InboxFilterPopover.jsx';
@@ -114,6 +115,16 @@ const InboxSidebar = ({ variant = 'desktop' }) => {
     loadWikiNote, saveWikiNote, openInObsidian,
   };
 
+  // Rows render a part at a time (useIncrementalList, #2143): building every
+  // row on open froze a large Inbox. The tablet list leaves out examples.
+  const listTasks = useMemo(
+    () => (isDesktop ? filteredUnscheduledTasks : filteredUnscheduledTasks.filter(t => !t.isExample)),
+    [isDesktop, filteredUnscheduledTasks],
+  );
+  const { visible: visibleTasks, hasMore: moreTasks, sentinelRef: moreTasksRef } = useIncrementalList(listTasks, {
+    keep: [editingTaskId, expandedNotesTaskId, showDeadlinePicker],
+  });
+
   if (isDesktop) {
     return (
     <>
@@ -170,7 +181,7 @@ const InboxSidebar = ({ variant = 'desktop' }) => {
               : t('sched.noMatchingTasks')}
         </p>
       ) : (
-        filteredUnscheduledTasks.map(task => (
+        visibleTasks.map(task => (
         <InboxTaskRow
           key={task.id}
           task={task}
@@ -196,6 +207,7 @@ const InboxSidebar = ({ variant = 'desktop' }) => {
         />
       ))
     )}
+    {moreTasks && <div ref={moreTasksRef} data-inbox-more aria-hidden="true" className="h-px" />}
     </div>
   </div>
   <InboxFilterPopover
@@ -272,7 +284,7 @@ const InboxSidebar = ({ variant = 'desktop' }) => {
         )}
       </div>
     ) : (
-      filteredUnscheduledTasks.filter(t => !t.isExample).map(task => (
+      visibleTasks.map(task => (
         <TouchInboxTaskRow
           key={task.id}
           task={task}
@@ -289,6 +301,7 @@ const InboxSidebar = ({ variant = 'desktop' }) => {
         />
       ))
     )}
+    {moreTasks && <div ref={moreTasksRef} data-inbox-more aria-hidden="true" className="h-px" />}
   </div>
 </div>
   <InboxFilterPopover

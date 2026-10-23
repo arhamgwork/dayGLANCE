@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import Wordmark from './Wordmark';
 import {
   Activity, AlertCircle, AlertTriangle, Archive, BarChart3, Bell,
@@ -58,6 +58,7 @@ import { notBucketed } from '../utils/bucketList.js';
 import useGlanceFabs from '../hooks/useGlanceFabs.js';
 import { glanceFabStagger, glanceFabVisibilityClass } from '../utils/glanceFabs.js';
 import TouchInboxTaskRow from './TouchInboxTaskRow.jsx';
+import useIncrementalList from '../hooks/useIncrementalList.js';
 
 const MobileLayout = () => {
   const [tzBannerDismissed, setTzBannerDismissed] = useState(false);
@@ -485,6 +486,11 @@ const MobileLayout = () => {
     sendTaskToBucket, archiveInboxTask, cyclePriority,
   };
   const touchProjectsById = new Map((projects || []).map(p => [p.id, p]));
+  // The Inbox renders a part at a time (useIncrementalList, #2143).
+  const phoneInboxTasks = useMemo(() => filteredUnscheduledTasks.filter(t => !t.isExample), [filteredUnscheduledTasks]);
+  const { visible: visibleInboxTasks, hasMore: moreInboxTasks, sentinelRef: moreInboxRef } = useIncrementalList(phoneInboxTasks, {
+    keep: [editingTaskId, expandedNotesTaskId, showDeadlinePicker],
+  });
   // The Inbox's Smart Schedule FAB: AI scheduling on, a frame to schedule
   // into, and an open inbox task to place (the desktop header's same test).
   const inboxSmartScheduleAvailable = !!(aiFeatureOn(aiConfig, 'smartScheduling')
@@ -841,7 +847,7 @@ const MobileLayout = () => {
                       )}
                     </div>
                   ) : (
-                    filteredUnscheduledTasks.filter(t => !t.isExample).map(task => (
+                    visibleInboxTasks.map(task => (
                       <TouchInboxTaskRow
                         key={task.id}
                         task={task}
@@ -855,6 +861,7 @@ const MobileLayout = () => {
                       />
                     ))
                   )}
+                  {moreInboxTasks && <div ref={moreInboxRef} data-inbox-more aria-hidden="true" className="h-px" />}
                 </div>
 
                 {/* Mobile notes panel overlay for inbox tasks */}
