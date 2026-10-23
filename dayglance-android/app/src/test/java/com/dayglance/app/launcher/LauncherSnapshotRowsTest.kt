@@ -45,6 +45,14 @@ class LauncherSnapshotRowsTest {
     }
 
     @Test
+    fun `meta carries the app's own Inbox count when the snapshot has one`() {
+        val withCount = snapshot.replace("\"today\":\"2026-10-19\",", "\"today\":\"2026-10-19\",\"inboxCount\":7,")
+        assertEquals(7, JSONObject(LauncherSnapshotRows.rows(withCount, "meta")!!.single().json).getInt("inboxCount"))
+        // An older app build sends none: the launcher falls back to counting rows itself.
+        assertTrue(!JSONObject(LauncherSnapshotRows.rows(snapshot, "meta")!!.single().json).has("inboxCount"))
+    }
+
+    @Test
     fun `meta carries the heartbeat, the refresh log and liveness, even without a snapshot`() {
         val hb = """{"checkedAt":1760000100000,"syncedAt":"2026-10-19T08:00:00.000Z"}"""
         val log = """[{"clientId":"r1","requestedAt":1,"outcome":"queued","liveness":"alive"}]"""
