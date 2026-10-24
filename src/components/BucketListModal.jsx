@@ -7,6 +7,7 @@ import { BUCKET_LIST_IDS, promoteToInbox } from '../utils/bucketList.js';
 import { beginLongPressReorder, isLongPressRowDevice } from '../utils/longPressReorder.js';
 import { renderFormattedText, renderTitleWithoutTags, hasNotesOrSubtasks, hasOnlySubtasks } from '../utils/textFormatting.jsx';
 import useBackClose from '../hooks/useBackClose.js';
+import { autoSizeTextarea } from '../utils/autoSizeTextarea.js';
 
 // Same iOS detection as ProjectPlanner/ProjectCard: grip-only touch drag on
 // iOS, where whole-row HTML5 drag hijacks the gesture.
@@ -443,22 +444,32 @@ const BucketListModal = () => {
         </div>
 
         <div className={`p-4 flex flex-col gap-4 ${isMobile ? '' : 'overflow-y-auto'}`}>
-          {/* Shared bucket-level notes (one panel, not per-list) */}
+          {/* Shared bucket-level notes (one panel, not per-list). Same height
+              policy as the other notes boxes (#2067): both states sized to
+              the note up to 60vh, and flex-shrink-0 so the scrolling column
+              cannot squash the editor to its two rows. */}
           {editingNotes ? (
             <textarea
+              // Opened from the preview: take the keyboard. An empty box
+              // starts as the editor and leaves focus where it is.
+              autoFocus={!!notes.trim()}
+              ref={autoSizeTextarea}
+              onInput={(e) => autoSizeTextarea(e.currentTarget)}
+              data-bucket-notes-editor
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               onBlur={() => { saveNotes(); if (notes.trim()) setEditingNotes(false); }}
               onKeyDown={(e) => { if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); saveNotes(); if (notes.trim()) setEditingNotes(false); } }}
               placeholder={t('bucket.notesPlaceholder')}
               rows={2}
-              className={`w-full px-3 py-2 text-sm border ${borderClass} rounded-lg resize-y focus:outline-none focus:ring-2 focus:ring-sky-500 ${darkMode ? 'bg-gray-700 text-white placeholder:text-gray-500' : 'bg-white text-stone-900 placeholder:text-stone-400'}`}
+              className={`flex-shrink-0 w-full max-h-[60vh] px-3 py-2 text-sm border ${borderClass} rounded-lg ${isMobile ? 'resize-none' : 'resize-y'} focus:outline-none focus:ring-2 focus:ring-sky-500 ${darkMode ? 'bg-gray-700 text-white placeholder:text-gray-500' : 'bg-white text-stone-900 placeholder:text-stone-400'}`}
             />
           ) : (
             <button
               type="button"
               onClick={() => setEditingNotes(true)}
-              className={`text-left text-sm ${textSecondary} whitespace-pre-wrap px-3 py-2 rounded-lg ${hoverBg}`}
+              data-bucket-notes-preview
+              className={`flex-shrink-0 text-left text-sm ${textSecondary} whitespace-pre-wrap overflow-y-auto max-h-[60vh] px-3 py-2 rounded-lg ${hoverBg}`}
             >
               {renderFormattedText(notes)}
             </button>
