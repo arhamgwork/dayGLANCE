@@ -36,9 +36,9 @@ pin, and travel with it.
 
 ## Consumption
 
-Consumed by dayGLANCE and the bridge plugin via
-`file:../packages/obsidian-format` while both live in the dayGLANCE repo; to
-be published to npm when the plugin is extracted to its own repository for
-Obsidian community-directory submission (which requires a root-level
-manifest). Import specifiers never change across that move — that is the
-point of carrying the final package name from day one.
+Consumed by dayGLANCE and the bridge plugin via a `file:` link in the
+dayGLANCE repository. The plugin's public repository,
+[glance-apps/dayglance-bridge](https://github.com/glance-apps/dayglance-bridge),
+which Obsidian's community directory reads, carries a copy under `packages/`,
+refreshed from here on every change, so the two sides always build from the
+same code. Import specifiers are the package name everywhere.

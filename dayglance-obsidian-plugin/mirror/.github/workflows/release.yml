@@ -1,0 +1,49 @@
+name: Release
+
+# Builds a pushed version tag and attaches the three files Obsidian installs
+# (main.js, manifest.json, styles.css) to a DRAFT release. Publishing the
+# draft is what ships the version to users of the community directory and
+# BRAT, so it stays a deliberate step.
+#
+# The tags come from the mirror workflow in krelltunez/dayGLANCE
+# (.github/workflows/bridge-mirror.yml), which pushes one when manifest.json
+# carries a version this repository has not tagged yet.
+on:
+  push:
+    tags: ['*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Check the tag is the manifest version
+        run: |
+          version=$(node -p "require('./manifest.json').version")
+          if [ "$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match manifest.json version $version"
+            exit 1
+          fi
+
+      - name: Build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" main.js manifest.json styles.css \
+            --draft --title "$GITHUB_REF_NAME" --generate-notes
