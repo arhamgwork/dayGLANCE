@@ -32,8 +32,10 @@ completion row. The existing task + captured-plan execution grouping applies.
 That completion, stamped as the last work phase is saved, closes the last
 timed session (core's `closesLastSession`, `jobo-core.md`), so the execution
 stays comparable to Plan; a completion stamped more than 2 minutes after the
-last session ends, or stamped in UTC (a recurring occurrence's), still makes
-it mixed. Existing manual records are not removed or rewritten;
+last session ends, or stamped in UTC (a recurring occurrence's, before those
+took the own-offset form), still makes it mixed. A recurring occurrence's
+completion is stamped on its own clock too, so it closes its session the same
+way. Existing manual records are not removed or rewritten;
 overlapping intervals still count only once in the day-time union.
 
 ## Minute precision

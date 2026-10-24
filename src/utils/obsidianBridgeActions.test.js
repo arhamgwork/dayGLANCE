@@ -183,9 +183,18 @@ describe('applyActionsToTasks / applyActionsToRecurring', () => {
       action({ actionId: 'dup', templateId: 'r1', instanceDate: '2026-09-02' }),
     ]);
     expect(out[0].completedDates).toEqual(['2026-09-01', '2026-09-02']);
-    expect(out[0].completedDatesTimestamps['2026-09-02']).toBe('2026-09-02T15:15:00.000Z');
+    // The action's own stamp, offset kept: it names the local date it was done on.
+    expect(out[0].completedDatesTimestamps['2026-09-02']).toBe('2026-09-02T09:15:00-06:00');
     expect(out[0].completedDatesTimestamps['2026-09-01']).toBe('2026-09-01T12:00:00.000Z');
     expect(out[0].lastModified).toBeTruthy();
+    // A bare date is normalised to an instant; an action with no stamp gets
+    // this device's own-offset completion stamp.
+    const dated = applyActionsToRecurring(recurring, [action({ templateId: 'r1', instanceDate: '2026-09-03', completedAt: '2026-09-03' })]);
+    expect(dated[0].completedDatesTimestamps['2026-09-03']).toBe('2026-09-03T00:00:00.000Z');
+    const unstamped = applyActionsToRecurring(recurring, [action({ templateId: 'r1', instanceDate: '2026-09-03', completedAt: null })]);
+    expect(unstamped[0].completedDatesTimestamps['2026-09-03']).toMatch(/T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/);
+    const garbled = applyActionsToRecurring(recurring, [action({ templateId: 'r1', instanceDate: '2026-09-03', completedAt: 'not a date' })]);
+    expect(garbled[0].completedDatesTimestamps['2026-09-03']).toMatch(/T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/);
     // Replay: nothing new, same reference.
     expect(applyActionsToRecurring(out, [action({ templateId: 'r1', instanceDate: '2026-09-02' })])).toBe(out);
   });

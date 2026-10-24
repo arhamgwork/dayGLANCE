@@ -515,7 +515,10 @@ export default function useTaskActions({
           // Stamp the toggled occurrence so sync resolves this complete/un-complete
           // by last-writer-wins per date instead of letting a concurrent series
           // edit clobber it (completedDates is unioned across devices on merge).
-          completedDatesTimestamps: { ...(t.completedDatesTimestamps || {}), [dateStr]: new Date().toISOString() },
+          // The same own-offset form as an ordinary completedAt, so the stamp
+          // names the local date the occurrence was done on (JOBO's Do date)
+          // and can close a Focus session; the merge compares instants.
+          completedDatesTimestamps: { ...(t.completedDatesTimestamps || {}), [dateStr]: completionTimestamp() },
           lastModified: new Date().toISOString()
         };
       }));

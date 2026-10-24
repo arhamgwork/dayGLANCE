@@ -521,8 +521,8 @@ function comparisonPlanOverlap(bounds, anchor) {
 export const COMPLETION_CLOSES_SESSION_MINUTES = 2;
 
 // The civil moment a completion stamp carries on its own clock (its offset).
-// A stamp in UTC (Z), as recurring completions are stamped today, has no civil
-// clock of its own: reading it in a viewer's zone would classify one ledger
+// A stamp in UTC (Z), as recurring completions were stamped before they took
+// the own-offset form, has no civil clock of its own: reading it in a viewer's zone would classify one ledger
 // differently on different devices, so it gives none and closes nothing.
 // Timed Do keep their recorded civil coordinates and no zone.
 function ownCivilMoment(stamp) {

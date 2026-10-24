@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import useTaskActions from './useTaskActions.js';
 import { parseRecurringId } from '../utils/recurringId.js';
+import { completionTimestamp } from '../utils/taskUtils.js';
 vi.mock('../native.js', () => ({ triggerHaptic: vi.fn() }));
 
 const ordinary = { id: 'a', title: 'Write', date: '2026-10-09', startTime: '09:00', duration: 25, completed: false };
@@ -62,7 +63,8 @@ describe('Focus completion reuses native task completion', () => {
     const id = 'recurring-r1-2026-10-09';
     state.tasks = []; state.recurringTasks = [{ id: 'r1', title: 'Write', completedDates: [] }];
     useActions({ focusBlockTasks: [{ ...ordinary, id }] }).focusCompleteTask(id, { exitWhenDone: false, fromSettlement: true });
-    expect(state.recurringTasks[0]).toMatchObject({ completedDates: ['2026-10-09'], completedDatesTimestamps: { '2026-10-09': '2026-10-09T09:25:00.000Z' } });
+    expect(state.recurringTasks[0]).toMatchObject({ completedDates: ['2026-10-09'], completedDatesTimestamps: { '2026-10-09': completionTimestamp(new Date('2026-10-09T09:25:00Z')) } });
+    expect(Date.parse(state.recurringTasks[0].completedDatesTimestamps['2026-10-09'])).toBe(Date.parse('2026-10-09T09:25:00Z'));
   });
   it('the old command still uses the existing toggle behavior outside settlement', () => {
     state.tasks[0].completed = true;
