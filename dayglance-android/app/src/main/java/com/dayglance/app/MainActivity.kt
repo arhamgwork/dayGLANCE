@@ -114,6 +114,9 @@ class MainActivity : AppCompatActivity() {
     // Tasker while the app is backgrounded are still forwarded to the (still-running) WebView.
     private val intentForwardReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
+            // A launcher REFRESH waiting on this wake records that it arrived, so an
+            // unanswered one says whether the app or the page was where it stopped.
+            com.dayglance.app.launcher.LauncherRefreshTrace.markWoken(SharedDataStore(context))
             forwardPendingIntentToJs()
         }
     }

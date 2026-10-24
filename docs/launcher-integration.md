@@ -119,7 +119,7 @@ receiver routes it by liveness and logs every request with the liveness it saw:
 | --- | --- |
 | `queued` | the renderer is alive: queued and woken; the web layer runs every enabled tier to completion (one after the other), re-pushes, re-stamps the heartbeat, then reports `ran` (with `durationMs`), `skipped` or `failed` (each with `reason`) into the same entry |
 | `coalesced` | a queued or scheduled refresh from the last minute has no outcome yet |
-| `unanswered` | a `queued` refresh the web layer did not answer while `LauncherAwakeWorker` held the app awake; `reason` says how long it held and how late the hold began (Android can hold the job itself back), `holdStartedAt` and `finishedAt` stamp it |
+| `unanswered` | a `queued` refresh the web layer did not answer while `LauncherAwakeWorker` held the app awake; `reason` says how far it got (the wake never reached the app; the app was woken but the page never took it; or the page took it and did not finish), how long the hold lasted and how late it began (Android can hold the job itself back). `wokenAt` and `pickedUpAt` stamp the first two steps (`LauncherRefreshTrace`), `holdStartedAt` and `finishedAt` the hold. A cycle that hangs once taken reports `failed` after 45 s instead, naming the step (`REFRESH_CAP_MS`) |
 | `scheduled` | no renderer in the process: a headless run is enqueued (below); the entry gains `startedAt`, `waitMs` and `headless: true` when it runs, then `ran`/`failed` from the web layer or `aborted`/`throttled`/`failed` from the worker |
 | `deferred` | no renderer, and the headless run could not be enqueued (`reason` says why) |
 

@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { runLauncherRefreshCycle } from './launcherRefreshCycle.js';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { runLauncherRefreshCycle, REFRESH_CAP_MS } from './launcherRefreshCycle.js';
 
 // The REFRESH runner's verdicts over fake engines; dbSyncInFlight.test.js runs
 // the in-flight cases over the real vault engine.
@@ -70,5 +70,29 @@ describe('runLauncherRefreshCycle', () => {
 
   it('no tier configured is nothing to skip', async () => {
     expect(await runLauncherRefreshCycle({})).toEqual({});
+  });
+
+  describe('a refresh that hangs', () => {
+    afterEach(() => vi.useRealTimers());
+    const never = () => new Promise(() => {});
+
+    it('fails after the cap, naming the step it was stuck on, instead of never answering', async () => {
+      vi.useFakeTimers();
+      const stuckFile = runLauncherRefreshCycle({ file: { sync: never, isSyncing: () => false } });
+      const fileCheck = expect(stuckFile).rejects.toThrow('timed out after 45 s during the file sync');
+      await vi.advanceTimersByTimeAsync(REFRESH_CAP_MS);
+      await fileCheck;
+
+      const stuckVault = runLauncherRefreshCycle({ vault: { dbSyncCycle: never }, capMs: 30_000 });
+      const vaultCheck = expect(stuckVault).rejects.toThrow('timed out after 30 s during the vault sync');
+      await vi.advanceTimersByTimeAsync(30_000);
+      await vaultCheck;
+    });
+
+    it('a cycle that finishes inside the cap is untouched, and leaves no timer behind', async () => {
+      vi.useFakeTimers();
+      expect(await runLauncherRefreshCycle({ vault: fakeVault([completed]) })).toEqual({});
+      expect(vi.getTimerCount()).toBe(0);
+    });
   });
 });

@@ -14,6 +14,14 @@
 /** How long a REFRESH waits for a vault cycle already in flight. */
 export const REFRESH_JOIN_MS = 20_000;
 
+/**
+ * How long a whole REFRESH may take before it reports `failed`, with the step it
+ * was on. Under the native keep-awake hold (60 s), so a cycle that hangs (a
+ * request that never returns) is reported while the app is still awake to say so,
+ * rather than read `unanswered`. The cycle itself is not cancelled.
+ */
+export const REFRESH_CAP_MS = 45_000;
+
 const clockTime = (ms) => (Number.isFinite(ms) && ms > 0 ? new Date(ms).toTimeString().slice(0, 8) : 'an unknown time');
 
 /** What a vault result means for the launcher: {} when it completed, { skipped } when not; throws when it failed. */
@@ -32,25 +40,45 @@ function vaultOutcome(r) {
  * @param {object}   [p.file]   the file-tier engine ({ sync, isSyncing }), or null when off
  * @param {object}   [p.vault]  the vault engine ({ dbSyncCycle, waitForCycle }), or null when off
  * @param {number}   [p.joinMs] how long to wait for a vault cycle in flight
- * @returns {Promise<{ skipped?: string }>}  `skipped` says why no complete cycle ran; throws when a cycle failed
+ * @param {number}   [p.capMs]  how long the whole refresh may take before it fails with the step it was on
+ * @returns {Promise<{ skipped?: string }>}  `skipped` says why no complete cycle ran; throws when a cycle failed or ran past the cap
  */
-export async function runLauncherRefreshCycle({ file = null, vault = null, joinMs = REFRESH_JOIN_MS } = {}) {
+export async function runLauncherRefreshCycle({ file = null, vault = null, joinMs = REFRESH_JOIN_MS, capMs = REFRESH_CAP_MS } = {}) {
+  const progress = { step: 'starting' };
+  let timer;
+  const cap = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`timed out after ${Math.round(capMs / 1000)} s during ${progress.step}`)), capMs);
+  });
+  try {
+    return await Promise.race([runTiers({ file, vault, joinMs }, progress), cap]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function runTiers({ file, vault, joinMs }, progress) {
   const skipped = [];
   if (file?.sync) {
     // The file tier queues a follow-up and returns when one is in flight; it
     // cannot be joined, so the most this can do is say so.
     if (file.isSyncing?.()) skipped.push('a file sync was already running (it runs again when that one ends)');
-    else await file.sync();
+    else {
+      progress.step = 'the file sync';
+      await file.sync();
+    }
   }
   if (vault?.dbSyncCycle) {
+    progress.step = 'the vault sync';
     let r = await vault.dbSyncCycle();
     if (r?.cycleSkipped === 'in-flight') {
+      progress.step = 'the wait for a vault sync already running';
       const settled = typeof vault.waitForCycle === 'function' ? await vault.waitForCycle(joinMs) : false;
       if (!settled) {
         skipped.push(`a vault sync has been running since ${clockTime(r.since)}`);
         return { skipped: skipped.join('; ') };
       }
       // The joined cycle may have started long before this request: run one of ours.
+      progress.step = 'the vault sync';
       r = await vault.dbSyncCycle();
       if (r?.cycleSkipped === 'in-flight') {
         skipped.push('another vault sync started while this one waited');
