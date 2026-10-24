@@ -15,8 +15,8 @@ declare module '@glance-apps/sync/src/vaultClient.js' {
   export interface VaultClient {
     batch(app: string, opts: { accountId: string; rows: unknown[] }): Promise<{ written: number; maxSeq: number }>;
     list(app: string, opts: { accountId: string; since: number | string }): Promise<{ rows: unknown[]; hasMore: boolean }>;
-    getRow(app: string, entityId: string, accountId: string): Promise<unknown | null>;
-    deleteRow(app: string, entityId: string, accountId: string, opts?: { deletedAt?: number }): Promise<unknown | null>;
+    getRow(app: string, entityId: string, accountId: string): Promise<unknown>;
+    deleteRow(app: string, entityId: string, accountId: string, opts?: { deletedAt?: number }): Promise<unknown>;
     getSalt(accountId: string): Promise<Uint8Array | null>;
     device(app: string, opts: { accountId: string; deviceId: string; lastSeenSeq: number }): Promise<{ updated: boolean }>;
   }

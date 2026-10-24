@@ -58,7 +58,7 @@ const obsidianFetch = async (
   return {
     ok: resp.status >= 200 && resp.status < 300,
     status: resp.status,
-    json: async () => resp.json,
+    json: async (): Promise<unknown> => resp.json as unknown,
   };
 };
 
@@ -176,11 +176,9 @@ export class PairingModal extends Modal {
     contentEl.createEl('p', {
       text: 'Enter the pairing code shown in dayGLANCE settings (Obsidian Integration → Bridge plugin).',
     });
-    const input = contentEl.createEl('input', { type: 'text', attr: { placeholder: 'xxxx-xxxx-xxxxx', spellcheck: 'false' } });
-    input.style.width = '100%';
+    const input = contentEl.createEl('input', { type: 'text', cls: 'dg-pairing-input', attr: { placeholder: 'xxxx-xxxx-xxxxx', spellcheck: 'false' } });
     const status = contentEl.createEl('p', { text: '' });
-    const button = contentEl.createEl('button', { text: 'Pair' });
-    button.style.marginTop = '0.5em';
+    const button = contentEl.createEl('button', { text: 'Pair', cls: 'dg-pairing-button' });
 
     const submit = () => void this.submit(input.value, status, button);
     button.addEventListener('click', submit);

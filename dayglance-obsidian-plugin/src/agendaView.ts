@@ -5,9 +5,9 @@
 // creation are out of scope for v1 by ruling.
 //
 // Rendering is a plain re-render on every store change or navigation (the
-// agenda is a few dozen rows at most); the styles are injected once from
-// here (no styles.css to ship) and lean entirely on Obsidian's theme
-// variables so the view follows the user's theme.
+// agenda is a few dozen rows at most). Its styles are in the plugin's
+// styles.css and lean entirely on Obsidian's theme variables, so the view
+// follows the user's theme.
 
 import { ItemView, Keymap, Notice, WorkspaceLeaf } from 'obsidian';
 import {
@@ -20,65 +20,6 @@ export const AGENDA_VIEW_TYPE = 'dayglance-agenda';
 // The projection window: ±35 days around today covers the visible month
 // grid from any neighbouring month plus the agenda's reachable days.
 export const AGENDA_WINDOW_DAYS = 35;
-
-const STYLE_ID = 'dayglance-agenda-style';
-const CSS = `
-.dg-agenda { padding: 4px 8px 12px; font-size: var(--font-ui-small); }
-.dg-agenda-month { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 6px; }
-.dg-agenda-month-title { font-weight: 600; font-size: var(--font-ui-medium); }
-.dg-agenda-month-nav { display: flex; gap: 2px; }
-.dg-agenda-month-nav button { padding: 0 8px; height: 24px; line-height: 24px; }
-.dg-agenda-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 8px; }
-.dg-agenda-dow { text-align: center; color: var(--text-faint); font-size: var(--font-ui-smaller); padding-bottom: 2px; }
-.dg-agenda-day { position: relative; text-align: center; border-radius: var(--radius-s); padding: 3px 0 7px; cursor: pointer; color: var(--text-normal); }
-.dg-agenda-day:hover { background: var(--background-modifier-hover); }
-.dg-agenda-day.is-outside { color: var(--text-faint); }
-.dg-agenda-day.is-today { font-weight: 700; color: var(--interactive-accent); }
-.dg-agenda-day.is-selected { background: var(--interactive-accent); color: var(--text-on-accent); }
-.dg-agenda-day.has-items::after { content: ''; position: absolute; left: 50%; bottom: 2px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: currentColor; opacity: 0.8; }
-.dg-agenda-heading { display: flex; align-items: baseline; justify-content: space-between; border-top: 1px solid var(--background-modifier-border); padding-top: 8px; margin-bottom: 4px; }
-.dg-agenda-heading-date { font-weight: 600; }
-.dg-agenda-heading-count { color: var(--text-muted); font-size: var(--font-ui-smaller); }
-.dg-agenda-list { list-style: none; margin: 0; padding: 0; }
-.dg-agenda-item { display: flex; align-items: flex-start; gap: 8px; padding: 4px 2px; border-radius: var(--radius-s); }
-.dg-agenda-item:hover { background: var(--background-modifier-hover); }
-.dg-agenda-item input[type=checkbox] { margin-top: 2px; flex: 0 0 auto; }
-.dg-agenda-item.is-done .dg-agenda-title { text-decoration: line-through; color: var(--text-muted); }
-.dg-agenda-item.is-pending .dg-agenda-title { color: var(--text-muted); font-style: italic; }
-.dg-agenda-body { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
-.dg-agenda-time { color: var(--text-muted); font-size: var(--font-ui-smaller); font-variant-numeric: tabular-nums; }
-.dg-agenda-title { overflow-wrap: anywhere; }
-.dg-agenda-badge { color: var(--text-faint); font-size: var(--font-ui-smaller); margin-left: 4px; }
-.dg-agenda-tag { color: var(--text-faint); font-style: italic; }
-.dg-agenda-link { color: var(--link-color); text-decoration: none; cursor: pointer; }
-.dg-agenda-link:hover { text-decoration: underline; }
-.dg-agenda-routines-heading { color: var(--text-faint); font-size: var(--font-ui-smaller); text-transform: uppercase; letter-spacing: 0.06em; margin: 12px 2px 4px; }
-.dg-agenda-routines { display: flex; flex-wrap: wrap; gap: 4px 6px; margin: 0; padding: 0; list-style: none; }
-.dg-agenda-routine { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px 2px 8px; border-radius: 999px; background: var(--background-secondary-alt); border: 1px solid var(--background-modifier-border); color: var(--text-muted); font-size: var(--font-ui-smaller); max-width: 100%; }
-.dg-agenda-routine-dot { width: 6px; height: 6px; border-radius: 50%; background: #0d9488; flex: 0 0 auto; }
-.theme-dark .dg-agenda-routine-dot { background: #14b8a6; }
-.dg-agenda-routine-time { font-variant-numeric: tabular-nums; color: var(--text-faint); }
-.dg-agenda-routine-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dg-agenda-routine.is-done { opacity: 0.55; }
-.dg-agenda-routine.is-done .dg-agenda-routine-name { text-decoration: line-through; }
-.dg-agenda-swatch { flex: 0 0 4px; width: 4px; align-self: stretch; border-radius: 2px; }
-.dg-agenda-empty { color: var(--text-muted); padding: 8px 2px; }
-.dg-agenda-status { color: var(--text-faint); font-size: var(--font-ui-smaller); margin-top: 10px; padding-top: 6px; border-top: 1px solid var(--background-modifier-border); }
-.dg-agenda-status.is-error { color: var(--text-error); }
-.dg-agenda-setup { color: var(--text-muted); padding: 8px 2px; }
-`;
-
-export function injectAgendaStyles(doc: Document): void {
-  if (doc.getElementById(STYLE_ID)) return;
-  const el = doc.createElement('style');
-  el.id = STYLE_ID;
-  el.textContent = CSS;
-  doc.head.appendChild(el);
-}
-
-export function removeAgendaStyles(doc: Document): void {
-  doc.getElementById(STYLE_ID)?.remove();
-}
 
 const MONTH_FMT = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' });
 const DAY_FMT = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
@@ -158,7 +99,6 @@ export class AgendaView extends ItemView {
   getIcon(): string { return 'calendar-check'; }
 
   async onOpen(): Promise<void> {
-    injectAgendaStyles(this.containerEl.ownerDocument);
     const content = this.containerEl.children[1] as HTMLElement;
     content.empty();
     this.root = content.createDiv({ cls: 'dg-agenda' });
@@ -306,7 +246,7 @@ export class AgendaView extends ItemView {
         });
       });
       const swatch = swatchColor(item.color);
-      if (swatch) li.createDiv({ cls: 'dg-agenda-swatch' }).style.background = swatch;
+      if (swatch) li.createDiv({ cls: 'dg-agenda-swatch' }).setCssProps({ '--dg-agenda-swatch': swatch });
       const body = li.createDiv({ cls: 'dg-agenda-body' });
       if (!item.isAllDay && item.startTime) {
         const end = item.duration ? endOf(item.startTime, item.duration) : null;

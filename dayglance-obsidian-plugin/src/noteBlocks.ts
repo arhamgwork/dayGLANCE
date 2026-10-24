@@ -63,7 +63,7 @@ export class NoteBlockWriter {
         } else {
           next = goalNoteBlock(goal as Row);
         }
-        const prev = this.host.app.metadataCache.getFileCache(file)?.frontmatter?.[NOTE_BLOCK_KEY] ?? null;
+        const prev: unknown = this.host.app.metadataCache.getFileCache(file)?.frontmatter?.[NOTE_BLOCK_KEY] ?? null;
         if (!noteBlockChanged(prev, next)) continue;
         const last = this.lastWrite.get(path) ?? 0;
         if (Date.now() - last < BLOCK_WRITE_FLOOR_MS) continue; // the floor: the next tick past it writes
