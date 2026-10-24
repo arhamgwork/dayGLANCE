@@ -210,16 +210,41 @@ deploying by hand, and attach all three to a release.
 Each dayGLANCE GitHub release carries this plugin's `main.js`,
 `manifest.json` and `styles.css` as assets. Copy them (or your own build) into
 `<vault>/.obsidian/plugins/dayglance-bridge/` and enable the plugin in
-Settings → Community plugins. BRAT users can add the dayGLANCE repository;
-BRAT installs and updates from those release assets. Community-directory
-submission comes later.
+Settings → Community plugins. BRAT users can add
+`glance-apps/dayglance-bridge` once it has a published release (BRAT needs a
+repository with `manifest.json` at the root, which the dayGLANCE repository is
+not). Community-directory submission comes later.
 
-## Repo shape
+## Repo shape and the public mirror
 
-This directory is deliberately self-contained (own package.json, no imports
-from dayGLANCE) so it can be extracted to its own public repository before
-any community-directory submission without surgery. Its two dependencies —
-`@glance-apps/obsidian-format` (the shared vault-format core, `file:`-linked
-while the plugin lives here) and `@glance-apps/sync` (only `vaultClient.js`
-is imported, so the bundle carries the HTTP client and none of the sync
-engine) — are bundled into `main.js`.
+The plugin is developed here, in the dayGLANCE repository, because its tests
+run the real plugin against the app's real sync hook, and because it shares
+its vault format with the app. It depends on three packages, all bundled into
+`main.js`:
+
+- `@glance-apps/obsidian-format`, the shared vault-format core, and
+  `@glance-apps/agenda-core`, the shared agenda core: both `file:`-linked to
+  `packages/` in this repository;
+- `@glance-apps/sync`, from npm; only `vaultClient.js` and `dbCrypto.js` are
+  imported, so the bundle carries the HTTP client and the crypto and none of
+  the sync engine.
+
+Obsidian's community directory and BRAT read a repository with
+`manifest.json` at its root, so the plugin is also published to
+[glance-apps/dayglance-bridge](https://github.com/glance-apps/dayglance-bridge),
+which is generated from here and never edited directly:
+
+- `scripts/bridge-mirror/assemble.mjs` builds its tree: this directory at the
+  root without `test/`, the two shared packages under `packages/` with the
+  `file:` links pointed at them, and the files in `mirror/` (the mirror's
+  release workflow, `.gitignore`, `CONTRIBUTING.md`) at the root. The
+  mirror's `LICENSE` is its own.
+- `.github/workflows/bridge-mirror.yml` builds that tree on its own on every
+  pull request that touches the plugin or the packages, and on `main` copies
+  it to the mirror. When `manifest.json` carries a version the mirror has not
+  tagged, it pushes the tag, and the mirror's release workflow builds it into
+  a draft release with `main.js`, `manifest.json` and `styles.css`.
+  Publishing that draft is what ships the version, so it stays a manual step.
+
+To release a version: bump it in `manifest.json`, `package.json` and
+`versions.json`, merge, then publish the draft release in the mirror.

@@ -42,8 +42,10 @@ that behaviour and travel with the package.
 
 ## Consumption
 
-dayGLANCE uses it through `file:packages/agenda-core` in its own repository.
-The bridge plugin depends on the published version.
+dayGLANCE and the bridge plugin both use it through a `file:` link in the
+dayGLANCE repository. The plugin's public repository,
+[glance-apps/dayglance-bridge](https://github.com/glance-apps/dayglance-bridge),
+carries a copy under `packages/`, refreshed from here on every change.
 
 ## License
 

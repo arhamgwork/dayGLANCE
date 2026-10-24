@@ -1,0 +1,112 @@
+name: Bridge mirror
+
+# Copies the Obsidian bridge plugin into its public repository,
+# glance-apps/dayglance-bridge, which is what Obsidian's community directory
+# and BRAT read. The plugin is developed here (dayglance-obsidian-plugin/),
+# beside the app and the shared packages it is tested against;
+# scripts/bridge-mirror/assemble.mjs builds the mirror's tree.
+#
+# On a pull request: assemble the tree and build it on its own, so a change
+# that would break the mirror's build fails here first.
+# On main (and on demand): the same, then commit the tree to the mirror and,
+# when manifest.json carries a version the mirror has not tagged, push that
+# tag. The mirror's own release workflow builds the tag into a DRAFT release;
+# publishing it is a manual step.
+#
+# Needs the secret BRIDGE_MIRROR_DEPLOY_KEY: the private half of a deploy key
+# with write access on glance-apps/dayglance-bridge.
+on:
+  pull_request:
+    paths:
+      - 'dayglance-obsidian-plugin/**'
+      - 'packages/agenda-core/**'
+      - 'packages/obsidian-format/**'
+      - 'scripts/bridge-mirror/**'
+      - '.github/workflows/bridge-mirror.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'dayglance-obsidian-plugin/**'
+      - 'packages/agenda-core/**'
+      - 'packages/obsidian-format/**'
+      - 'scripts/bridge-mirror/**'
+      - '.github/workflows/bridge-mirror.yml'
+  workflow_dispatch:
+
+# Mirror runs never overlap: two would race to push. A newer push to the same
+# PR cancels the build-only run it replaced.
+concurrency:
+  group: bridge-mirror-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Assemble the mirror
+        run: |
+          node scripts/bridge-mirror/assemble.mjs "$RUNNER_TEMP/tree"
+          cd "$RUNNER_TEMP/tree"
+          # The lockfile is generated for the mirror's own file: paths.
+          npm install --package-lock-only --no-audit --no-fund
+
+      - name: Build it on its own
+        run: |
+          cp -r "$RUNNER_TEMP/tree" "$RUNNER_TEMP/build"
+          cd "$RUNNER_TEMP/build"
+          npm ci --no-audit --no-fund
+          npm run build
+          for f in main.js manifest.json styles.css; do test -s "$f" || { echo "::error::$f missing from the build"; exit 1; }; done
+
+      - name: Sync to glance-apps/dayglance-bridge
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          DEPLOY_KEY: ${{ secrets.BRIDGE_MIRROR_DEPLOY_KEY }}
+        run: |
+          if [ -z "$DEPLOY_KEY" ]; then
+            echo "::error::The BRIDGE_MIRROR_DEPLOY_KEY secret is not set (see the comment at the top of this workflow)."
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/bridge_mirror
+          chmod 600 ~/.ssh/bridge_mirror
+          ssh-keyscan -t ed25519,rsa github.com >> ~/.ssh/known_hosts 2>/dev/null
+          export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/bridge_mirror -o IdentitiesOnly=yes"
+
+          git clone git@github.com:glance-apps/dayglance-bridge.git "$RUNNER_TEMP/mirror"
+          cd "$RUNNER_TEMP/mirror"
+          # The mirror's LICENSE is its own; everything else is replaced, so a
+          # file removed here is removed there too.
+          find . -mindepth 1 -maxdepth 1 ! -name .git ! -name LICENSE -exec rm -rf {} +
+          cp -a "$RUNNER_TEMP/tree/." ./
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "The mirror is already up to date."
+          else
+            git commit -q -m "Mirror krelltunez/dayGLANCE@${GITHUB_SHA::12}" \
+              -m "https://github.com/krelltunez/dayGLANCE/commit/${GITHUB_SHA}"
+            git push origin HEAD:main
+          fi
+
+          version=$(node -p "require('./manifest.json').version")
+          if git ls-remote --exit-code --tags origin "refs/tags/$version" >/dev/null; then
+            echo "Version $version is already tagged."
+          else
+            git tag "$version"
+            git push origin "$version"
+            echo "Tagged $version: the mirror's release workflow builds it into a draft release."
+          fi
