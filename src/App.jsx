@@ -39,10 +39,12 @@ import { directAccessTransport } from './sync/directAccessTransport.js';
 import useDirectAccessStatus from './hooks/useDirectAccessStatus.js';
 import { evaluateSnapshotPush } from './utils/widgetSnapshotDedupe.js';
 import { buildLauncherSnapshot, launcherSnapshotFingerprint } from './utils/launcherSnapshot.js';
+import { readInboxFilterPrefs, inboxCountOf } from './utils/inboxFilter.js';
 import { latestSyncedAt } from './utils/launcherHeartbeat.js';
 import { readLauncherLedger } from './intents/launcherWrites.js';
+import { runLauncherRefreshCycle } from './intents/launcherRefreshCycle.js';
 import { buildWidgetSnapshot, readCachedSteps } from './utils/widgetSnapshot.js';
-import { loadAlarmPrefs } from './utils/dialPrefs.js';
+import { loadAlarmPrefs, loadDialLayers } from './utils/dialPrefs.js';
 import { buildProjectedDay, projectionDates, guardSnapshotSize } from './utils/widgetDayProjection.js';
 import { computeRecurringExpansionRange } from './utils/recurringExpansionRange.js';
 import { parseRecurringId } from './utils/recurringId.js';
@@ -806,23 +808,14 @@ const DayPlanner = () => {
   } = useBackup();
   const { dailyContent, setDailyContent, contentRotation, setContentRotation, fetchAllDailyContent } = useDailyContent();
 
-  const [inboxPriorityFilter, setInboxPriorityFilter] = useState(() => {
-    const saved = localStorage.getItem('inboxPriorityFilter');
-    return saved ? JSON.parse(saved) : 0;
-  }); // 0 = show all, 1-3 = show >= that priority
-  const [hideCompletedInbox, setHideCompletedInbox] = useState(() => {
-    return localStorage.getItem('hideCompletedInbox') === 'true';
-  });
-  const [hideProjectTasksInbox, setHideProjectTasksInbox] = useState(() => {
-    // Default true (hide) to preserve existing behavior; user can opt in to seeing them
-    return localStorage.getItem('hideProjectTasksInbox') !== 'false';
-  });
-  const [hideStandaloneTasksInbox, setHideStandaloneTasksInbox] = useState(() => {
-    return localStorage.getItem('hideStandaloneTasksInbox') === 'true';
-  });
-  const [inboxTagFilter, setInboxTagFilter] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('inboxTagFilter') || '[]'); } catch { return []; }
-  });
+  // The Inbox filter preferences, read through the same reader the headless
+  // refresh uses for the launcher's Inbox count (utils/inboxFilter.js).
+  const [inboxPriorityFilter, setInboxPriorityFilter] = useState(() => readInboxFilterPrefs().inboxPriorityFilter); // 0 = show all, 1-3 = show >= that priority
+  const [hideCompletedInbox, setHideCompletedInbox] = useState(() => readInboxFilterPrefs().hideCompletedInbox);
+  // Default true (hide) to preserve existing behavior; user can opt in to seeing them
+  const [hideProjectTasksInbox, setHideProjectTasksInbox] = useState(() => readInboxFilterPrefs().hideProjectTasksInbox);
+  const [hideStandaloneTasksInbox, setHideStandaloneTasksInbox] = useState(() => readInboxFilterPrefs().hideStandaloneTasksInbox);
+  const [inboxTagFilter, setInboxTagFilter] = useState(() => readInboxFilterPrefs().inboxTagFilter);
   // The tag "Schedule follow-up task" adds (utils/followUp.js), on this
   // device, as the Inbox filter it pairs with is.
   const [followUpTag, setFollowUpTagState] = useState(() => {
@@ -859,9 +852,7 @@ const DayPlanner = () => {
     window.addEventListener(PEEK_TASK_EVENT, onPeek);
     return () => window.removeEventListener(PEEK_TASK_EVENT, onPeek);
   }, []);
-  const [inboxProjectFilter, setInboxProjectFilter] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('inboxProjectFilter') || '[]'); } catch { return []; }
-  });
+  const [inboxProjectFilter, setInboxProjectFilter] = useState(() => readInboxFilterPrefs().inboxProjectFilter);
   const [inboxArchivedExpanded, setInboxArchivedExpanded] = useState(false);
   const [priorityPromptDismissed, setPriorityPromptDismissed] = useState(() => {
     return localStorage.getItem('priorityPromptDismissed') === 'true';
@@ -1886,10 +1877,12 @@ const DayPlanner = () => {
   touchLauncherHeartbeatRef.current = touchLauncherHeartbeat;
   // One full pass of every configured tier, awaited, for the launcher's REFRESH.
   // One tier after the other (the headless root does the same, and says why).
-  const runLauncherSyncCycle = useCallback(async () => {
-    if (cloudSyncConfig?.enabled && cloudSyncEngineRef.current?.sync) await cloudSyncEngineRef.current.sync();
-    if (dbEngineRef.current?.dbSyncCycle) await dbEngineRef.current.dbSyncCycle();
-  }, [cloudSyncConfig?.enabled]);
+  // Says when no cycle completed (launcherRefreshCycle.js), so the launcher
+  // never logs a skipped cycle as `ran`.
+  const runLauncherSyncCycle = useCallback(() => runLauncherRefreshCycle({
+    file: cloudSyncConfig?.enabled ? cloudSyncEngineRef.current : null,
+    vault: dbEngineRef.current,
+  }), [cloudSyncConfig?.enabled]);
 
   useAndroidIntentBridge({
     tasks, unscheduledTasks, recurringTasks, projects,
@@ -6955,12 +6948,15 @@ const DayPlanner = () => {
       now, todayStr: getTodayStr(),
       tasks, unscheduledTasks, expandedRecurringTasks,
       projects, goals, goalsProjectsEnabled, isVisibleForUser,
+      // The Inbox count as this app shows it: its filters and its user lens.
+      inboxCount: inboxCountOf(filteredUnscheduledTasks),
       todayRoutines, routineCompletions, routinesEnabled,
       frameInstancesForDate: getFrameInstancesForDate, getDayWindow,
       weatherCoords: getStoredWeatherCoords(),
       weatherHourlyByDate: weather?.hourlyByDate ?? null,
       weatherTempUnit,
       dialAlarm: loadAlarmPrefs(),
+      dialLayers: loadDialLayers(),
       use24Hour: use24HourClock,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       updatedAt: Date.now(),
@@ -6988,7 +6984,7 @@ const DayPlanner = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     dataLoaded, isResizing, tasks, unscheduledTasks, expandedRecurringTasks,
-    projects, goals, goalsProjectsEnabled, isVisibleForUser,
+    projects, goals, goalsProjectsEnabled, isVisibleForUser, filteredUnscheduledTasks,
     todayRoutines, routineCompletions, routinesEnabled, weather, weatherTempUnit,
     getFrameInstancesForDate, getDayWindow, use24HourClock, currentTime, widgetNative, calendarFilter,
   ]);

@@ -18,6 +18,12 @@ const base = (patch = {}) => ({
 });
 
 describe('buildLauncherSnapshot', () => {
+  it("carries the app's own Inbox count when given one, and leaves it out otherwise", () => {
+    expect(buildLauncherSnapshot(base({ inboxCount: 4 })).inboxCount).toBe(4);
+    expect(buildLauncherSnapshot(base({ inboxCount: 0 })).inboxCount).toBe(0);
+    expect('inboxCount' in buildLauncherSnapshot(base())).toBe(false);
+  });
+
   it('merges scheduled, inbox and recurring rows, keeps ids, and never duplicates one', () => {
     const snap = buildLauncherSnapshot(base({
       tasks: [{ id: 't1', title: 'Run #training', date: TODAY, startTime: '07:30', duration: 45, color: 'bg-green-500', projectId: 'p1', clientId: 'w-9' }],
@@ -136,6 +142,10 @@ describe('buildLauncherSnapshot', () => {
 
   it('carries the alarm-mark prefs, defaulted where they are malformed', () => {
     expect(buildLauncherSnapshot(base({ dialAlarm: { on: false, fromMin: 21 * 60 } })).dayShape.dialAlarm).toEqual({ on: false, fromMin: 1260 });
+    // The layer toggles the launcher's dial follows: only the layers it draws, a missing key on.
+    expect(buildLauncherSnapshot(base({ dialLayers: { solar: true, weather: false, calendars: false, routines: true, focus: false } })).dayShape.dialLayers)
+      .toEqual({ solar: true, weather: false, calendars: false, routines: true, frames: true });
+    expect('dialLayers' in buildLauncherSnapshot(base()).dayShape).toBe(false);
     expect(buildLauncherSnapshot(base({ dialAlarm: {} })).dayShape.dialAlarm).toEqual({ on: true, fromMin: 1080 });
   });
 

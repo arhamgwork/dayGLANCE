@@ -55,3 +55,31 @@ export function saveAlarmPrefs(prefs) {
     localStorage.setItem(DIAL_ALARM_KEY, JSON.stringify(prefs));
   } catch { /* view pref only */ }
 }
+
+// Layer visibility: which of the dial's layers draw (a toggle hides a layer,
+// it never fakes one). Device-local, like everything here: a wall panel and a
+// phone reasonably want different layers, so it does not ride the sync
+// payload. The GLANCElauncher's dial on this device follows it (the launcher
+// snapshot's dayShape.dialLayers), so Home matches the app's dial.
+export const DIAL_LAYERS_KEY = 'day-planner-dial-layers';
+export const DEFAULT_DIAL_LAYERS = { solar: true, weather: true, calendars: true, routines: true, focus: true, frames: true };
+
+export function loadDialLayers() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DIAL_LAYERS_KEY) || '{}');
+    const out = { ...DEFAULT_DIAL_LAYERS };
+    // Only known layers, and only booleans: a malformed value keeps the layer on.
+    for (const key of Object.keys(DEFAULT_DIAL_LAYERS)) {
+      if (typeof saved?.[key] === 'boolean') out[key] = saved[key];
+    }
+    return out;
+  } catch {
+    return { ...DEFAULT_DIAL_LAYERS };
+  }
+}
+
+export function saveDialLayers(layers) {
+  try {
+    localStorage.setItem(DIAL_LAYERS_KEY, JSON.stringify(layers));
+  } catch { /* view pref only */ }
+}

@@ -208,6 +208,11 @@ MARKETING_VERSION=5.7.0 npm run ios
 The build number stays date-based, so repeated test builds under the same
 override still upload. The release itself is still made through the bumper.
 
+**App icons.** Only when the logo changes: `npm run ios:icons` (macOS) rewrites
+every size in `AppIcon.appiconset` from `public/icon-maskable-512.png`, or from
+a path passed after `--`. The source must be opaque: App Store Connect rejects a
+1024px icon with an alpha channel.
+
 ---
 
 ## 3. Release sequencing

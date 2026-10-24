@@ -42,6 +42,7 @@ import { createDayGlanceEngine } from '../sync/adapter.js';
 import { createDbEngine } from '../sync/dbEngine.js';
 import { normalizeSyncFolder } from '../utils/syncFolder.js';
 import { buildLauncherSnapshot } from '../utils/launcherSnapshot.js';
+import { inboxFromStorage, inboxCountOf } from '../utils/inboxFilter.js';
 import { latestSyncedAt } from '../utils/launcherHeartbeat.js';
 import { nativeBridge, nativeTouchLauncherHeartbeat, nativeRecordLauncherRefresh } from '../native.js';
 import { readLauncherLedger } from '../intents/launcherWrites.js';
@@ -52,7 +53,7 @@ import { isTaskVisibleForUser, isOwnedBy } from '../utils/userScope.js';
 import { readWeekStartDay, readCalendarFilter, readNativeTimeOverrides } from '../utils/storedSlices.js';
 import { getStoredWeatherCoords } from '../utils/solar.js';
 import { fetchHourlyForecast } from '../utils/weatherForecast.js';
-import { loadAlarmPrefs } from '../utils/dialPrefs.js';
+import { loadAlarmPrefs, loadDialLayers } from '../utils/dialPrefs.js';
 import { dateToString } from '../utils/taskUtils.js';
 
 const noop = () => {};
@@ -263,6 +264,8 @@ export default function HeadlessRefresh({
           tasks, unscheduledTasks,
           expandedRecurringTasks: recurringTasks.length ? expandRecurringTasks(recurringTasks, { rangeStart, rangeEnd, today: todayStr }) : [],
           projects, goals, goalsProjectsEnabled, isVisibleForUser,
+          // The same filter and stored preferences the app's Inbox uses.
+          inboxCount: inboxCountOf(inboxFromStorage({ tasks, unscheduledTasks, recurringTasks, projects, goalsProjectsEnabled, isVisibleForUser })),
           todayRoutines: allTodayRoutines.filter(ownedBy), routineCompletions, routinesEnabled,
           frameInstancesForDate: (date) => frameInstancesForDate(gtdFrames.filter(ownedBy), dateToString(date)),
           getDayWindow,
@@ -272,6 +275,7 @@ export default function HeadlessRefresh({
           weatherHourlyByDate,
           weatherTempUnit,
           dialAlarm: loadAlarmPrefs(),
+          dialLayers: loadDialLayers(),
           use24Hour: use24HourClock,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           updatedAt: Date.now(),

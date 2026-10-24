@@ -202,8 +202,10 @@ function toggleRoutine(payload, context) {
 
 /**
  * REFRESH: run every configured sync tier to completion, re-push the snapshot
- * and the heartbeat, and record how it went in the native refresh log. The
- * launcher reads the outcome (and `syncedAt`) from the next meta row.
+ * and the heartbeat, and record how it went in the native refresh log: `ran`
+ * only when a cycle completed, `skipped` with the reason when none could,
+ * `failed` when one threw. The launcher reads the outcome (and `syncedAt`)
+ * from the next meta row.
  */
 async function refresh(clientId, context) {
   if (recentRefreshIds.includes(clientId)) return ok({ deduped: true });
@@ -216,9 +218,15 @@ async function refresh(clientId, context) {
     return fail('no sync cycle available');
   }
   try {
-    await context.runSyncCycle();
+    // A cycle that returned without completing is not `ran`
+    // (launcherRefreshCycle.js): the launcher shows the reason instead.
+    const result = await context.runSyncCycle();
     context.touchLauncherHeartbeat?.();
     const durationMs = Date.now() - started;
+    if (result?.skipped) {
+      record({ clientId, outcome: REFRESH_OUTCOMES.SKIPPED, reason: result.skipped, durationMs });
+      return ok({ durationMs, skipped: result.skipped });
+    }
     record({ clientId, outcome: REFRESH_OUTCOMES.RAN, durationMs });
     return ok({ durationMs });
   } catch (err) {

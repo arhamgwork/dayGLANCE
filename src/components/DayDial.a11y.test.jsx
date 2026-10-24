@@ -274,9 +274,10 @@ describe('DayDial keyboard/AT contract', () => {
     // Unmeasured (no layout in static markup), so the full date shows —
     // abbreviating a date that would have fitted is the worse failure.
     expect(html).toContain('September 9');
-    // The twin the decision is measured from always carries the LONG form,
-    // so an abbreviation that fits can never flip the answer back.
-    expect(html).toMatch(/<span[^>]*aria-hidden="true"[^>]*class="absolute invisible[^"]*"[^>]*>September 9</);
+    // The twin the decision is measured from always carries the LONG form
+    // (of every date in the month), so an abbreviation that fits can never
+    // flip the answer back.
+    expect(html).toMatch(/<span[^>]*aria-hidden="true"[^>]*class="absolute invisible[^"]*"[^>]*>(?:<span>[^<]*<\/span>)*<span>September 9</);
     // AT gets the month in full whichever form is drawn.
     expect(html).toContain('aria-label="Day dial: Wednesday September 9"');
   });
@@ -316,5 +317,18 @@ describe('DayDial alarm mark', () => {
     expect(html).not.toContain('M5 12h14');
     expect(labels(html).find(([t]) => t === '09')[1]).toBe(0);
     expect(labels(html).find(([t]) => t === '12')[1]).toBeGreaterThan(0);
+  });
+});
+
+describe('the hub date probe', () => {
+  it('stacks every date of the month, so the long-or-short call is made per month', async () => {
+    const i18n = await i18nFor('en');
+    const html = render(i18n, { date: new Date('2026-11-24T12:00:00') });
+    const probe = html.match(/<span aria-hidden="true" class="absolute invisible[^"]*">(.*?)<\/span><\/div>/);
+    expect(probe).not.toBeNull();
+    const lines = Array.from(probe[1].matchAll(/<span>([^<]*)<\/span>/g), (m) => m[1]);
+    expect(lines).toHaveLength(30);
+    expect(lines[0]).toBe('November 1');
+    expect(lines).toContain('November 28');
   });
 });

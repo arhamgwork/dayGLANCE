@@ -18,6 +18,7 @@ same trigger (every data change while the app runs), and pushes through
 
 ```
 { version: 1, updatedAt, timezone, today,
+  inboxCount,                                   // the Inbox count as this app shows it (below)
   tasks:    [{ id, title, date, startTime, duration, isAllDay, completed, completedAt,
                colorHex, priority, notes, projectId, deadline, source: "dayglance"|"calendar",
                energy, clientId, recurringId, native }],   // scheduled, Inbox (date null), recurring occurrences;
@@ -28,7 +29,8 @@ same trigger (every data change while the app runs), and pushes through
   frames:   [{ id, frameId, date, start, end, name, colorHex }],       // per day, today-7 to today+34
   dayShape: { dayStartMin, dayStopMin, sunriseMin, sunsetMin, use24HourClock,
               lat, lon,                                  // the weather location, for the moon and solar elevation
-              dialAlarm: { on, fromMin } },              // the dial's alarm-mark prefs
+              dialAlarm: { on, fromMin },               // the dial's alarm-mark prefs
+              dialLayers: { solar, weather, calendars, routines, frames } },   // the dial's layer toggles (below)
   weather:  [{ id: date, date, unit: "fahrenheit"|"celsius",
                hours: [{ hour, temp, code, uv }] }],      // one row per forecast date, as the dial's ring reads it
   handledWrites: [{ clientId, taskId, action, at }],
@@ -36,10 +38,26 @@ same trigger (every data change while the app runs), and pushes through
   carryDeviceEvents: true }                       // headless only: this snapshot could not read the calendar
 ```
 
+**`dayShape.dialLayers`** is the app dial's layer toggles on this device
+(`utils/dialPrefs.js`, the dial's Layers panel), so the launcher's dial draws
+what the app's dial does: sun and moon, the weather ring, imported calendar
+events, routines and frames. Focus is left out (the launcher has no focus
+data). Device-local like the toggles themselves, and read from the same
+storage by the headless refresh; a build that sends none means every layer on.
+
+**`inboxCount`** is the number the app's own Inbox badge and dial complication
+show: the Inbox through the user's filters (priority, project, tag, completed,
+standalone) and the multi-user lens, without Bucket List, archived or example
+tasks (`utils/inboxFilter.js`, the one filter all of them use). The task rows
+carry every visible Inbox task, so counting them overcounts; the launcher's
+Inbox complication shows `inboxCount` and counts rows only for a build that
+sends none. The filter preferences are device-local, and the headless refresh
+reads them from the same storage, so both paths send the same number.
+
 `LauncherProvider` (`dayglance-android/.../launcher/`) serves it read-only at
 `content://com.dayglance.app.launcher/<collection>` for `tasks`, `goals`,
 `projects`, `routines`, `frames`, `weather`, `dayShape` (one row) and `meta` (one row:
-version, updatedAt, timezone, today, handledWrites). Each cursor has `_id`,
+version, updatedAt, timezone, today, inboxCount, handledWrites). Each cursor has `_id`,
 `id` and `json` columns, the row as JSON. Every push calls `notifyChange` on
 the authority, so a `ContentObserver` registered on any collection URI sees
 every change. `insert`, `update` and `delete` throw.
@@ -90,8 +108,9 @@ receiver routes it by liveness and logs every request with the liveness it saw:
 
 | Outcome | When |
 | --- | --- |
-| `queued` | the renderer is alive: queued and woken; the web layer runs every enabled tier to completion (one after the other), re-pushes, re-stamps the heartbeat, then reports `ran` (with `durationMs`) or `failed` (with `reason`) into the same entry |
+| `queued` | the renderer is alive: queued and woken; the web layer runs every enabled tier to completion (one after the other), re-pushes, re-stamps the heartbeat, then reports `ran` (with `durationMs`), `skipped` or `failed` (each with `reason`) into the same entry |
 | `coalesced` | a queued or scheduled refresh from the last minute has no outcome yet |
+| `unanswered` | a `queued` refresh the web layer did not answer while `LauncherAwakeWorker` held the app awake; `reason` says how long it held and how late the hold began (Android can hold the job itself back), `holdStartedAt` and `finishedAt` stamp it |
 | `scheduled` | no renderer in the process: a headless run is enqueued (below); the entry gains `startedAt`, `waitMs` and `headless: true` when it runs, then `ran`/`failed` from the web layer or `aborted`/`throttled`/`failed` from the worker |
 | `deferred` | no renderer, and the headless run could not be enqueued (`reason` says why) |
 
@@ -107,6 +126,19 @@ one WebView as it would on screen; there is no second WebView, unlike the
 headless path. Below Android 12 the job shows the same quiet notification as a
 headless run; in a restricted standby bucket it may itself wait, but no longer
 for the app to be opened.
+
+**`ran` means a cycle completed.** Both tiers return early, silently, while a
+cycle of theirs is in flight, and the vault does during a failure cooldown;
+REFRESH once took any return for a completed cycle. A cycle frozen mid-request
+then held the vault's in-flight guard, and every later REFRESH logged `ran` in
+a millisecond while nothing synced for eight hours (2026-10-22): the 1 ms
+answer also ended the keep-awake job at once, so the stuck cycle never got the
+running time to time out. Now (`src/intents/launcherRefreshCycle.js`) a vault
+cycle in flight is joined for up to 20 s, which keeps the job, and so the app,
+awake while it finishes, and is followed by a cycle of the REFRESH's own; one
+still running after that, a cooldown, a held-back pull or an engine not ready
+is `skipped` with the reason, and a cycle that failed without throwing is
+`failed`.
 
 **The headless run** (`launcher/LauncherRefreshWorker.kt`; `src/headless/` on
 the web side; the rules in CLAUDE.md, "Headless refresh"). An expedited,

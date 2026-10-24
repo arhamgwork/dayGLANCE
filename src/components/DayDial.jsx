@@ -24,6 +24,7 @@ import {
   dialSectorPath,
   dialTicks,
   dialDateFits,
+  monthDateLabels,
   dialLabelYieldsToSun,
   dialLabelYieldsToAlarm,
   canStartFocusFromBlock,
@@ -1093,6 +1094,11 @@ const DayDial = ({ dayTasks, prevDayTasks = null, frames = null, routines = null
   // reach the weather temps. Locale-formatted, so every language abbreviates
   // the way it abbreviates rather than being truncated.
   const dateLabelShort = date.toLocaleDateString(i18n.language, { month: 'short', day: 'numeric' });
+  // Every date of the month in its long form, for the probe below: the
+  // widest decides for the whole month (monthDateLabels).
+  const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the month, not the day
+  const monthLabels = useMemo(() => monthDateLabels(date, i18n.language), [monthKey, i18n.language]);
 
   // Compact when the component is width-constrained (portrait-ish): there,
   // the side labels and their viewBox margin cost actual dial diameter, so
@@ -1123,10 +1129,11 @@ const DayDial = ({ dayTasks, prevDayTasks = null, frames = null, routines = null
     return () => ro.disconnect();
   }, []);
 
-  // Width of the date's LONG form, measured off a hidden twin that always
-  // renders it. Measuring the visible line instead would let an abbreviation
-  // that fits flip the decision straight back — this probe's width depends
-  // only on the font and the viewport, never on what we chose to show.
+  // Width of the month's widest LONG-form date, measured off a hidden twin
+  // that stacks every date of the month. Measuring the visible line instead
+  // would let an abbreviation that fits flip the decision straight back, and
+  // measuring only today's date let a month switch form partway through; this
+  // probe's width depends only on the font, the viewport and the month.
   const dateProbeRef = useRef(null);
   const [dateLongPx, setDateLongPx] = useState(null);
   useLayoutEffect(() => {
@@ -1141,7 +1148,7 @@ const DayDial = ({ dayTasks, prevDayTasks = null, frames = null, routines = null
     const ro = new ResizeObserver(read);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [dateLabel]);
+  }, [monthLabels]);
 
   const wrapRef = useRef(null);
   const [wrapBox, setWrapBox] = useState(null);
@@ -1620,15 +1627,16 @@ const DayDial = ({ dayTasks, prevDayTasks = null, frames = null, routines = null
           </div>
           <div className="font-brand text-white text-[clamp(28px,7vmin,64px)] leading-tight mt-1">
             {dialDateFits(dateLongPx, dialPx) ? dateLabel : dateLabelShort}
-            {/* The hidden twin the decision is measured from. Out of the
-                a11y tree and out of the layout, but laid out enough to have
-                a width. */}
+            {/* The hidden twin the decision is measured from: every date of
+                the month, one per line, so its shrink-to-fit width is the
+                widest one's. Out of the a11y tree and out of the layout, but
+                laid out enough to have a width. */}
             <span
               ref={dateProbeRef}
               aria-hidden="true"
-              className="absolute invisible whitespace-nowrap pointer-events-none"
+              className="absolute invisible whitespace-nowrap pointer-events-none flex flex-col"
             >
-              {dateLabel}
+              {monthLabels.map((label) => <span key={label}>{label}</span>)}
             </span>
           </div>
           <div className="w-24 border-t border-white/15 my-[1.5vmin]" />

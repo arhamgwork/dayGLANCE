@@ -38,7 +38,7 @@ object LauncherSnapshotRows {
             val meta = JSONObject()
             val root = snapshotJson?.let { try { JSONObject(it) } catch (e: Exception) { null } }
             if (root != null) {
-                for (key in listOf("version", "updatedAt", "timezone", "today", "handledWrites")) {
+                for (key in listOf("version", "updatedAt", "timezone", "today", "inboxCount", "handledWrites")) {
                     if (root.has(key)) meta.put(key, root.get(key))
                 }
             }

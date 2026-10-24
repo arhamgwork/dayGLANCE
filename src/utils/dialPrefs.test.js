@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { DEFAULT_ALARM_PREFS, DIAL_ALARM_KEY, loadAlarmPrefs, saveAlarmPrefs } from './dialPrefs.js';
+import { DEFAULT_ALARM_PREFS, DIAL_ALARM_KEY, loadAlarmPrefs, saveAlarmPrefs, DEFAULT_DIAL_LAYERS, DIAL_LAYERS_KEY, loadDialLayers, saveDialLayers } from './dialPrefs.js';
 
 describe('dial alarm prefs', () => {
   beforeEach(() => {
@@ -24,5 +24,31 @@ describe('dial alarm prefs', () => {
     expect(loadAlarmPrefs()).toEqual({ on: true, fromMin: 1080 });
     localStorage.setItem(DIAL_ALARM_KEY, '{nope');
     expect(loadAlarmPrefs()).toEqual(DEFAULT_ALARM_PREFS);
+  });
+});
+
+describe('dial layer toggles', () => {
+  beforeEach(() => {
+    const store = new Map();
+    globalThis.localStorage = {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => store.set(k, String(v)),
+      removeItem: (k) => store.delete(k),
+    };
+  });
+  afterEach(() => { delete globalThis.localStorage; });
+
+  it('every layer is on until switched off', () => {
+    expect(loadDialLayers()).toEqual(DEFAULT_DIAL_LAYERS);
+    expect(Object.values(DEFAULT_DIAL_LAYERS).every(Boolean)).toBe(true);
+  });
+
+  it('round-trips, keeps unset layers on, and ignores unknown keys and non-booleans', () => {
+    saveDialLayers({ ...DEFAULT_DIAL_LAYERS, weather: false });
+    expect(loadDialLayers().weather).toBe(false);
+    localStorage.setItem(DIAL_LAYERS_KEY, JSON.stringify({ calendars: false, frames: 'no', bogus: false }));
+    expect(loadDialLayers()).toEqual({ ...DEFAULT_DIAL_LAYERS, calendars: false });
+    localStorage.setItem(DIAL_LAYERS_KEY, '{nope');
+    expect(loadDialLayers()).toEqual(DEFAULT_DIAL_LAYERS);
   });
 });

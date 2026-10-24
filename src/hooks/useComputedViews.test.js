@@ -100,3 +100,18 @@ describe('Inbox filters ignore stale selections', () => {
     expect(view.liveInboxTagFilter).toBe(inboxTagFilter);
   });
 });
+
+// #2143, step 3: allTags and filterableTags come from one pass. These pin the
+// rules the two passes had: imported events count for neither; Bucket List
+// items count for allTags (autocomplete, AI) but are not offered as filters.
+describe('allTags and filterableTags', () => {
+  it('one pass keeps both lists\' rules', () => {
+    const views = useComputedViews(baseArgs({
+      tasks: [inboxTask('Meeting #Work', { date: '2026-10-19' }), inboxTask('Dentist #health', { imported: true })],
+      unscheduledTasks: [inboxTask('Paint #home'), inboxTask('Learn piano #someday', { bucketId: 'b1' })],
+      recurringTasks: [inboxTask('Water plants #home #garden')],
+    }));
+    expect(views.allTags).toEqual(['garden', 'home', 'someday', 'work']);
+    expect(views.filterableTags).toEqual(['garden', 'home', 'work']);
+  });
+});
