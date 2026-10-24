@@ -2,9 +2,20 @@
   "name": "@glance-apps/agenda-core",
   "version": "0.1.0",
   "description": "dayGLANCE agenda core: recurrence expansion and day-agenda building, shared verbatim by the dayGLANCE app and the dayglance-bridge Obsidian plugin.",
+  "license": "MIT",
   "type": "module",
   "main": "src/index.js",
   "types": "types/index.d.ts",
-  "license": "MIT",
-  "private": true
+  "files": ["src", "types", "README.md", "LICENSE"],
+  "scripts": {
+    "test": "vitest run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/krelltunez/dayGLANCE.git",
+    "directory": "packages/agenda-core"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }
