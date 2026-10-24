@@ -73,6 +73,25 @@ import {
 } from '@glance-apps/obsidian-format';
 import { createVaultClient, type VaultClient } from '@glance-apps/sync/src/vaultClient.js';
 import type { BridgePairing } from './pairing';
+import { asText } from './text';
+
+// The slice of Node's http(s) module the live-sync stream uses. Typed here
+// rather than imported: the module is loaded with window.require on the
+// desktop only (see connectSse), never bundled.
+interface SseResponse {
+  statusCode?: number;
+  setEncoding(encoding: string): void;
+  on(event: 'data', listener: (chunk: string) => void): void;
+  on(event: 'end' | 'error', listener: () => void): void;
+}
+interface SseRequest {
+  on(event: 'error' | 'close', listener: () => void): void;
+  end(): void;
+  destroy(): void;
+}
+interface NodeHttpModule {
+  request(url: URL, options: { method: string; headers: Record<string, string> }, onResponse: (res: SseResponse) => void): SseRequest;
+}
 
 export interface BridgeState {
   appliedIds: string[];
@@ -299,7 +318,7 @@ const obsidianFetch = async (
   return {
     ok: resp.status >= 200 && resp.status < 300,
     status: resp.status,
-    json: async () => resp.json,
+    json: async (): Promise<unknown> => resp.json as unknown,
   };
 };
 
@@ -472,8 +491,7 @@ export class BridgeTransport {
   // the connection lifecycle.
   private sseArming = createSseArming();
   private sseGate = createSseNudgeGate({ app: BRIDGE_VAULT_APP, onDrain: () => this.drainFromNudge() });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private sseReq: any = null; // in-flight Node http(s) request, when connected/connecting
+  private sseReq: SseRequest | null = null; // in-flight Node http(s) request, when connected/connecting
   private sseReconnectTimer: number | null = null;
   private sseReadTimer: number | null = null;
   private sseFailures = 0;
@@ -493,7 +511,7 @@ export class BridgeTransport {
     if (this.rateLimited()) return;
     this.backoffMs = Math.min(this.backoffMs ? this.backoffMs * 2 : BACKOFF_BASE_MS, BACKOFF_MAX_MS);
     this.backoffUntil = Date.now() + this.backoffMs;
-    console.info(`dayGLANCE bridge: rate-limited (429) — pausing bridge requests for ~${Math.round(this.backoffMs / 1000)}s.`);
+    console.debug(`dayGLANCE bridge: rate-limited (429) — pausing bridge requests for ~${Math.round(this.backoffMs / 1000)}s.`);
   }
 
   // DECAY, never amnesty — the live lesson of 2026-08-30. The first shape
@@ -513,9 +531,9 @@ export class BridgeTransport {
     this.backoffMs = Math.floor(this.backoffMs / 2);
     if (this.backoffMs < BACKOFF_BASE_MS) {
       this.backoffMs = 0;
-      console.info('dayGLANCE bridge: request succeeded — brake released.');
+      console.debug('dayGLANCE bridge: request succeeded — brake released.');
     } else {
-      console.info(`dayGLANCE bridge: request succeeded — brake decaying (a new 429 would pause ~${Math.round(Math.min(this.backoffMs * 2, BACKOFF_MAX_MS) / 1000)}s).`);
+      console.debug(`dayGLANCE bridge: request succeeded — brake decaying (a new 429 would pause ~${Math.round(Math.min(this.backoffMs * 2, BACKOFF_MAX_MS) / 1000)}s).`);
     }
   }
 
@@ -527,7 +545,7 @@ export class BridgeTransport {
     const persisted = host.getBridgeState().config;
     if (persisted && typeof persisted === 'object') {
       this.config = persisted;
-      console.info(`dayGLANCE bridge: config restored from settings — stamping ${this.stampingState()}.`);
+      console.debug(`dayGLANCE bridge: config restored from settings — stamping ${this.stampingState()}.`);
     }
     for (const p of host.getBridgeState().adoptedScope ?? []) {
       if (typeof p === 'string') { this.adopted.add(p); this.scopedPaths.add(p); }
@@ -648,7 +666,7 @@ export class BridgeTransport {
     const stale = generation !== null && generation !== pairing.generation
       && (!Number.isFinite(theirs) || !Number.isFinite(mine) || theirs > mine);
     const was = this.stalePairing;
-    this.stalePairing = stale ? { generation: generation as string, pairedAt: typeof p?.pairedAt === 'string' ? p.pairedAt : null } : null;
+    this.stalePairing = stale ? { generation, pairedAt: typeof p?.pairedAt === 'string' ? p.pairedAt : null } : null;
     if (stale && this.stalePairingSaidFor !== generation) {
       this.stalePairingSaidFor = generation;
       console.warn(
@@ -659,7 +677,7 @@ export class BridgeTransport {
     }
     if (was && !stale) {
       this.stalePairingSaidFor = null;
-      console.info('dayGLANCE bridge: this copy holds the vault\'s current pairing again; applying and reporting resume.');
+      console.debug('dayGLANCE bridge: this copy holds the vault\'s current pairing again; applying and reporting resume.');
       void this.resumePendingObservations();
     }
     return stale;
@@ -738,7 +756,7 @@ export class BridgeTransport {
     this.config = cfg;
     if (!changed) return;
     const after = this.stampingState();
-    console.info(`dayGLANCE bridge: config ${before === 'no-config' ? 'received' : 'updated'} — stamping ${after}.`);
+    console.debug(`dayGLANCE bridge: config ${before === 'no-config' ? 'received' : 'updated'} — stamping ${after}.`);
     try {
       await this.host.saveBridgeState(this.stateSnapshot({ config: cfg }));
     } catch (e) {
@@ -801,7 +819,7 @@ export class BridgeTransport {
     if (a && a.until > now && a.deviceId !== me) {
       if (!this.applierFollowerLogged) {
         this.applierFollowerLogged = true;
-        console.info(`dayGLANCE bridge: another copy of this vault (${a.deviceId}) applies intents; this copy receives them through sync.`);
+        console.debug(`dayGLANCE bridge: another copy of this vault (${a.deviceId}) applies intents; this copy receives them through sync.`);
       }
       return 'follower';
     }
@@ -821,7 +839,7 @@ export class BridgeTransport {
     const groups = new Map<string, PendingIntent[]>();
     const singles: PendingIntent[] = [];
     for (const it of items) {
-      const type = String(it.intent.type ?? '');
+      const type = asText(it.intent.type);
       const path = typeof it.intent.path === 'string' && it.intent.path ? normalizePath(it.intent.path) : '';
       if (COALESCED_INTENT_TYPES.has(type) && path) {
         const g = groups.get(path) ?? [];
@@ -977,7 +995,7 @@ export class BridgeTransport {
     this.clearSseReadTimer();
     this.sseReadTimer = window.setTimeout(() => {
       this.sseReadTimer = null;
-      console.info('dayGLANCE bridge: live sync went quiet (3 missed heartbeats) — reconnecting.');
+      console.debug('dayGLANCE bridge: live sync went quiet (3 missed heartbeats) — reconnecting.');
       this.failSse();
     }, SSE_READ_TIMEOUT_MS);
   }
@@ -1025,10 +1043,10 @@ export class BridgeTransport {
     } catch {
       return;
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let mod: any;
+    // http and https share the request signature used here.
+    let mod: NodeHttpModule;
     try {
-      mod = nodeRequire(url.protocol === 'http:' ? 'http' : 'https');
+      mod = nodeRequire(url.protocol === 'http:' ? 'http' : 'https') as NodeHttpModule;
     } catch {
       return;
     }
@@ -1040,8 +1058,7 @@ export class BridgeTransport {
     const req = mod.request(url, {
       method: 'GET',
       headers: { Authorization: `Bearer ${pairing.deviceToken}`, Accept: 'text/event-stream' },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    }, (res: any) => {
+    }, (res: SseResponse) => {
       clearConnectTimer();
       if (res.statusCode === 401 || res.statusCode === 403) {
         // REFUTATION: the credential is dead — stop outright, no backoff
@@ -1050,13 +1067,13 @@ export class BridgeTransport {
         // the credential and re-arms the stream. Total cost of a dead
         // credential: one failed drain per tick — polling's own benign
         // failure mode, preserved.
-        console.info(`dayGLANCE bridge: live sync refused (${res.statusCode}) — paused until a sync succeeds.`);
+        console.debug(`dayGLANCE bridge: live sync refused (${res.statusCode}) — paused until a sync succeeds.`);
         this.sseArming.noteAuthFailure();
         this.stopSse();
         return;
       }
       if (res.statusCode !== 200) {
-        console.info(`dayGLANCE bridge: live sync connect failed (${res.statusCode}) — will retry.`);
+        console.debug(`dayGLANCE bridge: live sync connect failed (${res.statusCode}) — will retry.`);
         this.failSse();
         return;
       }
@@ -1075,7 +1092,7 @@ export class BridgeTransport {
             this.stopSse();
             return;
           }
-          this.sseGate.handleEvent(evt as { seq?: number });
+          this.sseGate.handleEvent(evt);
         });
       });
       res.on('end', () => this.failSse());
@@ -1088,7 +1105,7 @@ export class BridgeTransport {
     connectTimer = window.setTimeout(() => {
       connectTimer = null;
       if (this.sseReq !== req) return; // already torn down or replaced
-      console.info(`dayGLANCE bridge: live sync connect timed out after ${Math.round(SSE_CONNECT_TIMEOUT_MS / 1000)}s — will retry.`);
+      console.debug(`dayGLANCE bridge: live sync connect timed out after ${Math.round(SSE_CONNECT_TIMEOUT_MS / 1000)}s — will retry.`);
       this.failSse();
     }, SSE_CONNECT_TIMEOUT_MS);
   }
@@ -1276,7 +1293,7 @@ export class BridgeTransport {
             'or once this copy is re-paired or restarted after the synced plugin settings arrive.',
           );
         } else {
-          console.info('dayGLANCE bridge: no held dayGLANCE changes remain.');
+          console.debug('dayGLANCE bridge: no held dayGLANCE changes remain.');
         }
       }
       // ONE APPLIER PER VAULT: the role is decided every drain (the holder
@@ -1415,18 +1432,18 @@ export class BridgeTransport {
       // Wikilink resolution is the applier's job (the one intent type
       // without an emitter-resolved path): an existing note anywhere in
       // the vault wins; otherwise create under newNotesFolder.
-      const noteName = String(intent.noteName ?? '');
+      const noteName = asText(intent.noteName);
       const existing = this.host.app.metadataCache.getFirstLinkpathDest(noteName, '');
       if (existing) {
         path = existing.path;
       } else if (noteName.includes('/')) {
         path = `${noteName}.md`;
       } else {
-        const folder = String(intent.newNotesFolder ?? '');
+        const folder = asText(intent.newNotesFolder);
         path = folder ? `${folder}/${noteName}.md` : `${noteName}.md`;
       }
     } else {
-      path = String(intent.path ?? '');
+      path = asText(intent.path);
     }
     if (!path) return 'applied';
     path = normalizePath(path);
@@ -1504,7 +1521,7 @@ export class BridgeTransport {
     const file = this.host.app.vault.getAbstractFileByPath(normalizePath(path));
     if (!(file instanceof TFile)) return undefined; // no such note
     if (file.extension !== 'md') return null;
-    const raw = this.host.app.metadataCache.getFileCache(file)?.frontmatter?.[PROJECT_NOTE_ID_KEY];
+    const raw: unknown = this.host.app.metadataCache.getFileCache(file)?.frontmatter?.[PROJECT_NOTE_ID_KEY];
     const id = typeof raw === 'string' ? raw.trim() : (typeof raw === 'number' ? String(raw) : '');
     return id && id.length <= 64 ? id : null;
   }
@@ -1695,8 +1712,8 @@ export class BridgeTransport {
   }
 
   private async applyLinkIntent(intent: Record<string, unknown>): Promise<'applied' | 'deferred'> {
-    const path = normalizePath(String(intent.path ?? ''));
-    const targetId = String(intent.targetId ?? '').trim();
+    const path = normalizePath(asText(intent.path));
+    const targetId = asText(intent.targetId).trim();
     if (!path || !targetId) return 'applied';
     let file = this.host.app.vault.getAbstractFileByPath(path);
     const link = intent.type === 'project_note_link';
@@ -1750,10 +1767,10 @@ export class BridgeTransport {
    * the intent applied to the rendered body.
    */
   private async applyDailyNoteCreation(path: string, intent: Record<string, unknown>, templatePath: string): Promise<'applied' | 'deferred'> {
-    const date = String(intent.date ?? '');
+    const date = asText(intent.date);
     // Under Templater's on-create trigger the fallback text is rendered by
     // Templater too, so it gets the same pre-scan as a template note.
-    const safeIntent = { ...intent, template: this.safeFallbackTemplate(String(intent.template ?? '')) };
+    const safeIntent = { ...intent, template: this.safeFallbackTemplate(asText(intent.template)) };
     const first = applyBridgeIntent(null, safeIntent);
     if ('unsupported' in first || 'error' in first || !first.changed || first.text === null) return 'applied';
     await this.ensureParentDirs(path);
@@ -1866,9 +1883,9 @@ export class BridgeTransport {
   }
 
   private async applyCreateIntent(intent: Record<string, unknown>): Promise<'applied'> {
-    const targetId = String(intent.targetId ?? '').trim();
+    const targetId = asText(intent.targetId).trim();
     const kind = intent.kind === 'goal' ? 'goal' : 'project';
-    const title = String(intent.title ?? '').trim();
+    const title = asText(intent.title).trim();
     if (!targetId || !title) return 'applied';
     if (this.linkedPathOf(targetId)) return 'applied'; // idempotent replay, or linked meanwhile
     const settings = normalizeProjectNoteSettings(this.host.getProjectNotes?.() ?? null);
@@ -2026,7 +2043,7 @@ export class BridgeTransport {
         .map((f) => f.path)
         .filter((path) => !this.adopted.has(path) && this.scopedNote(path))
         .sort();
-      if (this.adoptQueue.length) console.info(`dayGLANCE bridge: ${this.adoptQueue.length} note(s) entering the task scope; reporting ${ADOPT_PER_TICK} per tick.`);
+      if (this.adoptQueue.length) console.debug(`dayGLANCE bridge: ${this.adoptQueue.length} note(s) entering the task scope; reporting ${ADOPT_PER_TICK} per tick.`);
     }
     const batch = this.adoptQueue.splice(0, ADOPT_PER_TICK);
     if (!batch.length) return;

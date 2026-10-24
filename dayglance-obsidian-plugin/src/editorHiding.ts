@@ -33,32 +33,13 @@ export interface EditorHidingHost {
   getSettings(): EditorHidingSettings;
 }
 
-const STYLE_ID = 'dayglance-editor-hiding-styles';
 const BODY_HIDE_BLOCK_IDS = 'dg-hide-block-ids';
 const BODY_HIDE_COMPLETED = 'dg-hide-completed';
 export const BLOCK_ID_CLASS = 'dg-blockid';
 export const DONE_LINE_CLASS = 'dg-done';
 
-// `.cm-active` is Obsidian's cursor-line class (the same hook the common
-// block-id snippet uses). `display: none` on a `.cm-line` is the shape the
-// widely used completed-task snippets take; CodeMirror measures the line
-// at zero height and moves on.
-const CSS = `
-body.${BODY_HIDE_BLOCK_IDS} .markdown-source-view.is-live-preview .cm-line:not(.cm-active) .${BLOCK_ID_CLASS} { display: none; }
-body.${BODY_HIDE_COMPLETED} .markdown-source-view.is-live-preview .cm-line.${DONE_LINE_CLASS}:not(.cm-active) { display: none; }
-body.${BODY_HIDE_COMPLETED} .markdown-reading-view li.task-list-item.${DONE_LINE_CLASS} { display: none; }
-`;
-
-export function injectEditorHidingStyles(doc: Document): void {
-  if (doc.getElementById(STYLE_ID)) return;
-  const el = doc.createElement('style');
-  el.id = STYLE_ID;
-  el.textContent = CSS;
-  doc.head.appendChild(el);
-}
-
-export function removeEditorHidingStyles(doc: Document): void {
-  doc.getElementById(STYLE_ID)?.remove();
+/** Undo applyEditorHidingSettings (plugin unload). The CSS is in styles.css. */
+export function clearEditorHidingSettings(doc: Document): void {
   doc.body.classList.remove(BODY_HIDE_BLOCK_IDS, BODY_HIDE_COMPLETED);
 }
 

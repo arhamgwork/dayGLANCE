@@ -49,10 +49,10 @@ import { localStateStoreFor, migrateToLocalState, splitBridgeState, joinBridgeSt
 import { AgendaStore } from './agenda';
 import { normalizeScope, scopeIsActive, normalizeProjectNoteSettings, type VaultScope, type ProjectNoteSettings } from '@glance-apps/obsidian-format';
 import { localDateStr } from '@glance-apps/agenda-core';
-import { AgendaView, AGENDA_VIEW_TYPE, removeAgendaStyles } from './agendaView';
+import { AgendaView, AGENDA_VIEW_TYPE } from './agendaView';
 import { LinkTargetModal } from './linkModal';
 import { NoteBlockWriter } from './noteBlocks';
-import { applyEditorHidingSettings, editorHidingExtension, injectEditorHidingStyles, markCompletedInReadingView, refreshEditorHiding, removeEditorHidingStyles, type EditorHidingHost } from './editorHiding';
+import { applyEditorHidingSettings, clearEditorHidingSettings, editorHidingExtension, markCompletedInReadingView, refreshEditorHiding, type EditorHidingHost } from './editorHiding';
 import { normalizeEditorHidingSettings, type EditorHidingSettings } from './editorHidingRules';
 
 const HEARTBEAT_DIR = '.dayglance';
@@ -188,7 +188,7 @@ export default class DayGlanceBridgePlugin extends Plugin {
       // how this copy is named to every dayGLANCE device.
       getCopyName: () => copyName(),
       getPlatform: () => platformLabel(),
-      getPluginVersion: () => String((this.manifest as { version?: unknown })?.version ?? ''),
+      getPluginVersion: () => this.manifest.version,
       // A note linked or unlinked while open: its completed-line hiding
       // follows the map without waiting for the next edit.
       onLinkedNotesChanged: () => refreshEditorHiding(this.app),
@@ -210,7 +210,6 @@ export default class DayGlanceBridgePlugin extends Plugin {
     };
     this.registerEditorExtension(editorHidingExtension(hidingHost));
     this.registerMarkdownPostProcessor((el, ctx) => markCompletedInReadingView(hidingHost, el, ctx.sourcePath));
-    injectEditorHidingStyles(document);
     applyEditorHidingSettings(document, this.editorHiding());
 
     this.registerView(AGENDA_VIEW_TYPE, (leaf) => new AgendaView(leaf, this.agenda));
@@ -418,7 +417,7 @@ export default class DayGlanceBridgePlugin extends Plugin {
       // A new pairing (or an unpairing) arrived through sync: the cursor and
       // the applied set belong to the superseded stream.
       if (after !== null) this.resetBridgeState(); else this.clearBridgeState();
-      console.info(after !== null
+      console.debug(after !== null
         ? `dayGLANCE bridge: synced settings carry a new pairing (paired ${this.data.pairing?.pairedAt ?? 'unknown date'}); switching to it.`
         : 'dayGLANCE bridge: synced settings carry no pairing; this copy is now unpaired.');
       this.agenda.notifyViewerChanged();
@@ -435,8 +434,7 @@ export default class DayGlanceBridgePlugin extends Plugin {
     this.transport.shutdown();
     this.noteBlocks.dispose();
     this.agenda.dispose();
-    removeAgendaStyles(document);
-    removeEditorHidingStyles(document);
+    clearEditorHidingSettings(document);
     // Best-effort: a graceful quit (or a plugin disable — equally "no
     // bridge here") removes the file so readers see the truth immediately
     // instead of waiting out the staleness window. Crashes skip this, which

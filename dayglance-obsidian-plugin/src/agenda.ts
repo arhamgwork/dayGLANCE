@@ -54,6 +54,7 @@ import {
   KEYCHECK_ENTITY_ID,
 } from '@glance-apps/sync/src/dbCrypto.js';
 import type { BridgePairing } from './pairing';
+import { asText } from './text';
 
 // The dayGLANCE sync engine's app id on the vault (its data plane).
 const DAYGLANCE_APP = 'dayglance';
@@ -120,7 +121,7 @@ const obsidianFetch = async (
   const resp = await requestUrl({
     url, method: init.method ?? 'GET', headers: init.headers ?? {}, body: init.body, throw: false,
   });
-  return { ok: resp.status >= 200 && resp.status < 300, status: resp.status, json: async () => resp.json };
+  return { ok: resp.status >= 200 && resp.status < 300, status: resp.status, json: async (): Promise<unknown> => resp.json as unknown };
 };
 
 const statusOf = (e: unknown): number | undefined =>
@@ -218,9 +219,9 @@ export class AgendaStore {
   users(): AgendaUser[] {
     const out: AgendaUser[] = [];
     for (const u of this.members.values()) {
-      const syncId = String((u as { syncId?: unknown }).syncId ?? u.id ?? '');
+      const syncId = asText((u as { syncId?: unknown }).syncId ?? u.id);
       if (!syncId) continue;
-      out.push({ syncId, name: String((u as { name?: unknown }).name ?? syncId) });
+      out.push({ syncId, name: asText((u as { name?: unknown }).name ?? syncId) });
     }
     return out.sort((a, b) => a.name.localeCompare(b.name));
   }
@@ -231,14 +232,14 @@ export class AgendaStore {
    */
   linkTargets(): LinkTarget[] {
     const goals = [...this.goalRows.values()].filter((g) => g.status !== 'archived' && this.visibleTask(g));
-    const goalTitle = new Map(goals.map((g) => [String(g.id), String(g.title ?? '')]));
+    const goalTitle = new Map(goals.map((g) => [String(g.id), asText(g.title)]));
     const out: LinkTarget[] = [];
     for (const p of this.projectRows.values()) {
       if (p.status === 'archived' || !this.visibleTask(p)) continue;
       const goalId = (p as { goalId?: unknown }).goalId;
-      out.push({ kind: 'project', id: String(p.id), title: String(p.title ?? ''), goalTitle: goalId ? goalTitle.get(String(goalId)) : undefined });
+      out.push({ kind: 'project', id: String(p.id), title: asText(p.title), goalTitle: goalId ? goalTitle.get(asText(goalId)) : undefined });
     }
-    for (const g of goals) out.push({ kind: 'goal', id: String(g.id), title: String(g.title ?? '') });
+    for (const g of goals) out.push({ kind: 'goal', id: String(g.id), title: asText(g.title) });
     return out.sort((a, b) => a.title.localeCompare(b.title));
   }
 
@@ -386,7 +387,7 @@ export class AgendaStore {
           const value = await this.decryptRow(row.envelope, entityId, kind);
           if (value === undefined) { undecryptable += 1; continue; }
           if (value === null) continue;
-          map.set(mapKey, value as TaskRow);
+          map.set(mapKey, value);
           changed = true;
         }
       }
@@ -416,7 +417,7 @@ export class AgendaStore {
   // undefined = undecryptable under this key; null = decryptable but not a
   // row of the expected kind (never routed); otherwise the entity's value
   // (a task/chip object for collections, the bare value for singletons).
-  private async decryptRow(envelope: string, entityId: string, kind: string): Promise<unknown | null | undefined> {
+  private async decryptRow(envelope: string, entityId: string, kind: string): Promise<unknown> {
     let entity: unknown;
     try { entity = await decryptEntity(envelope, entityId); }
     catch { return undefined; }

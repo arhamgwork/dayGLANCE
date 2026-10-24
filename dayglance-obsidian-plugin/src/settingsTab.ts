@@ -169,7 +169,7 @@ export class BridgeSettingTab extends PluginSettingTab {
   // discarded. Nothing here is written to data.json, which Obsidian Sync
   // would carry to every copy of the vault.
   private displayAccount(): void {
-    this.containerEl.createEl('h3', { text: 'dayGLANCE account' });
+    new Setting(this.containerEl).setName('dayGLANCE account').setHeading();
     const state = this.host.agendaKeyState();
     if (state === 'ready') {
       this.displayViewer();
@@ -249,7 +249,7 @@ export class BridgeSettingTab extends PluginSettingTab {
   // Which notes beyond the daily notes are task sources. Folders and tags
   // are two ways to organize a vault; both are offered, neither privileged.
   private displayScope(): void {
-    this.containerEl.createEl('h3', { text: 'Vault task scope' });
+    new Setting(this.containerEl).setName('Vault task scope').setHeading();
     const current = this.host.getScope() ?? { folders: [], tags: [], completionWindowDays: SCOPE_WINDOW_DEFAULT_DAYS };
     let folders = current.folders.join('\n');
     let tags = current.tags.join('\n');
@@ -295,7 +295,7 @@ export class BridgeSettingTab extends PluginSettingTab {
   }
 
   private displayProjectNotes(): void {
-    this.containerEl.createEl('h3', { text: 'Project and goal notes' });
+    new Setting(this.containerEl).setName('Project and goal notes').setHeading();
     const cur = this.host.getProjectNotes();
     const draft: ProjectNoteSettings = { ...cur };
     const save = async () => { await this.host.setProjectNotes(normalizeProjectNoteSettings(draft)); };
@@ -357,7 +357,7 @@ export class BridgeSettingTab extends PluginSettingTab {
   }
 
   private displayEditor(): void {
-    this.containerEl.createEl('h3', { text: 'Editor' });
+    new Setting(this.containerEl).setName('Editor').setHeading();
     const cur = this.host.getEditorHiding();
     const save = (patch: Partial<EditorHidingSettings>) => void this.host.setEditorHiding({ ...this.host.getEditorHiding(), ...patch });
     new Setting(this.containerEl)

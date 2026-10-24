@@ -50,7 +50,7 @@ export interface LocalStateStore {
   save(data: LocalBridgeData | null): void;
 }
 
-type LocalStorageApp = { loadLocalStorage?: (key: string) => unknown; saveLocalStorage?: (key: string, data: unknown | null) => void };
+type LocalStorageApp = { loadLocalStorage?: (key: string) => unknown; saveLocalStorage?: (key: string, data: unknown) => void };
 
 /** The vault-scoped device-local store, or an unavailable stub on an old Obsidian. */
 export function localStateStoreFor(app: App): LocalStateStore {
@@ -61,8 +61,8 @@ export function localStateStoreFor(app: App): LocalStateStore {
     load: () => {
       if (!available) return null;
       try {
-        const raw = a.loadLocalStorage!(LOCAL_STATE_KEY);
-        return raw && typeof raw === 'object' ? (raw as LocalBridgeData) : null;
+        const raw = a.loadLocalStorage?.(LOCAL_STATE_KEY);
+        return raw && typeof raw === 'object' ? raw : null;
       } catch {
         return null;
       }
