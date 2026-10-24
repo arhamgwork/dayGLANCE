@@ -903,6 +903,26 @@ export function dialDateFits(textPx, dialPx) {
   return textPx <= dialPx * DIAL_DATE_MAX_FRAC;
 }
 
+/**
+ * The long-form label of every date in `date`'s month, for the hub's date
+ * probe. The probe stacks them and reports the WIDEST, so the long-or-short
+ * call is made once per month: measured date by date, a phone's November read
+ * "November 1" and then "Nov 24" a few weeks later. A tablet that fits the
+ * widest keeps every name; locale-formatted, so each language is measured in
+ * its own month names rather than against a list of English ones.
+ *
+ * @param {Date} date
+ * @param {string} locale
+ * @returns {string[]}
+ */
+export function monthDateLabels(date, locale) {
+  const y = date.getFullYear();
+  const m = date.getMonth();
+  const days = new Date(y, m + 1, 0).getDate();
+  return Array.from({ length: days }, (_, i) =>
+    new Date(y, m, i + 1, 12).toLocaleDateString(locale, { month: 'long', day: 'numeric' }));
+}
+
 // A sunrise/sunset mark rides its hairline out to the hour-label radius, so
 // a sun time within about half an hour of a label parks the glyph on the
 // text ("6☼AM" for an August sunrise at 6:09). The label yields for those

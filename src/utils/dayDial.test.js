@@ -44,6 +44,7 @@ import {
   computeDayCompletion,
   dialDateFits,
   DIAL_DATE_MAX_FRAC,
+  monthDateLabels,
 } from './dayDial.js';
 
 const task = (over = {}) => ({
@@ -1521,5 +1522,33 @@ describe('projectDialSnapshot', () => {
     expect(blocks.find((b) => b.id === '42')).toMatchObject({ startMin: 540, durationMin: 23 });
     expect(blocks.find((b) => b.id === '7').type).toBe('routine');
     expect(blocks.find((b) => b.id === 'late')).toMatchObject({ durationMin: 60, endsNextDay: true, endMinTrue: 30 });
+  });
+});
+
+describe('monthDateLabels', () => {
+  it('lists every date of the month in its long form, whatever day it is asked from', () => {
+    const nov = monthDateLabels(new Date(2026, 10, 24, 12), 'en-US');
+    expect(nov).toHaveLength(30);
+    expect(nov[0]).toBe('November 1');
+    expect(nov[29]).toBe('November 30');
+    expect(monthDateLabels(new Date(2026, 10, 1, 12), 'en-US')).toEqual(nov);
+    expect(monthDateLabels(new Date(2028, 1, 10, 12), 'en-US')).toHaveLength(29);
+  });
+
+  it('is formatted in the locale, so other languages are measured in their own month names', () => {
+    expect(monthDateLabels(new Date(2026, 2, 5, 12), 'de-DE')[4]).toBe('5. März');
+  });
+
+  it('so the widest date decides for the whole month', () => {
+    // A stand-in for the probe: width per character, digits narrower. On
+    // this face "November 1" alone would fit and "November 28" would not;
+    // every day of November gets the same answer.
+    const width = (s) => [...s].reduce((w, c) => w + (/\d/.test(c) ? 6 : 10), 0);
+    const dial = 230;
+    const widest = Math.max(...monthDateLabels(new Date(2026, 10, 1, 12), 'en-US').map(width));
+    expect(dialDateFits(width('November 1'), dial)).toBe(true);
+    expect(dialDateFits(widest, dial)).toBe(false);
+    const may = Math.max(...monthDateLabels(new Date(2026, 4, 1, 12), 'en-US').map(width));
+    expect(dialDateFits(may, dial)).toBe(true);
   });
 });
