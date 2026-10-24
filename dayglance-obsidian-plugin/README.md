@@ -38,7 +38,7 @@ plugin adds what a folder cannot do on its own: it runs inside Obsidian.
 - **A self-hosted GLANCEvault server**, dayGLANCE's sync server, with
   dayGLANCE syncing to it. The plugin talks to the same server. There is no
   hosted GLANCEvault and no account with the plugin's author.
-- Obsidian 1.5.0 or later, on desktop or mobile. Live updates use a
+- Obsidian 1.7.2 or later, on desktop or mobile. Live updates use a
   persistent connection on desktop; on mobile the plugin checks every 30
   seconds while Obsidian is open.
 
