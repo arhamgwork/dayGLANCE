@@ -671,9 +671,17 @@ class NativeBridge(
     fun updateLauncherSnapshot(snapshotJson: String) =
         com.dayglance.app.launcher.LauncherWrites.updateSnapshot(context, dataStore, snapshotJson)
 
-    /** The launcher's queued writes as a JSON array, oldest first; the queue is cleared. */
+    /**
+     * The launcher's queued writes as a JSON array, oldest first; the queue is
+     * cleared. A REFRESH taken here is stamped as picked up, so one that then
+     * goes unanswered says the page had it (LauncherRefreshTrace).
+     */
     @JavascriptInterface
-    fun getPendingLauncherIntents(): String = dataStore.drainPendingLauncherIntents()
+    fun getPendingLauncherIntents(): String {
+        val drained = dataStore.drainPendingLauncherIntents()
+        com.dayglance.app.launcher.LauncherRefreshTrace.markPickedUp(dataStore, drained)
+        return drained
+    }
 
     /**
      * The launcher heartbeat ({checkedAt, syncedAt}), written on every run of the
