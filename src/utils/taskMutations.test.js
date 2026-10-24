@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { completionTimestamp } from './taskUtils.js';
 import {
   parseRecurringInstanceId,
   applyCreateTask,
@@ -356,7 +357,10 @@ describe('applySetCompletion', () => {
     expect(r.ok).toBe(true);
     const template = r.recurringTasks[0];
     expect(template.completedDates).toEqual(['2026-08-09', '2026-08-10']);
-    expect(template.completedDatesTimestamps['2026-08-10']).toBe(NOW);
+    // The same instant as lastModified, in the own-offset form of completedAt.
+    expect(template.completedDatesTimestamps['2026-08-10']).toBe(completionTimestamp(new Date(NOW)));
+    expect(template.completedDatesTimestamps['2026-08-10']).toMatch(/T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/);
+    expect(Date.parse(template.completedDatesTimestamps['2026-08-10'])).toBe(Date.parse(NOW));
     expect(template.lastModified).toBe(NOW);
 
     const uncomplete = applySetCompletion(
@@ -624,7 +628,7 @@ describe('applyUndoOps — the §4.3 bulk undo (Phase 5b)', () => {
     };
     const r = run(state, [{ kind: 'restore_recurring_completion', templateId: 'r1', dateStr: '2026-08-10', wasCompleted: false }]);
     expect(r.recurringTasks[0].completedDates).toEqual([]);
-    expect(r.recurringTasks[0].completedDatesTimestamps['2026-08-10']).toBe(NOW2);
+    expect(r.recurringTasks[0].completedDatesTimestamps['2026-08-10']).toBe(completionTimestamp(new Date(NOW2)));
     expect(r.recurringTasks[0].lastModified).toBe(NOW2);
     const back = run(state, [{ kind: 'restore_recurring_completion', templateId: 'r1', dateStr: '2026-08-10', wasCompleted: true }]);
     expect(back.recurringTasks[0].completedDates).toEqual(['2026-08-10']); // already there → undone, unchanged

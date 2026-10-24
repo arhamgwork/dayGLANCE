@@ -35,6 +35,7 @@ import {
   BRIDGE_ACTION_PREFIX,
 } from '@glance-apps/obsidian-format';
 import { getBridgePairingMeta, bridgeRateLimited, bridgeVaultClientFor } from './obsidianBridgeStream.js';
+import { completionTimestamp } from './taskUtils.js';
 
 const ACT_HWM_KEY = 'dayglance-bridge-act-hwm';
 export const ACTION_STALE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -154,8 +155,15 @@ export function planBridgeActions(actions, { tasks, unscheduledTasks, recurringT
   return { apply, hold, stale };
 }
 
-const completedAtOf = (a) => (typeof a.completedAt === 'string' && a.completedAt) || new Date().toISOString();
-const isoOf = (s) => { const t = Date.parse(s); return Number.isFinite(t) ? new Date(t).toISOString() : new Date().toISOString(); };
+const completedAtOf = (a) => (typeof a.completedAt === 'string' && a.completedAt) || completionTimestamp();
+// A per-date stamp keeps the action's own datetime as written (its offset
+// names the local date it was done on); anything without a time, or
+// unparseable, is normalised to an instant.
+const stampOf = (s) => {
+  const t = Date.parse(s);
+  if (!Number.isFinite(t)) return completionTimestamp();
+  return /T\d{2}:\d{2}/.test(s) ? s : new Date(t).toISOString();
+};
 
 /**
  * Apply task_complete actions to a task list (scheduled or inbox). Returns
@@ -203,7 +211,7 @@ export function applyActionsToRecurring(list, actions) {
     for (const a of acts) {
       if (dates.includes(a.instanceDate)) continue;
       dates.push(a.instanceDate);
-      stamps[a.instanceDate] = isoOf(completedAtOf(a));
+      stamps[a.instanceDate] = stampOf(completedAtOf(a));
       touched = true;
     }
     if (!touched) return t;

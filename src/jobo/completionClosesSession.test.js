@@ -148,7 +148,8 @@ describe('where the app reads it', () => {
     expect(summaryRows(null, comparison, t).map(row => row.key)).not.toContain('timeIncomplete');
   });
 
-  // A UTC stamp (recurring completions today) has no civil clock of its own.
+  // A UTC stamp (a recurring completion made before those took the own-offset
+  // form) has no civil clock of its own.
   // The same ledger must classify the same way whatever zone it is read in.
   // MUTATION: project UTC stamps into the viewer's zone (completionMoment in
   // comparisonMetadata, or a viewer-local default in core) and this fails.
