@@ -26,7 +26,8 @@ same trigger (every data change while the app runs), and pushes through
   goals:    [{ id, title, description, colorHex, targetDate, status }],
   projects: [{ id, title, goalId, colorHex, description, status, targetDate }],   // targetDate: the project's own, as on a goal (null when unset)
   routines: [{ id, name, startTime, duration, isAllDay, completed }],   // today's
-  frames:   [{ id, frameId, date, start, end, name, colorHex }],       // per day, today-7 to today+34
+  frames:   [{ id, frameId, date, start, end, name, colorHex,
+              slots: [{ start, end }] }],                     // per day, today-7 to today+34; slots: its free time (below)
   dayShape: { dayStartMin, dayStopMin, sunriseMin, sunsetMin, use24HourClock,
               lat, lon,                                  // the weather location, for the moon and solar elevation
               dialAlarm: { on, fromMin },               // the dial's alarm-mark prefs
@@ -44,6 +45,14 @@ what the app's dial does: sun and moon, the weather ring, imported calendar
 events, routines and frames. Focus is left out (the launcher has no focus
 data). Device-local like the toggles themselves, and read from the same
 storage by the headless refresh; a build that sends none means every layer on.
+
+**`frames[].slots`** is each frame's free time, as the app's dial reads it
+(App.jsx `dialFrameSlots`): `computeAvailableSlots` over that day's timed
+task rows and today's routines, overlaps merged, with no now floor, so the
+launcher takes "still available" at its own minute, as the app's widget does.
+The hub's "N available" and the dial's frame readout come from it, so the two
+dials agree. A build that sends none leaves the launcher to work it out from
+the tasks it draws.
 
 **`inboxCount`** is the number the app's own Inbox badge and dial complication
 show: the Inbox through the user's filters (priority, project, tag, completed,

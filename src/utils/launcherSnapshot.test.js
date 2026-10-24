@@ -122,8 +122,31 @@ describe('buildLauncherSnapshot', () => {
       },
     }));
     expect(asked.length).toBe(FRAME_WINDOW.daysBefore + 1 + FRAME_WINDOW.daysAfter);
-    expect(snap.frames[0]).toEqual({ id: 'f1:2026-10-12', frameId: 'f1', date: '2026-10-12', start: '09:00', end: '12:00', name: 'Deep work', colorHex: '#c8c8d2' });
+    expect(snap.frames[0]).toEqual({ id: 'f1:2026-10-12', frameId: 'f1', date: '2026-10-12', start: '09:00', end: '12:00', name: 'Deep work', colorHex: '#c8c8d2', slots: [{ start: '09:00', end: '12:00' }] });
     expect(snap.frames.every(f => new Date(`${f.date}T12:00:00`).getDay() === 1)).toBe(true);
+  });
+
+  it("carries each frame's free time, as the app's dial reads it", () => {
+    // Today's 09:00-12:00 frame holds two overlapping tasks (09:30-10:30 and
+    // 10:00-11:00), a 09:00 task with no duration (the default 30 minutes), a
+    // routine at 11:30 and an all-day task; tomorrow's holds one task. Overlaps
+    // merge rather than count twice, routines count, all-day rows do not, and
+    // there is no now floor (the launcher floors at its own minute).
+    const frame = { frameId: 'f1', start: '09:00', end: '12:00', label: 'Work', color: '#c8c8d2' };
+    const snap = buildLauncherSnapshot(base({
+      tasks: [
+        { id: 'a', title: 'a', date: TODAY, startTime: '09:30', duration: 60 },
+        { id: 'b', title: 'b', date: TODAY, startTime: '10:00', duration: 60 },
+        { id: 'c', title: 'c', date: TODAY, isAllDay: true },
+        { id: 'e', title: 'no duration', date: TODAY, startTime: '09:00' },
+        { id: 'd', title: 'd', date: '2026-10-20', startTime: '09:00', duration: 30 },
+      ],
+      todayRoutines: [{ id: 'r1', name: 'Stretch', startTime: '11:30', duration: 15 }],
+      frameInstancesForDate: (date) => (date.getDate() === 19 || date.getDate() === 20 ? [frame] : []),
+    }));
+    const byDate = Object.fromEntries(snap.frames.map(f => [f.date, f.slots]));
+    expect(byDate[TODAY]).toEqual([{ start: '11:00', end: '11:30' }, { start: '11:45', end: '12:00' }]);
+    expect(byDate['2026-10-20']).toEqual([{ start: '09:30', end: '12:00' }]);
   });
 
   it('shapes the day from the window and the sun, null where the app has neither', () => {

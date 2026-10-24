@@ -13,6 +13,7 @@ import { taskColorToHex } from './colorUtils.js';
 import { deriveBlockEnergy } from './energyAxis.js';
 import { getSunTimes } from './solar.js';
 import { dateToString } from './taskUtils.js';
+import { computeAvailableSlots } from './dayOccupancy.js';
 
 export const LAUNCHER_SNAPSHOT_VERSION = 1;
 
@@ -203,6 +204,20 @@ export function buildLauncherSnapshot({
     }))
     : [];
 
+  // Each frame's free time, as the app's dial reads it (App.jsx dialFrameSlots):
+  // computeAvailableSlots over the day's timed rows (the ones the launcher
+  // draws) and today's routines, with no now floor, so the launcher takes
+  // "still available" at its own minute. A row without a duration counts the
+  // default 30 minutes, as the app's occupancy does.
+  const timedByDate = new Map();
+  for (const r of rows) {
+    if (!r.date || !r.startTime) continue;
+    if (!timedByDate.has(r.date)) timedByDate.set(r.date, []);
+    timedByDate.get(r.date).push(r.duration > 0 ? r : { ...r, duration: undefined });
+  }
+  const routineState = {
+    routines: todayRoutines, routinesDate: todayStr, routineCompletions, routinesEnabled, todayDate: todayStr,
+  };
   const frameRows = [];
   const base = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12);
   for (let d = -FRAME_WINDOW.daysBefore; d <= FRAME_WINDOW.daysAfter; d++) {
@@ -210,9 +225,13 @@ export function buildLauncherSnapshot({
     date.setDate(base.getDate() + d);
     const dateStr = dateToString(date);
     for (const f of frameInstancesForDate(date)) {
+      const slots = computeAvailableSlots(f, {
+        state: routineState, tasks: timedByDate.get(dateStr) || [], dateStr, todayStr: dateStr, nowMinutes: 0,
+      });
       frameRows.push({
         id: `${f.frameId}:${dateStr}`, frameId: String(f.frameId), date: dateStr,
         start: f.start, end: f.end, name: f.label || '', colorHex: taskColorToHex(f.color),
+        slots: slots.map(x => ({ start: x.start, end: x.end })),
       });
     }
   }
