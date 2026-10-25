@@ -40,6 +40,7 @@ export const LEGACY_NOTES_KEY = 'day-planner-daily-notes';
 let mode = 'loading';
 let persisted = {}; // date → entry, as last written (or loaded)
 let pending = Promise.resolve();
+let writesInFlight = 0;
 
 const ok = (value) => ({ ok: true, value });
 const fail = (error) => ({ ok: false, error });
@@ -176,6 +177,7 @@ export function writeDailyNotes(notes) {
   // Count it written at once, so the next diff starts from here; a failure
   // restores the previous baseline for those dates so they are tried again.
   persisted = notes;
+  writesInFlight += 1;
   const job = pending.then(async () => {
     const result = await backend.write(puts, deletes);
     if (!result.ok) {
@@ -194,7 +196,7 @@ export function writeDailyNotes(notes) {
       return false;
     }
     return true;
-  });
+  }).finally(() => { writesInFlight -= 1; });
   pending = job.catch(() => false);
   return job;
 }
@@ -204,6 +206,15 @@ export function flushDailyNotes() {
   return pending;
 }
 
+/**
+ * How many writes have started and not finished, read synchronously: the native
+ * side asks before it closes a page that stopped answering (intents/retireCheck.js),
+ * and a write still in flight means it must not.
+ */
+export function dailyNotesWritesInFlight() {
+  return writesInFlight;
+}
+
 /** Test seam: swap the backend and storage, and forget all state. */
 export function resetDailyNotesStore({ backend: nextBackend, storage: nextStorage } = {}) {
   backend = nextBackend ?? createIdbNotesBackend();
@@ -211,6 +222,7 @@ export function resetDailyNotesStore({ backend: nextBackend, storage: nextStorag
   mode = 'loading';
   persisted = {};
   pending = Promise.resolve();
+  writesInFlight = 0;
 }
 
 /** A backend over a plain object, for tests. `failReads` / `failWrites` script failures. */

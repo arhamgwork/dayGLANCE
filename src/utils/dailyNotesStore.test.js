@@ -3,7 +3,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import {
   loadDailyNotes, writeDailyNotes, flushDailyNotes, dailyNotesSyncable, getStoredDailyNotes,
   restoreDailyNotesFromBackup, resetDailyNotesStore, createMemoryNotesBackend, createIdbNotesBackend,
-  LEGACY_NOTES_KEY,
+  dailyNotesWritesInFlight, LEGACY_NOTES_KEY,
 } from './dailyNotesStore.js';
 import { getLoadFailures, resetLoadFailures } from './loadFailures.js';
 
@@ -150,6 +150,35 @@ describe('dailyNotesStore', () => {
       write.mockClear();
       expect(await writeDailyNotes({ d1, d3 })).toBe(true);
       expect(write).not.toHaveBeenCalled();
+    });
+
+    it('counts the writes still in flight, so a page is never closed under one', async () => {
+      setup(undefined, {});
+      await loadDailyNotes();
+      const release = [];
+      const real = backend.write.bind(backend);
+      vi.spyOn(backend, 'write').mockImplementation((...args) => new Promise((resolve) => { release.push(() => resolve(real(...args))); }));
+      expect(dailyNotesWritesInFlight()).toBe(0);
+      const first = writeDailyNotes({ d1: note('a', '1') });
+      const second = writeDailyNotes({ d1: note('a', '1'), d2: note('b', '2') });
+      expect(dailyNotesWritesInFlight()).toBe(2);
+      // Writes run one after another: release each as it reaches the backend.
+      await vi.waitFor(() => expect(release.length).toBe(1));
+      release.shift()();
+      await first;
+      expect(dailyNotesWritesInFlight()).toBe(1);
+      await vi.waitFor(() => expect(release.length).toBe(1));
+      release.shift()();
+      await second;
+      expect(dailyNotesWritesInFlight()).toBe(0);
+    });
+
+    it('a failed write leaves the count, too', async () => {
+      setup(undefined, {});
+      await loadDailyNotes();
+      backend.failWrites = 1;
+      expect(await writeDailyNotes({ d1: note('a', '1') })).toBe(false);
+      expect(dailyNotesWritesInFlight()).toBe(0);
     });
 
     it('a failed write is retried by the next one', async () => {

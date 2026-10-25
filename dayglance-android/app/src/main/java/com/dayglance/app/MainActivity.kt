@@ -131,6 +131,19 @@ class MainActivity : AppCompatActivity() {
      * (which processes the intent regardless of document.visibilityState); falls
      * back to a synthetic visibilitychange event if the hook isn't ready yet.
      */
+    /**
+     * Asks the page whether closing it now loses nothing (intents/retireCheck.js),
+     * as a script handed to it directly: that still runs in a page that stopped
+     * running its timers. Main thread. [onResult] gets evaluateJavascript's JSON
+     * value (`"ok"` quoted when it may close).
+     */
+    fun checkRetireReady(onResult: (String?) -> Unit) {
+        if (!::webView.isInitialized) { onResult(null); return }
+        webView.evaluateJavascript(
+            "(function(){ try { return window.__dayglanceRetireCheck ? window.__dayglanceRetireCheck() : 'ok'; } catch (e) { return 'error'; } })();",
+        ) { onResult(it) }
+    }
+
     private fun forwardPendingIntentToJs() {
         webView.post {
             webView.evaluateJavascript(
@@ -292,6 +305,7 @@ class MainActivity : AppCompatActivity() {
         // here, on this thread, before the live renderer loads.
         com.dayglance.app.launcher.LauncherRefreshWorker.abortForLiveInstance()
         rendererAlive = true
+        live = java.lang.ref.WeakReference(this)
         nativeBridge = NativeBridge(
             context = this,
             healthRepository = healthRepository,
@@ -587,6 +601,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
+        stoppedAt = 0L
         // App is foreground → allow the native SSE reader to connect (it only opens
         // if the renderer has also declared SSE desired via startVaultSse).
         vaultSseClient.setForeground(true)
@@ -606,6 +621,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStop() {
         super.onStop()
+        // When the app went to the background: LauncherPageRetire closes a page that
+        // stopped answering the launcher only after a while there.
+        stoppedAt = System.currentTimeMillis()
         // App backgrounded → drop the SSE socket (battery + no point streaming while
         // hidden). Polling backstops the gap; on return onStart reconnects and the
         // server's initial 'connected' frame reconciles anything missed.
@@ -632,6 +650,7 @@ class MainActivity : AppCompatActivity() {
         // Release the platform speech recognizer (no-op if never attached).
         if (::nativeBridge.isInitialized) nativeBridge.destroySpeechBridge()
         rendererAlive = false
+        if (live?.get() === this) live = null
         // Tear the SSE reader down cleanly — no leaked connection or coroutine.
         vaultSseClient.shutdown()
         if (intentForwardReceiverRegistered) {
@@ -941,6 +960,14 @@ class MainActivity : AppCompatActivity() {
          * renderer runs the sync; dead, there is nothing to run it (yet).
          */
         @Volatile var rendererAlive: Boolean = false
+
+        /** When the activity last stopped (went to the background), ms; 0 while it is started. */
+        @Volatile var stoppedAt: Long = 0L
+
+        @Volatile private var live: java.lang.ref.WeakReference<MainActivity>? = null
+
+        /** The live activity, for LauncherPageRetire; null when there is none. */
+        fun liveInstance(): MainActivity? = live?.get()
         /** The app's URL scheme: dayglance://day?date=…&view=month (the month grid's taps). */
         const val DEEP_LINK_SCHEME = "dayglance"
 

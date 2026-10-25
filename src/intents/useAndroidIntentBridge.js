@@ -3,6 +3,7 @@ import { ACTIONS } from '@glance-apps/intents';
 import { isNativeAndroid, nativeGetPendingIntent, nativeGetPendingLauncherIntents, nativeReportIntentResult } from '../native';
 import { handleIntent } from './handleIntent.js';
 import { handleLauncherIntent } from './launcherWrites.js';
+import { retireCheck } from './retireCheck.js';
 
 /**
  * The native transport delivers the fully-qualified Android action string
@@ -80,6 +81,9 @@ export function useAndroidIntentBridge(context) {
     // so its visibilityState stays 'visible' even while the app is backgrounded —
     // but we don't want to depend on that invariant to process background intents.
     window.__dayglanceCheckPendingIntent = checkPending;
+    // Asked by the native side before it closes this page after it stopped
+    // answering the launcher in the background (intents/retireCheck.js).
+    window.__dayglanceRetireCheck = retireCheck;
 
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -96,6 +100,7 @@ export function useAndroidIntentBridge(context) {
       if (window.__dayglanceCheckPendingIntent === checkPending) {
         delete window.__dayglanceCheckPendingIntent;
       }
+      if (window.__dayglanceRetireCheck === retireCheck) delete window.__dayglanceRetireCheck;
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 }

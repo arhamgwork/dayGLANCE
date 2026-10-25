@@ -50,6 +50,9 @@ class LauncherAwakeWorker(
         // Not left reading `queued` forever: say it went unanswered, and how late the hold began.
         if (!answered && store.updateLauncherRefreshIf(clientId) { LauncherRefreshWait.unansweredPatch(it, heldFrom, System.currentTimeMillis()) }) {
             appContext.contentResolver.notifyChange(LauncherProvider.CONTENT_URI, null)
+            // A backgrounded page that stopped answering is closed and the refresh
+            // runs headlessly, when that loses nothing (LauncherPageRetire).
+            LauncherPageRetire.closeIfUnresponsive(appContext, store, clientId)
         }
         return Result.success()
     }
