@@ -12,6 +12,36 @@
 // can't be represented: advancing the due date is the best compatible approach.
 // A series whose next occurrence passes UNTIL is completed instead.
 
+// How many periods to look ahead for the next occurrence. Any rule that has
+// occurrences at all has one well within this (a fifth weekday recurs within
+// a year, February 29 within eight); past it, the series is treated as ended.
+const SEARCH_PERIODS = 120;
+
+// Day `day` of a month (negative counts from its end), or null if the month
+// does not have it.
+const dayOfMonth = (year, month, day) => {
+  const length = new Date(year, month + 1, 0).getDate();
+  const d = day > 0 ? day : length + day + 1;
+  return d >= 1 && d <= length ? new Date(year, month, d) : null;
+};
+
+// The dates in a month that one BYDAY token names: '-1FR' (the last Friday),
+// '2MO' (the second Monday), or 'TU' (every Tuesday). An nth weekday the
+// month does not have gives none.
+const weekdaysIn = (year, month, token, dayMap) => {
+  const m = /^([+-]?\d+)?([A-Z]{2})$/.exec(token);
+  if (!m || dayMap[m[2]] === undefined) return [];
+  const dow = dayMap[m[2]];
+  const length = new Date(year, month + 1, 0).getDate();
+  const first = 1 + ((dow - new Date(year, month, 1).getDay() + 7) % 7);
+  const all = [];
+  for (let d = first; d <= length; d += 7) all.push(new Date(year, month, d));
+  if (!m[1]) return all;
+  const nth = parseInt(m[1]);
+  const hit = nth > 0 ? all[nth - 1] : all[all.length + nth];
+  return hit ? [hit] : [];
+};
+
 /**
  * @param {string} icsContent  the resource as fetched
  * @param {object} options
@@ -79,58 +109,30 @@ export function applyTaskCompletionToIcs(icsContent, { completed, isRecurring = 
             targetDate.setDate(targetDate.getDate() + daysToWeekStart + (interval - 1) * 7 + (byDays[0] - wkst + 7) % 7);
           }
         } else if (rule.FREQ === 'MONTHLY') {
-          targetDate = new Date(completedDate);
-          if (rule.BYDAY) {
-            // M4: BYDAY may contain multiple values (e.g. "MO,WE,FR") — try ordinal
-            // single-value form first, then fall back to multi-value next-occurrence search.
-            const singleMatch = rule.BYDAY.match(/^(-?\d+)([A-Z]{2})$/);
-            if (singleMatch && dayMap[singleMatch[2]] !== undefined) {
-              // Ordinal form: e.g. "1MO" = first Monday, "-1FR" = last Friday.
-              const nth = parseInt(singleMatch[1]);
-              const targetDow = dayMap[singleMatch[2]];
-              targetDate.setMonth(targetDate.getMonth() + interval);
-              if (nth > 0) {
-                const firstDow = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1).getDay();
-                targetDate.setDate(1 + ((targetDow - firstDow + 7) % 7) + (nth - 1) * 7);
-              } else {
-                const last = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
-                targetDate = new Date(targetDate.getFullYear(), targetDate.getMonth(),
-                  last.getDate() - ((last.getDay() - targetDow + 7) % 7) + (nth + 1) * 7);
-              }
-            } else {
-              // Multi-value or bare day form: find the next matching weekday after completedDate.
-              const byDows = rule.BYDAY.split(',')
-                .map(d => dayMap[d.trim().replace(/^-?\d+/, '')])
-                .filter(d => d !== undefined)
-                .sort((a, b) => a - b);
-              if (byDows.length > 0) {
-                const currentDow = completedDate.getDay();
-                const nextDow = byDows.find(d => d > currentDow);
-                targetDate = new Date(completedDate);
-                if (nextDow !== undefined) {
-                  targetDate.setDate(targetDate.getDate() + (nextDow - currentDow));
-                } else {
-                  // No matching day this week — advance by interval months and use first byDow.
-                  targetDate.setMonth(targetDate.getMonth() + interval);
-                  targetDate.setDate(1);
-                  const firstDow = targetDate.getDay();
-                  targetDate.setDate(1 + ((byDows[0] - firstDow + 7) % 7));
-                }
-              } else {
-                targetDate.setMonth(targetDate.getMonth() + interval);
-              }
-            }
-          } else {
-            const targetDay = rule.BYMONTHDAY ? parseInt(rule.BYMONTHDAY) : completedDay;
-            targetDate.setMonth(targetDate.getMonth() + interval);
-            targetDate.setDate(targetDay);
-            if (targetDate.getDate() !== targetDay) {
-              targetDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), 0);
-            }
+          // The series' occurrences in a month, by RFC 5545: a date that does
+          // not exist there (the 31st of a 30-day month, a fifth Friday) is
+          // ignored, never moved. The next is the first later in the
+          // completed month, else the first in the next month the interval
+          // reaches that has one.
+          const days = rule.BYMONTHDAY
+            ? rule.BYMONTHDAY.split(',').map(d => parseInt(d)).filter(d => Number.isInteger(d) && d !== 0)
+            : [completedDay];
+          const inMonth = (year, month) => (rule.BYDAY
+            ? rule.BYDAY.split(',').flatMap(token => weekdaysIn(year, month, token.trim(), dayMap))
+            : days.map(d => dayOfMonth(year, month, d)).filter(Boolean)
+          ).sort((a, b) => a - b);
+          targetDate = inMonth(completedYear, completedMonth).find(d => d > completedDate) ?? null;
+          for (let k = 1; !targetDate && k <= SEARCH_PERIODS; k++) {
+            const month = new Date(completedYear, completedMonth + interval * k, 1);
+            targetDate = inMonth(month.getFullYear(), month.getMonth())[0] ?? null;
           }
         } else if (rule.FREQ === 'YEARLY') {
-          targetDate = new Date(completedDate);
-          targetDate.setFullYear(targetDate.getFullYear() + interval);
+          // Same month and day, in the next year the interval reaches that
+          // has it: February 29 waits for a leap year.
+          targetDate = null;
+          for (let k = 1; !targetDate && k <= SEARCH_PERIODS; k++) {
+            targetDate = dayOfMonth(completedYear + interval * k, completedMonth, completedDay);
+          }
         }
 
         // Check UNTIL — if next occurrence exceeds UNTIL, the series is done

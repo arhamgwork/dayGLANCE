@@ -76,11 +76,25 @@ describe('a recurring task advances to its next occurrence', () => {
     expect(nextDue(rrule, due, date)).toBe(expected);
   });
 
-  // Pinned as found, not endorsed: the month is added to the completed date
-  // first, so the 31st overflows a shorter month before BYMONTHDAY applies,
-  // and October 31 advances to December 31, skipping November.
-  it('moves a series on the 31st past a shorter month (existing behaviour)', () => {
-    expect(nextDue('FREQ=MONTHLY;BYMONTHDAY=31', '20261031', '2026-10-31')).toBe('20261231');
+  // RFC 5545 §3.3.10: an occurrence on a date that does not exist (the 31st
+  // of a 30-day month, a fifth Friday, February 29 in a common year) is
+  // ignored, never moved to a nearby day. The next due date is always an
+  // occurrence of the series.
+  it.each([
+    ['the 31st skips a 30-day month', 'FREQ=MONTHLY;BYMONTHDAY=31', '20261031', '2026-10-31', '20261231'],
+    ['plain monthly from the 31st skips February', 'FREQ=MONTHLY', '20260131', '2026-01-31', '20260331'],
+    ['every 2 months on the 31st stays in its own months', 'FREQ=MONTHLY;INTERVAL=2;BYMONTHDAY=31', '20261231', '2026-12-31', '20270831'],
+    ['the last day of the month', 'FREQ=MONTHLY;BYMONTHDAY=-1', '20260131', '2026-01-31', '20260228'],
+    ['several days of the month, later this month', 'FREQ=MONTHLY;BYMONTHDAY=1,15', '20261001', '2026-10-01', '20261015'],
+    ['several days of the month, wrapping', 'FREQ=MONTHLY;BYMONTHDAY=1,15', '20261015', '2026-10-15', '20261101'],
+    ['the last Friday late in January, then February', 'FREQ=MONTHLY;BYDAY=-1FR', '20260130', '2026-01-30', '20260227'],
+    ['a fifth Friday waits for a month that has one', 'FREQ=MONTHLY;BYDAY=5FR', '20260130', '2026-01-30', '20260529'],
+    ['every Tuesday and Thursday: the rest of the month first', 'FREQ=MONTHLY;BYDAY=TU,TH', '20261022', '2026-10-22', '20261027'],
+    ['every Tuesday and Thursday: into the next month', 'FREQ=MONTHLY;BYDAY=TU,TH', '20261029', '2026-10-29', '20261103'],
+    ['yearly on February 29 waits for a leap year', 'FREQ=YEARLY', '20280229', '2028-02-29', '20320229'],
+    ['every 2 years on February 29', 'FREQ=YEARLY;INTERVAL=2', '20280229', '2028-02-29', '20320229'],
+  ])('%s', (_, rrule, due, date, expected) => {
+    expect(nextDue(rrule, due, date)).toBe(expected);
   });
 
   it('completes the series instead when the next occurrence passes UNTIL', () => {
