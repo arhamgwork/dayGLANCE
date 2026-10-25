@@ -44,7 +44,7 @@ plugin adds what a folder cannot do on its own: it runs inside Obsidian.
 
 ## Setup
 
-1. Install and enable the plugin.
+1. Install **dayGLANCE Bridge** from Obsidian's community plugins and enable it.
 2. In dayGLANCE, open **Settings → Obsidian → Bridge plugin** and start
    pairing. dayGLANCE shows a one-time code and leaves a sealed pairing offer
    in your vault.
