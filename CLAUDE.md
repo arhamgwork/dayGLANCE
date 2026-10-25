@@ -249,7 +249,7 @@ every method looked up; extend it when the allowlist or the slices change.
 
 # App.jsx — Ongoing Decomposition
 
-`App.jsx` started at ~30,000 lines and came down to ~9,600 across four refactor passes, then crept back to ~10,700 (October 2026); it is ~9,600 after the extractions below. Extracted so far:
+`App.jsx` started at ~30,000 lines and came down to ~9,600 across four refactor passes, then crept back to ~10,700 (October 2026); it is ~9,200 after the extractions below. Extracted so far:
 
 - **ICS/CalDAV parser** → `src/utils/icsParser.js` (with tests)
 - **Voice input pipeline** → `src/hooks/useVoiceInput.js`
@@ -268,15 +268,15 @@ every method looked up; extend it when the allowlist or the slices change.
 - **Sync payload and apply** → `src/hooks/useSyncEngineData.js` (`buildSyncPayload`, `applyEngineData`, moved verbatim behind a deps object so the headless root can supply its own state; `src/headless/HeadlessRefresh.scenarios.test.jsx` walks payload → apply → state); the slice initialisers it depends on → `src/utils/storedSlices.js` and `src/utils/userScope.js`
 - **Sync engines and their wiring** → `src/hooks/useSyncEngines.js` (with tests): `useFileSyncEngine` (built in render, rebuilt on a folder change) and `useVaultSyncEngine` (built once the data loads, registered with the dirty tracker, retired with dispose), both calling through the root's callbacks ref, plus `vaultEngineData` for the settings bootstrap's one-shot engine. App and the headless root use the same hooks; each keeps only its own handlers (App: status UI, cadence, console hooks)
 
+- **Calendar feeds, task calendar and CalDAV writeback** → `useCalendarSyncActions` in `src/hooks/useCalendarSync.js` (with tests): `syncWithCalendar`, `syncTaskCalendar` and `syncTaskCompletionToCalDAV`, moved verbatim behind a deps object and called where they were (two of their inputs are declared after the state-only `useCalendarSync()`). The VTODO rewrite the writeback PUTs is pure, in `src/utils/caldavTaskCompletion.js`, with characterization tests
+
 ## Next candidates
 
 Pure logic and logic that carries data-safety rules first; UI wiring last.
 The context object and render at the end of the file (~2,300 lines) are
 wiring, and moving them only relocates them. Sizes are approximate.
 
-- **Calendar writeback and sync** (`syncTaskCompletionToCalDAV`,
-  `syncWithCalendar`, `syncTaskCalendar`, ~500 lines): into the existing
-  `useCalendarSync`.
+None named at the moment: pick by the guidance below.
 
 ## Guidance
 

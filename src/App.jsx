@@ -3,7 +3,7 @@ import i18n from 'i18next';
 import { Plus, Clock, X, GripVertical, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Moon, Sun, Upload, Inbox, AlertCircle, Calendar, Check, RefreshCw, Palette, Trash2, Undo2, BarChart3, SkipForward, Hash, MoreHorizontal, Save, Menu, BrainCircuit, AlertTriangle, FileText, ExternalLink, CheckSquare, HelpCircle, Sparkles, Link, GripHorizontal, Play, Pause, Trophy, Cloud, Settings, Search, Bell, Target, TrendingUp, Zap, CalendarDays, Ban, Volume2, VolumeX, Pencil, Eye, Filter, Smartphone, CheckCircle, Pin, PinOff, NotebookPen, MapPin, BookOpen, Flag, FolderOpen, Droplets, Footprints, Dumbbell, Apple, Cigarette, Coffee, Flame, Heart, ListChecks, Minus, Wine, Candy, Pill, Activity, CupSoda, Mic, MicOff, Loader, Key, Server, Wifi, WifiOff, LayoutGrid, RotateCcw } from 'lucide-react';
 import { mergeTaskArrays, mergeSyncData } from './mergeSync.js';
 import { hasNativeCalendar, electronGetCalendars, electronGetEventsByDate, electronRequestCalendarAccess, nativeEventToTask, nativeResultsToTasks, extendCalendarFilter } from './utils/nativeCalendar.js';
-import { isNativeAndroid, isNativeApp, isNativeIOS, nativeShareFile, nativeShowTaskNotification, nativeGetPendingAction, nativeSyncReminders, nativeGetEvents, nativeUpdateEvent, nativeGetCalendars, nativeHttpRequest, nativeWriteDailyNote, nativeClearVault, nativeEnterFocusMode, nativeExitFocusMode, nativeIsDndPermissionGranted, nativeRequestDndPermission, nativeGetWidgetPendingAction, triggerHaptic, nativeTouchLauncherHeartbeat } from './native.js';
+import { isNativeAndroid, isNativeApp, isNativeIOS, nativeShareFile, nativeShowTaskNotification, nativeGetPendingAction, nativeSyncReminders, nativeGetEvents, nativeUpdateEvent, nativeGetCalendars, nativeWriteDailyNote, nativeClearVault, nativeEnterFocusMode, nativeExitFocusMode, nativeIsDndPermissionGranted, nativeRequestDndPermission, nativeGetWidgetPendingAction, triggerHaptic, nativeTouchLauncherHeartbeat } from './native.js';
 import { readDailyNoteFresh, readDailyNoteNative, simpleHash as obsidianSimpleHash, buildNewObsidianTaskMeta, dailyNoteFilename } from './obsidian.js';
 import { appendTaskDirect, writeDailyNoteDirect } from './utils/obsidianDirectWrites.js';
 import { emitBridgeIntent } from './utils/obsidianBridgeStream.js';
@@ -25,8 +25,6 @@ import { dropTombstonedObsidianTasks, dropTombstonedObsidianNotes } from './util
 import { containObsidianGhostRows, persistDerivedGhostRetirements } from './utils/obsidianGhostRows.js';
 import { dropResurrectedTasks } from './utils/dropResurrectedTasks.js';
 import { partitionExpiredSingleDayFrames } from './utils/expiredFrames.js';
-import { webdavFetch } from './utils/cloudSyncProviders.js';
-import { normalizeEtag } from '@glance-apps/sync';
 import { autoBackupDB, createAutoBackupProvidersForFolder, AUTO_BACKUP_RETENTION, AUTO_BACKUP_INTERVALS } from './utils/autoBackup.js';
 import { normalizeSyncFolder } from './utils/syncFolder.js';
 import { LIVE_BACKUP_FILENAME } from './utils/folderBackup.js';
@@ -61,7 +59,7 @@ import { URL_REGEX, isOnlyUrl, renderFormattedText, hasNotesOrSubtasks, isLinkOn
 import { msUntilMidnightRefresh, rememberViewsForMidnight, readMidnightViews, clearMidnightViews } from './utils/midnightRefresh.js';
 import { computeAvailableSlots as computeAvailableSlotsPure, adjustPastConflicts } from './utils/dayOccupancy.js';
 import { frameInstancesForDate } from './utils/frameInstances.js';
-import { dateToString, localDateStr, extractTags, extractWikilinks, stripWikilinks, stripWikilinksAndTags, getRecurrenceLabel, formatDate, formatDateRange, formatShortDate, formatDeadlineDate, computeTaskCalendarTombstones, computeRecurringSeriesTombstones } from './utils/taskUtils.js';
+import { dateToString, localDateStr, extractTags, extractWikilinks, stripWikilinks, stripWikilinksAndTags, getRecurrenceLabel, formatDate, formatDateRange, formatShortDate, formatDeadlineDate } from './utils/taskUtils.js';
 import { carryCreatedAt } from './utils/createdAt.js';
 import DaySummaryCallouts from './components/DaySummaryCallouts.jsx';
 import { defaultUse24HourClock, defaultWeekStartDay, formatLocalizedDate, localizedList } from './utils/localeFormatting.js';
@@ -75,11 +73,8 @@ import { backupFingerprint, readLastRemoteBackup, writeLastRemoteBackup, canSkip
 import { recordLoadFailure } from './utils/loadFailures.js';
 import { detachDeletedProject, reparentDeletedGoal, clearDeletedMemberRefs } from './utils/deleteCascade.js';
 import { parseICS, parseDatetime, filterByDateWindow, expandMultiDayEvent } from './utils/icsParser.js';
-import { buildCalendarProxyUrl } from './utils/calendarProxyUrl.js';
-import { absorbCalendarDays, absorbCalendarWindow, readCalendarProjectionCache, writeCalendarProjectionCache } from './utils/calendarProjectionCache.js';
-import { CALENDAR_PROJECTION_WINDOW_DAYS } from './utils/obsidianCalendarProjection.js';
-import { shiftDateStr } from '@glance-apps/agenda-core';
-import { fetchIcsFeed, replaceFeedEvents, PRIMARY_FEED_ID, ICS_CALENDARS_KEY, loadIcsCalendars, isActiveIcsCalendar, hasActiveIcsCalendars, stripIcsCalendarCredentials, applyRemoteIcsCalendars, PRIMARY_CAL_META_KEY, defaultPrimaryCalendarMeta, injectPrimaryStub, splitPrimaryStub } from './utils/icsFeedSync.js';
+import { absorbCalendarDays, readCalendarProjectionCache, writeCalendarProjectionCache } from './utils/calendarProjectionCache.js';
+import { ICS_CALENDARS_KEY, loadIcsCalendars, hasActiveIcsCalendars, stripIcsCalendarCredentials, applyRemoteIcsCalendars, PRIMARY_CAL_META_KEY, defaultPrimaryCalendarMeta, injectPrimaryStub, splitPrimaryStub } from './utils/icsFeedSync.js';
 import { nextPerUserCalendarEntry } from './utils/perUserCalendarEntry.js';
 import { TASK_COLORS, TAILWIND_TO_HEX, getProjectColor } from './utils/colorUtils.js';
 import { buildWidgetDueOn } from './utils/widgetGoalsProjects.js';
@@ -172,7 +167,7 @@ import { readThemePref, systemPrefersDark, resolveDarkMode, restoredThemePref, T
 import { keepImportedTask } from './sync/payloadExclusions.js';
 import { canEnableMultiUser } from './utils/multiUserGate.js';
 import { encryptData, hasEncryptionReady } from './utils/crypto.js';
-import useCalendarSync from './hooks/useCalendarSync.js';
+import useCalendarSync, { useCalendarSyncActions } from './hooks/useCalendarSync.js';
 import useCalendarFileImport from './hooks/useCalendarFileImport.js';
 import useBackup from './hooks/useBackup.js';
 import useGTDFrames from './hooks/useGTDFrames.js';
@@ -264,9 +259,6 @@ import { schedRollingWindow } from './utils/schedAgenda.js';
 import useTrayPopupVisible from './hooks/useTrayPopupVisible.js';
 import { writeItem } from './utils/storageWrites.js';
 
-// Encode a string that may contain non-ASCII characters as Base64.
-// btoa() throws InvalidCharacterError for codepoints > 255 (CJK, emoji, etc.).
-const toBase64 = (str) => btoa(String.fromCharCode(...new TextEncoder().encode(str)));
 
 
 // Cloud sync provider abstraction
@@ -5068,528 +5060,12 @@ const DayPlanner = () => {
     }
   };
 
-  // Fetches an ICS/CalDAV URL, routing through the Vercel proxy on web or via
-  // the Electron main process on desktop (both avoid Chromium CORS restrictions).
-  const icsProxyFetch = async (url, authValue) => {
-    if (window.electronAPI?.isElectron) {
-      const headers = { Accept: 'text/calendar, text/plain, */*' };
-      if (authValue) headers['Authorization'] = authValue;
-      const r = await window.electronAPI.proxyFetch('GET', url, headers, null);
-      return { status: r.status, ok: r.ok, statusText: r.statusText, headers: { get: () => null }, text: async () => r.body };
-    }
-    const proxyHeaders = {};
-    if (authValue) proxyHeaders['X-Calendar-Auth'] = authValue;
-    return fetch(buildCalendarProxyUrl(url), { headers: proxyHeaders });
-  };
-
-  // Strip userinfo (credentials) from a URL before logging so they don't appear
-  // in DevTools or crash-reporter payloads even when embedded in the URL.
-  const redactUrl = (url) => {
-    try { const u = new URL(url); u.username = ''; u.password = ''; return u.toString(); }
-    catch { return url; }
-  };
-
-  // Sync every configured event feed: the primary Calendar URL plus all enabled
-  // additional calendars. Feeds are fetched in parallel and applied in ONE
-  // setTasks so one feed's result can never wipe another's. A feed that fails
-  // keeps its previous events (keepFeedIds); events of feeds that were removed
-  // from the config drop out because their feedId is in neither set.
-  // Returns { success, count?, error?, urlUpdated?, failedFeeds?: string[] }
-  const syncWithCalendar = async () => {
-    // When a native calendar source is present (mobile bridge or macOS EventKit),
-    // calendar events come from there. CalDAV iCal sync would duplicate those
-    // events, so skip it entirely.
-    if (hasNativeCalendar()) return { success: false, error: 'no-url' };
-
-    const feeds = [];
-    if (syncUrl && primaryCalendarMeta.enabled !== false) {
-      feeds.push({
-        id: PRIMARY_FEED_ID,
-        url: syncUrl,
-        name: primaryCalendarMeta.name || '',
-        color: primaryCalendarMeta.color || 'bg-gray-600',
-        authValue: (calendarUrlAuth.username && calendarUrlAuth.password)
-          ? 'Basic ' + toBase64(calendarUrlAuth.username + ':' + calendarUrlAuth.password)
-          : null,
-      });
-    }
-    for (const cal of icsCalendars) {
-      if (!isActiveIcsCalendar(cal)) continue;
-      feeds.push({
-        id: cal.id,
-        url: cal.url.trim(),
-        name: cal.name || '',
-        color: cal.color || 'bg-gray-600',
-        authValue: (cal.username && cal.password)
-          ? 'Basic ' + toBase64(cal.username + ':' + cal.password)
-          : null,
-      });
-    }
-    if (feeds.length === 0) {
-      // No active feeds — drop any leftover feed events (a feed was disabled or
-      // its URL cleared and nothing else remains to sync them away).
-      setTasks(prevTasks => replaceFeedEvents(prevTasks, []));
-      if (!hasNativeCalendar()) {
-        try {
-          const today = dateToString(new Date());
-          writeCalendarProjectionCache(absorbCalendarWindow(readCalendarProjectionCache(), [], {
-            from: shiftDateStr(today, -CALENDAR_PROJECTION_WINDOW_DAYS), to: shiftDateStr(today, CALENDAR_PROJECTION_WINDOW_DAYS),
-          }));
-        } catch { /* best-effort */ }
-      }
-      return { success: false, error: 'no-url' };
-    }
-
-    const debug = import.meta.env.DEV ? (...args) => console.log('[calendar-sync]', ...args) : undefined;
-    const results = await Promise.all(feeds.map(async (feed) => {
-      try {
-        const { icsContent, effectiveUrl } = await fetchIcsFeed(feed.url, feed.authValue, icsProxyFetch, debug);
-        return { feed, icsContent, effectiveUrl };
-      } catch (error) {
-        console.error(`Sync error (${feed.name || feed.id}):`, error);
-        return { feed, error: error.message === 'not-ical' ? 'not-ical' : 'calendar' };
-      }
-    }));
-
-    let urlUpdated = false;
-    const freshEvents = [];
-    const failedFeedIds = new Set();
-    const failedFeeds = [];
-    let firstError = null;
-    for (const r of results) {
-      if (r.error) {
-        failedFeedIds.add(r.feed.id);
-        failedFeeds.push(r.feed.name || (r.feed.id === PRIMARY_FEED_ID ? 'calendar' : 'additional calendar'));
-        if (!firstError) firstError = r.error;
-        continue;
-      }
-      // Persist the corrected (?export) URL so future syncs use it directly
-      if (r.effectiveUrl !== r.feed.url) {
-        urlUpdated = true;
-        if (r.feed.id === PRIMARY_FEED_ID) {
-          setSyncUrl(r.effectiveUrl);
-          localStorage.setItem('day-planner-sync-url', r.effectiveUrl);
-        } else {
-          setIcsCalendars(prev => prev.map(c => c.id === r.feed.id ? { ...c, url: r.effectiveUrl } : c));
-        }
-      }
-      const events = parseICS(r.icsContent);
-      const allImported = events.flatMap(event =>
-        expandMultiDayEvent(event, {
-          asTaskCalendar: false,
-          feedId: r.feed.id,
-          ...(r.feed.color ? { color: r.feed.color } : {}),
-        })
-      );
-      freshEvents.push(...filterByDateWindow(allImported, syncRetentionDays));
-    }
-
-    if (failedFeedIds.size === feeds.length) {
-      // Every feed failed — leave existing events untouched.
-      return { success: false, error: firstError, failedFeeds };
-    }
-
-    // Replace sync-sourced imported events (not task calendar) with the fresh
-    // ones, keeping the previous events of feeds that failed this round.
-    // Preserves file-imported events; uses functional form to avoid stale closures
-    setTasks(prevTasks => replaceFeedEvents(prevTasks, freshEvents, { keepFeedIds: failedFeedIds }));
-    // Obsidian sidebar (companion 4.2): feed events feed the projection cache
-    // over the whole projection window (a feed is fetched whole). Skipped on
-    // native-calendar devices, where the EventKit fetch is the sole source
-    // and the merge above drops feed events again on its next run.
-    if (!hasNativeCalendar()) {
-      try {
-        const today = dateToString(new Date());
-        writeCalendarProjectionCache(absorbCalendarWindow(readCalendarProjectionCache(), freshEvents, {
-          from: shiftDateStr(today, -CALENDAR_PROJECTION_WINDOW_DAYS), to: shiftDateStr(today, CALENDAR_PROJECTION_WINDOW_DAYS),
-          keepFeedIds: failedFeedIds, multiUserEnabled,
-        }));
-      } catch { /* best-effort */ }
-    }
-    return { success: true, count: freshEvents.length, urlUpdated, failedFeeds };
-  };
-
-  // Returns { success: boolean, count?: number, error?: string }
-  const syncTaskCalendar = async () => {
-    if (!taskCalendarUrl) {
-      return { success: false, error: 'no-url' };
-    }
-
-    try {
-      let icsContent;
-      const taskAuthHeaders = { Accept: 'text/calendar, text/plain, */*' };
-      if (taskCalendarAuth.username && taskCalendarAuth.appPassword) {
-        taskAuthHeaders['Authorization'] = 'Basic ' + toBase64(taskCalendarAuth.username + ':' + taskCalendarAuth.appPassword);
-      }
-      let effectiveTaskUrl = taskCalendarUrl;
-      if (isNativeApp()) {
-        // On native apps: fetch directly — no CORS restrictions, no proxy server available
-        const result = await nativeHttpRequest('GET', taskCalendarUrl, taskAuthHeaders, '');
-        if (!result || !result.ok) throw new Error('Failed to fetch task calendar');
-        icsContent = result.body;
-      } else {
-        const taskAuthValue = (taskCalendarAuth.username && taskCalendarAuth.appPassword)
-          ? 'Basic ' + toBase64(taskCalendarAuth.username + ':' + taskCalendarAuth.appPassword)
-          : null;
-        const response = await icsProxyFetch(taskCalendarUrl, taskAuthValue);
-        if (!response.ok) throw new Error('Failed to fetch task calendar');
-        icsContent = await response.text();
-
-        if (!icsContent.includes('BEGIN:VCALENDAR') && !taskCalendarUrl.includes('export')) {
-          // Auto-retry with ?export for CalDAV collection URLs (Baikal, Nextcloud, etc.)
-          if (import.meta.env.DEV) console.log('[task-calendar-sync] Response is not ICS. Content-Type:', response.headers.get('content-type'), '— First 300 chars:', icsContent.slice(0, 300));
-          const exportUrl = taskCalendarUrl.includes('?') ? `${taskCalendarUrl}&export` : `${taskCalendarUrl}?export`;
-          if (import.meta.env.DEV) console.log('[task-calendar-sync] Retrying with ?export:', redactUrl(exportUrl));
-          try {
-            const exportResponse = await icsProxyFetch(exportUrl, taskAuthValue);
-            if (exportResponse.ok) {
-              const exportContent = await exportResponse.text();
-              if (exportContent.includes('BEGIN:VCALENDAR')) {
-                icsContent = exportContent;
-                effectiveTaskUrl = exportUrl;
-              }
-            }
-          } catch { /* fall through, parseICS will handle gracefully */ }
-        }
-      }
-
-      // Persist the corrected URL so future syncs use it directly
-      if (effectiveTaskUrl !== taskCalendarUrl) {
-        setTaskCalendarUrl(effectiveTaskUrl);
-        localStorage.setItem('day-planner-task-calendar-url', effectiveTaskUrl);
-      }
-
-      const events = parseICS(icsContent);
-
-      // Read fresh completedTaskUids from localStorage to avoid stale closure
-      const freshCompletedUids = new Set(
-        JSON.parse(localStorage.getItem('day-planner-task-completed-uids') || '[]')
-      );
-
-      const allTaskItems = events.flatMap(event =>
-        expandMultiDayEvent(event, { asTaskCalendar: true, freshCompletedUids })
-      );
-      const taskCalendarItems = filterByDateWindow(allTaskItems, syncRetentionDays);
-
-      // Tombstone task-calendar items that vanished from the feed (deleted/moved on
-      // the server). Without a tombstone the cloud merge treats the still-present
-      // remote copy as a "remote-only" item and resurrects it. Both helpers return
-      // [] for an empty feed (likely a transient glitch, not a real wipe).
-      //   - Non-recurring: diff occurrence ids against the unwindowed expansion, so
-      //     an item merely aged past the retention window isn't mistaken for a delete.
-      //   - Recurring: diff at the series level by master UID against the raw feed
-      //     (events.masterUids), so normal occurrence advancement — and live series
-      //     that expand to zero in-window occurrences — aren't mistaken for deletes.
-      const tombstoneCutoffStr = syncRetentionDays > 0
-        ? dateToString(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - syncRetentionDays))
-        : null;
-      const priorTasksSnapshot = JSON.parse(localStorage.getItem('day-planner-tasks') || '[]');
-      const tombstoneIds = [
-        ...computeTaskCalendarTombstones(priorTasksSnapshot, allTaskItems, { cutoffDateStr: tombstoneCutoffStr }),
-        ...computeRecurringSeriesTombstones(priorTasksSnapshot, events.masterUids, { cutoffDateStr: tombstoneCutoffStr }),
-      ];
-      if (tombstoneIds.length > 0) {
-        const tombstones = JSON.parse(localStorage.getItem('day-planner-deleted-task-ids') || '{}');
-        const nowIso = new Date().toISOString();
-        for (const id of tombstoneIds) tombstones[id] = nowIso;
-        localStorage.setItem('day-planner-deleted-task-ids', JSON.stringify(tombstones));
-      }
-
-      // Remove old sync-sourced task calendar items and add the fresh ones
-      // Preserves file-imported task calendar items; uses functional form to avoid stale closures
-      setTasks(prevTasks => {
-        const kept = prevTasks.filter(t => !(t.isTaskCalendar && t.importSource !== 'file'));
-        return [...kept, ...taskCalendarItems];
-      });
-      return { success: true, count: taskCalendarItems.length, urlUpdated: effectiveTaskUrl !== taskCalendarUrl };
-    } catch (error) {
-      console.error('Task calendar sync error:', error);
-      return { success: false, error: 'task-calendar' };
-    }
-  };
-
-  // Sync task completion status back to CalDAV server
-  // For non-recurring tasks: modifies STATUS/COMPLETED/PERCENT-COMPLETE directly.
-  // For recurring tasks: advances DUE/DTSTART to the next RRULE occurrence (keeps
-  // STATUS:NEEDS-ACTION) so Nextcloud immediately shows the next instance as a fresh
-  // to-do. Nextcloud doesn't support RECURRENCE-ID overrides for VTODOs
-  // (https://github.com/nextcloud/tasks/issues/2276), so per-instance completion
-  // can't be represented — advancing the due date is the best compatible approach.
-  const syncTaskCompletionToCalDAV = async (icalUid, completed, { isRecurring = false, date, startTime, isAllDay } = {}) => {
-    const { username, appPassword, caldavBaseUrl } = taskCalendarAuth;
-    if (!caldavBaseUrl || !username || !appPassword) {
-      console.warn('CalDAV task sync skipped: caldavBaseUrl, username, or appPassword is not set in task calendar settings.');
-      return;
-    }
-
-    const baseUrl = caldavBaseUrl.replace(/\/+$/, '');
-    // Use encodeURI (not encodeURIComponent) for the UID — CalDAV UIDs often contain
-    // @ and other characters that are valid in URL paths but encodeURIComponent would escape
-    const resourceUrl = `${baseUrl}/${encodeURI(icalUid)}.ics`;
-    const authHeaders = {
-      'X-WebDAV-Auth': 'Basic ' + toBase64(username + ':' + appPassword)
-    };
-
-    try {
-      const getRes = await webdavFetch('GET', resourceUrl, authHeaders);
-
-      if (!getRes.ok) {
-        console.error('CalDAV GET failed:', getRes.status, redactUrl(resourceUrl));
-        setSyncNotification({ type: 'error', title: 'CalDAV Sync', message: `Failed to fetch task from server (HTTP ${getRes.status}). Check CalDAV Base URL.` });
-        return;
-      }
-
-      // Normalize before If-Match: Apache mod_deflate rewrites ETags on
-      // gzip-encoded responses ("xyz" -> "xyz-gzip") and nginx downgrades them
-      // to weak (W/"xyz"), either of which makes the PUT below 412 forever.
-      const icsEtag = normalizeEtag(getRes.headers.get('etag')) || null;
-      let icsContent = await getRes.text();
-      // RFC 5545 §3.1 unfold: remove CRLF/LF followed by a whitespace continuation
-      // so that line-folded properties match our single-line regexes reliably.
-      icsContent = icsContent.replace(/\r?\n[ \t]/g, '');
-      const now = new Date();
-      const timestamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-
-      if (isRecurring && date) {
-        // --- Recurring task: advance (or revert) DUE/DTSTART ---
-        // Clean up any stale RECURRENCE-ID overrides from previous sync code
-        icsContent = icsContent.replace(
-          /BEGIN:VTODO\r?\n(?:(?!END:VTODO)[\s\S])*?RECURRENCE-ID[\s\S]*?END:VTODO\r?\n?/gm,
-          ''
-        );
-
-        // Parse RRULE from master VTODO
-        const rruleMatch = icsContent.match(/^RRULE:(.+)$/m);
-        if (!rruleMatch) {
-          // No recurrence rule on this VTODO — nothing to expand.
-        } else {
-          const rruleStr = rruleMatch[1].trim();
-          const datePart = date.replace(/-/g, ''); // "YYYYMMDD"
-          const completedYear = parseInt(datePart.substring(0, 4));
-          const completedMonth = parseInt(datePart.substring(4, 6)) - 1;
-          const completedDay = parseInt(datePart.substring(6, 8));
-          const completedDate = new Date(completedYear, completedMonth, completedDay);
-
-          // Calculate the target date: next occurrence (completing) or the instance date (uncompleting)
-          let targetDate;
-          if (completed) {
-            // Calculate next RRULE occurrence after the completed instance
-            const rule = {};
-            rruleStr.split(';').forEach(part => {
-              const eq = part.indexOf('=');
-              if (eq !== -1) rule[part.substring(0, eq).trim().toUpperCase()] = part.substring(eq + 1).trim().toUpperCase();
-            });
-            const interval = parseInt(rule.INTERVAL || '1');
-            const dayMap = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
-
-            if (rule.FREQ === 'DAILY') {
-              targetDate = new Date(completedDate);
-              targetDate.setDate(targetDate.getDate() + interval);
-            } else if (rule.FREQ === 'WEEKLY') {
-              // M5: parse WKST — RFC 5545 default is MO (Monday=1), not SU.
-              const wkst = rule.WKST ? (dayMap[rule.WKST] ?? 1) : 1;
-              const byDays = rule.BYDAY
-                ? rule.BYDAY.split(',').map(d => dayMap[d.trim().replace(/^-?\d+/, '')]).filter(d => d !== undefined).sort((a, b) => a - b)
-                : [completedDate.getDay()];
-              const currentDow = completedDate.getDay();
-              const nextDow = byDays.find(d => d > currentDow);
-              targetDate = new Date(completedDate);
-              if (nextDow !== undefined) {
-                targetDate.setDate(targetDate.getDate() + (nextDow - currentDow));
-              } else {
-                // Wrap to first BYDAY of the next occurrence-week, anchored to WKST.
-                const daysToWeekStart = ((wkst - currentDow) % 7 + 7) % 7 || 7;
-                targetDate.setDate(targetDate.getDate() + daysToWeekStart + (interval - 1) * 7 + (byDays[0] - wkst + 7) % 7);
-              }
-            } else if (rule.FREQ === 'MONTHLY') {
-              targetDate = new Date(completedDate);
-              if (rule.BYDAY) {
-                // M4: BYDAY may contain multiple values (e.g. "MO,WE,FR") — try ordinal
-                // single-value form first, then fall back to multi-value next-occurrence search.
-                const singleMatch = rule.BYDAY.match(/^(-?\d+)([A-Z]{2})$/);
-                if (singleMatch && dayMap[singleMatch[2]] !== undefined) {
-                  // Ordinal form: e.g. "1MO" = first Monday, "-1FR" = last Friday.
-                  const nth = parseInt(singleMatch[1]);
-                  const targetDow = dayMap[singleMatch[2]];
-                  targetDate.setMonth(targetDate.getMonth() + interval);
-                  if (nth > 0) {
-                    const firstDow = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1).getDay();
-                    targetDate.setDate(1 + ((targetDow - firstDow + 7) % 7) + (nth - 1) * 7);
-                  } else {
-                    const last = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
-                    targetDate = new Date(targetDate.getFullYear(), targetDate.getMonth(),
-                      last.getDate() - ((last.getDay() - targetDow + 7) % 7) + (nth + 1) * 7);
-                  }
-                } else {
-                  // Multi-value or bare day form: find the next matching weekday after completedDate.
-                  const byDows = rule.BYDAY.split(',')
-                    .map(d => dayMap[d.trim().replace(/^-?\d+/, '')])
-                    .filter(d => d !== undefined)
-                    .sort((a, b) => a - b);
-                  if (byDows.length > 0) {
-                    const currentDow = completedDate.getDay();
-                    const nextDow = byDows.find(d => d > currentDow);
-                    targetDate = new Date(completedDate);
-                    if (nextDow !== undefined) {
-                      targetDate.setDate(targetDate.getDate() + (nextDow - currentDow));
-                    } else {
-                      // No matching day this week — advance by interval months and use first byDow.
-                      targetDate.setMonth(targetDate.getMonth() + interval);
-                      targetDate.setDate(1);
-                      const firstDow = targetDate.getDay();
-                      targetDate.setDate(1 + ((byDows[0] - firstDow + 7) % 7));
-                    }
-                  } else {
-                    targetDate.setMonth(targetDate.getMonth() + interval);
-                  }
-                }
-              } else {
-                const targetDay = rule.BYMONTHDAY ? parseInt(rule.BYMONTHDAY) : completedDay;
-                targetDate.setMonth(targetDate.getMonth() + interval);
-                targetDate.setDate(targetDay);
-                if (targetDate.getDate() !== targetDay) {
-                  targetDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), 0);
-                }
-              }
-            } else if (rule.FREQ === 'YEARLY') {
-              targetDate = new Date(completedDate);
-              targetDate.setFullYear(targetDate.getFullYear() + interval);
-            }
-
-            // Check UNTIL — if next occurrence exceeds UNTIL, the series is done
-            if (targetDate && rule.UNTIL) {
-              const u = rule.UNTIL;
-              const untilDate = new Date(parseInt(u.substring(0, 4)), parseInt(u.substring(4, 6)) - 1, parseInt(u.substring(6, 8)));
-              if (targetDate > untilDate) targetDate = null;
-            }
-          } else {
-            // Uncompleting: revert DUE/DTSTART back to the instance's date
-            targetDate = completedDate;
-          }
-
-          if (targetDate) {
-            // Calculate delta from the CURRENT DUE/DTSTART in the ICS to the target date.
-            // Using the current anchor (not completedDate) is critical for uncomplete:
-            // the DUE was previously advanced, so we need to shift it BACK.
-            const fmtDate = (d) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
-            const vtodoBlock = icsContent.match(/BEGIN:VTODO[\s\S]*?END:VTODO/);
-            const currentDueMatch = icsContent.match(/^DUE[^:]*:(\d{8})/m);
-            const currentDtstartMatch = vtodoBlock && vtodoBlock[0].match(/^DTSTART[^:]*:(\d{8})/m);
-            const anchorStr = (currentDueMatch || currentDtstartMatch || [])[1];
-            let deltaDays = 0;
-            if (anchorStr) {
-              const anchorDate = new Date(parseInt(anchorStr.substring(0, 4)), parseInt(anchorStr.substring(4, 6)) - 1, parseInt(anchorStr.substring(6, 8)));
-              deltaDays = Math.round((targetDate - anchorDate) / 86400000);
-            }
-
-            const advanceDateInLine = (line) => line.replace(/(\d{4})(\d{2})(\d{2})/, (_m, y, mo, d) => {
-              const orig = new Date(parseInt(y), parseInt(mo) - 1, parseInt(d));
-              orig.setDate(orig.getDate() + deltaDays);
-              return fmtDate(orig);
-            });
-
-            // Update DUE line
-            const dueLineMatch = icsContent.match(/^DUE[^:]*:\d{8}.*$/m);
-            if (dueLineMatch) {
-              icsContent = icsContent.replace(dueLineMatch[0], advanceDateInLine(dueLineMatch[0]));
-            }
-            // Update DTSTART line (only inside VTODO, not VTIMEZONE)
-            if (vtodoBlock) {
-              const dtstartInVtodo = vtodoBlock[0].match(/^DTSTART[^:]*:\d{8}.*$/m);
-              if (dtstartInVtodo) {
-                icsContent = icsContent.replace(dtstartInVtodo[0], advanceDateInLine(dtstartInVtodo[0]));
-              }
-            }
-
-            // Ensure STATUS is NEEDS-ACTION (the next instance is not yet completed)
-            if (/^STATUS[^:]*:/m.test(icsContent)) {
-              icsContent = icsContent.replace(/^STATUS[^:]*:.*$/m, 'STATUS:NEEDS-ACTION');
-            }
-            // Remove any COMPLETED timestamp
-            icsContent = icsContent.replace(/^COMPLETED[^:]*:[^\r\n]*\r?\n?/m, '');
-            // Reset PERCENT-COMPLETE
-            if (/^PERCENT-COMPLETE[^:]*:/m.test(icsContent)) {
-              icsContent = icsContent.replace(/^PERCENT-COMPLETE[^:]*:.*$/m, 'PERCENT-COMPLETE:0');
-            }
-
-          } else if (completed) {
-            // Fall through to non-recurring completion below
-          }
-
-          // If targetDate was set, skip the non-recurring block
-          if (targetDate) {
-            // Already handled above — skip to LAST-MODIFIED/PUT
-          } else if (!completed) {
-            // Uncomplete with no targetDate shouldn't happen, but be safe
-          } else {
-            // completed && !targetDate => series ended, use non-recurring completion
-            if (/^STATUS[^:]*:/m.test(icsContent)) {
-              icsContent = icsContent.replace(/^STATUS[^:]*:.*$/m, 'STATUS:COMPLETED');
-            } else {
-              icsContent = icsContent.replace(/^(END:VTODO)/m, 'STATUS:COMPLETED\r\n$1');
-            }
-            if (/^COMPLETED[^:]*:/m.test(icsContent)) {
-              icsContent = icsContent.replace(/^COMPLETED[^:]*:.*$/m, `COMPLETED:${timestamp}`);
-            } else {
-              icsContent = icsContent.replace(/^(END:VTODO)/m, `COMPLETED:${timestamp}\r\n$1`);
-            }
-            if (/^PERCENT-COMPLETE[^:]*:/m.test(icsContent)) {
-              icsContent = icsContent.replace(/^PERCENT-COMPLETE[^:]*:.*$/m, 'PERCENT-COMPLETE:100');
-            } else {
-              icsContent = icsContent.replace(/^(END:VTODO)/m, 'PERCENT-COMPLETE:100\r\n$1');
-            }
-          }
-        }
-      }
-
-      if (!isRecurring || !date || !icsContent.match(/^RRULE:/m)) {
-        // --- Non-recurring (or recurring without RRULE fallback): update STATUS directly ---
-        if (completed) {
-          if (/^STATUS[^:]*:/m.test(icsContent)) {
-            icsContent = icsContent.replace(/^STATUS[^:]*:.*$/m, 'STATUS:COMPLETED');
-          } else {
-            icsContent = icsContent.replace(/^(END:VTODO)/m, 'STATUS:COMPLETED\r\n$1');
-          }
-          if (/^COMPLETED[^:]*:/m.test(icsContent)) {
-            icsContent = icsContent.replace(/^COMPLETED[^:]*:.*$/m, `COMPLETED:${timestamp}`);
-          } else {
-            icsContent = icsContent.replace(/^(END:VTODO)/m, `COMPLETED:${timestamp}\r\n$1`);
-          }
-          if (/^PERCENT-COMPLETE[^:]*:/m.test(icsContent)) {
-            icsContent = icsContent.replace(/^PERCENT-COMPLETE[^:]*:.*$/m, 'PERCENT-COMPLETE:100');
-          } else {
-            icsContent = icsContent.replace(/^(END:VTODO)/m, 'PERCENT-COMPLETE:100\r\n$1');
-          }
-        } else {
-          if (/^STATUS[^:]*:/m.test(icsContent)) {
-            icsContent = icsContent.replace(/^STATUS[^:]*:.*$/m, 'STATUS:NEEDS-ACTION');
-          }
-          icsContent = icsContent.replace(/^COMPLETED[^:]*:[^\r\n]*\r?\n?/m, '');
-          if (/^PERCENT-COMPLETE[^:]*:/m.test(icsContent)) {
-            icsContent = icsContent.replace(/^PERCENT-COMPLETE[^:]*:.*$/m, 'PERCENT-COMPLETE:0');
-          }
-        }
-      }
-
-      // Update LAST-MODIFIED on the master component
-      if (/^LAST-MODIFIED[^:]*:/m.test(icsContent)) {
-        icsContent = icsContent.replace(/^LAST-MODIFIED[^:]*:.*$/m, `LAST-MODIFIED:${timestamp}`);
-      }
-
-      // PUT the updated resource back
-      const putExtraHeaders = { 'Content-Type': 'text/calendar; charset=utf-8' };
-      if (icsEtag) putExtraHeaders['If-Match'] = icsEtag;
-      const putRes = await webdavFetch('PUT', resourceUrl, authHeaders, icsContent, putExtraHeaders);
-
-      if (!putRes.ok) {
-        console.error('CalDAV PUT failed:', putRes.status, redactUrl(resourceUrl));
-        setSyncNotification({ type: 'error', title: 'CalDAV Sync', message: `Failed to update task on server (HTTP ${putRes.status})` });
-      }
-    } catch (err) {
-      console.error('CalDAV completion sync error:', err);
-      setSyncNotification({ type: 'error', title: 'CalDAV Sync', message: `Sync error: ${err.message}` });
-    }
-  };
+  // Event feeds, the task calendar and the CalDAV completion writeback
+  // (hooks/useCalendarSync.js; the VTODO rewrite is utils/caldavTaskCompletion.js).
+  const { syncWithCalendar, syncTaskCalendar, syncTaskCompletionToCalDAV } = useCalendarSyncActions({
+    setTasks, syncUrl, setSyncUrl, primaryCalendarMeta, calendarUrlAuth, icsCalendars, setIcsCalendars,
+    syncRetentionDays, multiUserEnabled, taskCalendarUrl, setTaskCalendarUrl, taskCalendarAuth, setSyncNotification,
+  });
 
   // Combined sync function that shows a single notification
   const syncAll = async ({ silent = false } = {}) => {
