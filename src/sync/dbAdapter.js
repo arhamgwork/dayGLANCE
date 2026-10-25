@@ -28,6 +28,7 @@
 
 import { mergeHabitLogs, mergeRoutineDefinitions, mergeRoutineCompletions, mergeCompletedDates } from '../mergeSync.js';
 import { mergeDeferrals } from '../utils/deferrals.js';
+import { withMergedExceptions } from '../utils/recurringExceptions.js';
 import { mergePlanTrail, sameTrail } from '../utils/planTrail.js';
 import { earlierCreatedAt } from '../utils/createdAt.js';
 import { TOMBSTONE_BUNDLE_KEYS, tombstoneCutoff, pruneCompletedTaskUids } from './tombstoneRetention.js';
@@ -319,11 +320,12 @@ export function getLocalEntity(data, entityId) {
 }
 
 // Insert-only merge for one recurring template (always runs on pull). Scalar
-// fields (title, time, assignment, recurrence, exceptions…) resolve by whole-row
-// LWW exactly as before — the winner is the newer lastModified — but completedDates
-// UNION across both copies (per-date LWW via completedDatesTimestamps) so a
-// completion made on one device is never dropped by a concurrent series edit on
-// another. Returns the row's entityId to re-push when our merged superset differs
+// fields (title, time, assignment, recurrence…) resolve by whole-row LWW exactly
+// as before — the winner is the newer lastModified — but completedDates UNION
+// across both copies (per-date LWW via completedDatesTimestamps) so a completion
+// made on one device is never dropped by a concurrent series edit on another,
+// and occurrence edits (exceptions) merge per date the same way
+// (utils/recurringExceptions.js, docs/recurring-exceptions-merge.md). Returns the row's entityId to re-push when our merged superset differs
 // from the pulled row, so the vault converges (mirrors the bundle superset re-push).
 function applyRemoteRecurring(data, remote) {
   if (!Array.isArray(data.recurringTasks)) data.recurringTasks = [];
@@ -339,7 +341,7 @@ function applyRemoteRecurring(data, remote) {
     local.completedDates || [], remote.completedDates || [],
     local.completedDatesTimestamps || {}, remote.completedDatesTimestamps || {},
   );
-  const merged = { ...winner, completedDates };
+  const merged = withMergedExceptions({ ...winner, completedDates }, local, remote);
   if (Object.keys(completedDatesTimestamps).length) merged.completedDatesTimestamps = completedDatesTimestamps;
   else delete merged.completedDatesTimestamps;
   // `createdAt` (utils/createdAt.js): a series is created once; keep the

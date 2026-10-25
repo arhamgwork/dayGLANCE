@@ -6,6 +6,7 @@ import { mergeArrayById, mergeSyncData as upstreamMergeSyncData, pruneTombstones
 import { canonicalJson } from './sync/snapshotMergeExplain.js';
 import { mergeDeferrals } from './utils/deferrals.js';
 import { mergePlanTrail, sameTrail } from './utils/planTrail.js';
+import { sameOccurrenceEdits, withMergedExceptions } from './utils/recurringExceptions.js';
 import { earlierCreatedAt } from './utils/createdAt.js';
 import {
   TOMBSTONE_BUNDLE_KEYS,
@@ -547,7 +548,8 @@ export const mergeSyncData = (local, remote, retentionDays) => {
   // Recurring completions ride inside the shared template row, which the upstream
   // merge resolves by whole-row LWW — re-merge each series' completedDates by date
   // so a completion is never clobbered by a concurrent edit to the same series
-  // (e.g. a series-level assignment change) on another device.
+  // (e.g. a series-level assignment change) on another device. Occurrence edits
+  // (exceptions) merge per date the same way (utils/recurringExceptions.js).
   if (local?.recurringTasks || remote?.recurringTasks) {
     const lById = new Map((local?.recurringTasks || []).map((t) => [String(t.id), t]));
     const rById = new Map((remote?.recurringTasks || []).map((t) => [String(t.id), t]));
@@ -561,11 +563,14 @@ export const mergeSyncData = (local, remote, retentionDays) => {
       );
       if (!sameDateSet(completedDates, l.completedDates || [])) result.localChanged = true;
       if (!sameDateSet(completedDates, r.completedDates || [])) result.remoteChanged = true;
-      return {
+      const merged = withMergedExceptions({
         ...t,
         completedDates,
         ...(Object.keys(completedDatesTimestamps).length ? { completedDatesTimestamps } : {}),
-      };
+      }, l, r);
+      if (!sameOccurrenceEdits(merged, l)) result.localChanged = true;
+      if (!sameOccurrenceEdits(merged, r)) result.remoteChanged = true;
+      return merged;
     });
   }
   // Per-user calendar config merges by syncId (the upstream merge doesn't know
