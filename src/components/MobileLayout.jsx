@@ -59,6 +59,7 @@ import useGlanceFabs from '../hooks/useGlanceFabs.js';
 import { glanceFabStagger, glanceFabVisibilityClass } from '../utils/glanceFabs.js';
 import TouchInboxTaskRow from './TouchInboxTaskRow.jsx';
 import useIncrementalList from '../hooks/useIncrementalList.js';
+import { keyboardOverTabLayout } from '../utils/keyboardInset.js';
 
 const MobileLayout = () => {
   const [tzBannerDismissed, setTzBannerDismissed] = useState(false);
@@ -942,8 +943,13 @@ const MobileLayout = () => {
             {mobileActiveTab === 'inbox' && <InboxArchivedBar />}
 
 
-            {/* GoalDashboard stays mounted to avoid expensive remount on every tab switch */}
-            <div className={`flex flex-col flex-1 min-h-0 overflow-hidden ${mobileActiveTab === 'goals' ? '' : 'hidden'}`}>
+            {/* GoalDashboard stays mounted to avoid expensive remount on every tab switch.
+                It gives the soft keyboard its height, so a card's quick-add or
+                the filter field is scrolled into the room above it. */}
+            <div
+              className={`flex flex-col flex-1 min-h-0 overflow-hidden ${mobileActiveTab === 'goals' ? '' : 'hidden'}`}
+              style={{ paddingBottom: keyboardOverTabLayout() }}
+            >
               <GoalDashboard embedded isActive={mobileActiveTab === 'goals'} />
             </div>
 
