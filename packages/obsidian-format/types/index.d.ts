@@ -218,11 +218,13 @@ export const PROJECT_NOTE_ID_KEY: string;
 export function linkObservationEntityId(targetId: string): string;
 /** `generation` (the pairing generation the subkey derives from) rides in the clear as the envelope's `gen` tag. */
 export function sealBridgeEnvelope(subkey: CryptoKey, payload: unknown, generation?: string | null): Promise<string>;
-export function openBridgeEnvelope(subkey: CryptoKey, text: string): Promise<unknown | null>;
+/** The decrypted payload, or null when the envelope does not open under this subkey. */
+export function openBridgeEnvelope(subkey: CryptoKey, text: string): Promise<unknown>;
 /** The clear `gen` tag of an envelope, or null (untagged writer, or not an envelope). Needs no key. */
 export function readBridgeEnvelopeGeneration(text: string): string | null;
 export function encodePlainBridgeRow(payload: unknown): string;
-export function decodePlainBridgeRow(text: string): unknown | null;
+/** The decoded payload, or null when the text is not a plain bridge row. */
+export function decodePlainBridgeRow(text: string): unknown;
 export function noteContainsBlock(text: string, body: string): boolean;
 export function applyBridgeIntent(
   currentText: string | null, intent: unknown,

@@ -196,9 +196,17 @@ reports, or applies.
 
 ```
 npm install
-npm run build      # type-checks, then bundles src/main.ts → main.js
-npm run lint       # Obsidian's lint rules (eslint-plugin-obsidianmd)
+npm run build          # type-checks, then bundles src/main.ts → main.js
+npm run build:stamped  # the same, with the build time shown in the settings tab
+npm run lint           # Obsidian's lint rules (eslint-plugin-obsidianmd)
 ```
+
+`npm run build` is what releases use, and it is reproducible: the same
+source always gives the same `main.js`, which Obsidian's directory checks a
+release against. It carries no build time, so the settings tab shows only the
+version. Use `build:stamped` for a build you copy into a vault by hand, so
+the settings tab says which build that vault is running; never for a
+release. Watch mode (`npm run dev`) is stamped too.
 
 The lint is the rule set the community directory's automated review is
 built on. An error fails the Bridge mirror workflow on every pull request

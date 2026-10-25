@@ -81,6 +81,12 @@ plugin adds what a folder cannot do on its own: it runs inside Obsidian.
   - for each copy, its computer name (the platform on mobile), plugin version
     and pairing status.
 - **Files in your vault.**
+  - The plugin lists the vault's Markdown files to find the notes in your
+    task sources, and checks each note's frontmatter (through Obsidian's
+    metadata cache) for its `dayglance-id` key, which is how a linked project
+    or goal note is found again after it is renamed or moved. It reads the
+    content only of the notes it works with: daily notes, notes in your chosen
+    folders or tags, and linked notes.
   - `.dayglance/heartbeat`: rewritten every 30 seconds while Obsidian is open,
     so dayGLANCE knows the plugin is running. Dot-folders are ignored by
     search, the graph and Obsidian Sync.
