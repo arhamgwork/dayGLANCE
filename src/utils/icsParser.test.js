@@ -62,10 +62,10 @@ describe('parseICS', () => {
     expect(starts).toContain('20260706T093000');
     expect(starts).toContain('20260720T093000');
     expect(starts).not.toContain('20260713T093000');
-    // Excluded dates don't consume COUNT in this implementation, so COUNT=4
-    // still yields 4 emitted occurrences with the series extending one week.
-    expect(events).toHaveLength(4);
-    expect(starts).toContain('20260803T093000');
+    // RFC 5545: COUNT counts generated occurrences before EXDATE removes
+    // any, so COUNT=4 with one excluded is three, as the server shows.
+    expect(events).toHaveLength(3);
+    expect(starts).not.toContain('20260803T093000');
     expect(events.every(e => e.isRecurringSeries)).toBe(true);
   });
 
@@ -89,6 +89,9 @@ describe('parseICS', () => {
     expect(starts).toContain('20260714T150000');     // override re-emitted
     expect(starts).toContain('20260706T140000');
     expect(starts).toContain('20260720T140000');
+    // The moved slot still counts toward COUNT=3: no fourth Monday.
+    expect(starts).not.toContain('20260727T140000');
+    expect(events).toHaveLength(3);
   });
 
   it('drops a cancelled RECURRENCE-ID override without re-emitting it', () => {
@@ -109,9 +112,9 @@ describe('parseICS', () => {
     ].join('\r\n')));
     const starts = events.map(e => e.dtstart);
     expect(starts).not.toContain('20260713T140000');
-    // The suppressed slot doesn't consume COUNT, so the master emits three
-    // occurrences (0706, 0720, 0727) and the cancelled override adds nothing.
-    expect(events).toHaveLength(3);
+    // The cancelled slot still counts toward COUNT=3 (RFC 5545), so the
+    // master emits 0706 and 0720 only, and the cancelled override adds nothing.
+    expect(starts).toEqual(['20260706T140000', '20260720T140000']);
   });
 
   it('exposes masterUids including series that expand to zero occurrences', () => {
