@@ -10,6 +10,7 @@
 
 import { dateToString } from './taskUtils.js';
 import { PRIMARY_FEED_ID } from './icsFeedSync.js';
+import { DAY_INDEX, dayOfMonth, monthOccurrences } from './rruleDates.js';
 
 // ── Time zone handling ────────────────────────────────────────────────────────
 // Outlook (and other Exchange-backed feeds) export event times as local wall
@@ -392,123 +393,84 @@ export const parseICS = (icsContent) => {
       expandedEvents.push({ ...event, dtstart: newDtstart, dtend: newDtend, rrule: undefined, isRecurringSeries: true });
     };
 
+    // RFC 5545: COUNT counts the occurrences the rule generates, BEFORE
+    // EXDATE (and the RECURRENCE-ID overrides folded into it) removes any, so
+    // an excluded date still uses one up. A date the rule names but the
+    // calendar does not have (the 31st of a 30-day month) is not generated
+    // at all (rruleDates.js). `take` applies UNTIL, COUNT and the exclusions
+    // in that order and says whether the series has ended.
+    let generated = 0;
+    const take = (occDate) => {
+      if (untilDate && occDate > untilDate) return false;
+      if (count && generated >= count) return false;
+      generated++;
+      if (!isExcluded(occDate) && occDate >= windowStart) pushOcc(occDate);
+      return true;
+    };
+
     if (rule.FREQ === 'YEARLY') {
-      const byMonth = rule.BYMONTH ? parseInt(rule.BYMONTH) - 1 : sMonth;
-      const byDay = rule.BYDAY || null;
+      // In each year the interval reaches, the rule's dates in its months
+      // (BYMONTH, else the series' own month): BYDAY or BYMONTHDAY within
+      // that month, else the series' own day, so February 29 occurs only in
+      // leap years.
+      const months = rule.BYMONTH
+        ? rule.BYMONTH.split(',').map(m => parseInt(m) - 1).filter(m => m >= 0 && m <= 11).sort((a, b) => a - b)
+        : [sMonth];
       const maxYear = untilDate ? Math.min(untilDate.getFullYear(), curYear + 3) : curYear + 3;
-      let occ = 0;
-
-      for (let year = sYear; year <= maxYear; year += interval) {
-        if (count && occ >= count) break;
-
-        let occDate;
-        if (byDay) {
-          const m = byDay.match(/^(-?\d*)([A-Z]{2})$/);
-          if (m && dayMap[m[2]] !== undefined) {
-            const nth = m[1] ? parseInt(m[1]) : 1;
-            const target = dayMap[m[2]];
-            if (nth > 0) {
-              const firstDow = new Date(year, byMonth, 1).getDay();
-              occDate = new Date(year, byMonth, 1 + ((target - firstDow + 7) % 7) + (nth - 1) * 7);
-            } else {
-              const last = new Date(year, byMonth + 1, 0);
-              occDate = new Date(year, byMonth, last.getDate() - ((last.getDay() - target + 7) % 7) + (nth + 1) * 7);
-            }
+      let ended = false;
+      for (let year = sYear; !ended && year <= maxYear; year += interval) {
+        for (const month of months) {
+          const dates = rule.BYDAY || rule.BYMONTHDAY
+            ? monthOccurrences(year, month, { byDay: rule.BYDAY, byMonthDay: rule.BYMONTHDAY, defaultDay: sDay })
+            : [dayOfMonth(year, month, sDay)].filter(Boolean);
+          for (const occDate of dates) {
+            if (occDate < eventStart) continue;
+            if (!take(occDate)) { ended = true; break; }
           }
-        } else {
-          occDate = new Date(year, byMonth, sDay);
+          if (ended) break;
         }
-
-        if (!occDate) continue;
-        if (untilDate && occDate > untilDate) break;
-        if (isExcluded(occDate)) continue;
-
-        pushOcc(occDate);
-        occ++;
       }
     } else if (rule.FREQ === 'MONTHLY') {
-      const byDay = rule.BYDAY || null;
-      const byMonthDay = rule.BYMONTHDAY ? parseInt(rule.BYMONTHDAY) : null;
-      let occ = 0;
-      let mDate = new Date(sYear, sMonth, 1);
-
-      while (mDate <= windowEnd) {
-        if (count && occ >= count) break;
-        let occDate;
-
-        if (byDay) {
-          const m = byDay.match(/^(-?\d*)([A-Z]{2})$/);
-          if (m && dayMap[m[2]] !== undefined) {
-            const nth = m[1] ? parseInt(m[1]) : 1;
-            const target = dayMap[m[2]];
-            if (nth > 0) {
-              const firstDow = new Date(mDate.getFullYear(), mDate.getMonth(), 1).getDay();
-              occDate = new Date(mDate.getFullYear(), mDate.getMonth(), 1 + ((target - firstDow + 7) % 7) + (nth - 1) * 7);
-            } else {
-              const last = new Date(mDate.getFullYear(), mDate.getMonth() + 1, 0);
-              occDate = new Date(mDate.getFullYear(), mDate.getMonth(), last.getDate() - ((last.getDay() - target + 7) % 7) + (nth + 1) * 7);
-            }
-          }
-        } else {
-          const day = byMonthDay || sDay;
-          occDate = new Date(mDate.getFullYear(), mDate.getMonth(), day);
-          // Handle months with fewer days (e.g., Jan 31 in Feb -> Feb 28)
-          if (occDate.getMonth() !== mDate.getMonth()) {
-            occDate = new Date(mDate.getFullYear(), mDate.getMonth() + 1, 0);
-          }
+      // Every date the rule names in each month the interval reaches: nth
+      // weekdays ('-1FR'), every listed weekday ('TU,TH'), or the listed days
+      // of the month, else the series' own day.
+      let ended = false;
+      for (let month = new Date(sYear, sMonth, 1); !ended && month <= windowEnd;
+        month = new Date(month.getFullYear(), month.getMonth() + interval, 1)) {
+        const dates = monthOccurrences(month.getFullYear(), month.getMonth(),
+          { byDay: rule.BYDAY, byMonthDay: rule.BYMONTHDAY, defaultDay: sDay });
+        for (const occDate of dates) {
+          if (occDate < eventStart) continue;
+          if (occDate > windowEnd || !take(occDate)) { ended = true; break; }
         }
-
-        if (occDate && occDate >= eventStart) {
-          if (untilDate && occDate > untilDate) break;
-          if (!isExcluded(occDate)) {
-            if (occDate >= windowStart) pushOcc(occDate);
-            occ++;
-          }
-        }
-        mDate.setMonth(mDate.getMonth() + interval);
       }
     } else if (rule.FREQ === 'WEEKLY') {
-      const byDays = rule.BYDAY
+      // Weeks start on WKST (RFC 5545's default is Monday), which decides
+      // which weeks an INTERVAL above 1 keeps. Within a week, days in order.
+      const wkst = DAY_INDEX[rule.WKST] ?? 1;
+      const offsets = [...new Set((rule.BYDAY
         ? rule.BYDAY.split(',').map(d => dayMap[d.trim()]).filter(d => d !== undefined)
-        : [eventStart.getDay()];
-      let occ = 0;
-      // Start from the Sunday of the week containing eventStart
-      let weekStart = new Date(eventStart);
-      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-
-      while (weekStart <= windowEnd) {
-        for (const targetDay of byDays) {
-          if (count && occ >= count) break;
+        : [eventStart.getDay()]).map(day => (day - wkst + 7) % 7))].sort((a, b) => a - b);
+      const weekStart = new Date(eventStart);
+      weekStart.setDate(weekStart.getDate() - ((eventStart.getDay() - wkst + 7) % 7));
+      let ended = false;
+      while (!ended && weekStart <= windowEnd) {
+        for (const offset of offsets) {
           const d = new Date(weekStart);
-          d.setDate(d.getDate() + targetDay);
+          d.setDate(d.getDate() + offset);
           if (d < eventStart) continue;
-          if (d > windowEnd) continue;
-          if (untilDate && d > untilDate) break;
-          if (!isExcluded(d)) {
-            if (d >= windowStart) pushOcc(d);
-            occ++;
-          }
+          if (d > windowEnd || !take(d)) { ended = true; break; }
         }
-        if (count && occ >= count) break;
         weekStart.setDate(weekStart.getDate() + 7 * interval);
       }
     } else if (rule.FREQ === 'DAILY') {
-      let occ = 0;
       let d = new Date(eventStart);
       // Skip ahead efficiently when no COUNT limit
       if (!count && d < windowStart) {
         const intervalsToSkip = Math.floor((windowStart - d) / (86400000 * interval));
         d.setDate(d.getDate() + intervalsToSkip * interval);
       }
-      while (d <= windowEnd) {
-        if (count && occ >= count) break;
-        if (untilDate && d > untilDate) break;
-        if (d >= eventStart && !isExcluded(d)) {
-          if (d >= windowStart) pushOcc(d);
-          occ++;
-        }
-        d.setDate(d.getDate() + interval);
-      }
+      while (d <= windowEnd && take(d)) d.setDate(d.getDate() + interval);
     } else {
       // Unsupported frequency — keep the original event
       expandedEvents.push(event);
