@@ -197,7 +197,17 @@ reports, or applies.
 ```
 npm install
 npm run build      # type-checks, then bundles src/main.ts → main.js
+npm run lint       # Obsidian's lint rules (eslint-plugin-obsidianmd)
 ```
+
+The lint is the rule set the community directory's automated review is
+built on. An error fails the Bridge mirror workflow on every pull request
+that touches the plugin; warnings are reported only. The remaining warnings
+are the brand names "dayGLANCE" and "GLANCEvault" (the sentence-case rule
+wants them lower-cased) and Obsidian 1.13 settings APIs, which cannot be
+used below a 1.13 minimum. `.npmrc` sets `legacy-peer-deps`: the lint plugin
+declares an exact peer, `obsidian@1.8.7`, that no other version of the
+obsidian types satisfies, and it carries its own copy for its rules.
 
 A build is three files, and all three ship: `main.js`, `manifest.json` and
 `styles.css`. The CSS is not in `main.js` (0.9.4 moved it out of the

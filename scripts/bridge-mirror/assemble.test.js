@@ -44,7 +44,7 @@ describe('assemble (from this repository)', () => {
   const json = (rel) => JSON.parse(readFileSync(join(out, rel), 'utf8'));
 
   it('puts the plugin at the root, as Obsidian reads it', () => {
-    for (const f of ['manifest.json', 'versions.json', 'styles.css', 'README.md', 'package.json', 'tsconfig.json', 'esbuild.config.mjs', 'src/main.ts']) {
+    for (const f of ['manifest.json', 'versions.json', 'styles.css', 'README.md', 'package.json', 'tsconfig.json', 'esbuild.config.mjs', 'eslint.config.mjs', '.npmrc', 'src/main.ts']) {
       expect(has(f), f).toBe(true);
     }
     expect(json('manifest.json')).toEqual(JSON.parse(readFileSync(join(repoRoot, 'dayglance-obsidian-plugin/manifest.json'), 'utf8')));
