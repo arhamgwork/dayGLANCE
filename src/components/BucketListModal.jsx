@@ -8,6 +8,10 @@ import { beginLongPressReorder, isLongPressRowDevice } from '../utils/longPressR
 import { renderFormattedText, renderTitleWithoutTags, hasNotesOrSubtasks, hasOnlySubtasks } from '../utils/textFormatting.jsx';
 import useBackClose from '../hooks/useBackClose.js';
 import { autoSizeTextarea } from '../utils/autoSizeTextarea.js';
+import { keyboardSheet } from '../utils/keyboardInset.js';
+
+// The phone sheet sits on the soft keyboard rather than under it (PLANNER pattern).
+const BUCKET_SHEET = keyboardSheet('92dvh');
 
 // Same iOS detection as ProjectPlanner/ProjectCard: grip-only touch drag on
 // iOS, where whole-row HTML5 drag hijacks the gesture.
@@ -402,6 +406,7 @@ const BucketListModal = () => {
   return (
     <div
       className={`fixed inset-0 z-[70] flex ${isMobile ? 'flex-col justify-end' : 'items-center justify-center p-6'}`}
+      style={isMobile ? BUCKET_SHEET.overlay : undefined}
       onClick={closeModal}
     >
       <div className="absolute inset-0 bg-black/45" />
@@ -409,10 +414,10 @@ const BucketListModal = () => {
         onClick={e => e.stopPropagation()}
         className={`relative ${cardBg} shadow-2xl flex flex-col ${
           isMobile
-            ? 'rounded-t-2xl max-h-[92dvh] w-full overflow-y-auto overscroll-contain'
+            ? 'rounded-t-2xl w-full overflow-y-auto overscroll-contain'
             : 'rounded-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden'
         }`}
-        style={isMobile ? { WebkitOverflowScrolling: 'touch' } : undefined}
+        style={isMobile ? { WebkitOverflowScrolling: 'touch', ...BUCKET_SHEET.sheet } : undefined}
       >
         {/* Header — sticky while the mobile sheet scrolls (PLANNER pattern) */}
         <div className={isMobile ? 'sticky top-0 z-10' : 'flex-shrink-0'}>

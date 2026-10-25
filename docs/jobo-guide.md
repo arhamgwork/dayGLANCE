@@ -95,8 +95,10 @@ Above the columns:
   leave it unlinked as unplanned work.
 - **Move and resize:** drag a Do card, or drag its bottom edge. Times snap to
   15 minutes, as everywhere in the app.
-- **Edit:** the pencil on a card opens the editor: title, date, start, end and
-  progress, with Delete.
+- **Edit:** the pencil on a card opens the editor: date, start, end and
+  progress, with Delete. The title shows but cannot be changed: a Do keeps the
+  title it was recorded with, even if the task is renamed later. To record
+  work under another title, add a new Do and delete the old one.
 - **Another session:** the **+** on an unfinished Do logs another session of
   the same task.
 - **Undo and redo:** `Ctrl/Cmd + Z` and `Ctrl/Cmd + Shift + Z`, as for any
