@@ -36,6 +36,8 @@ const SEND_TO_BOTTOM_MS = 15000;
 const NOTES_SIDEBAR_KEY = 'dg-planner-notes-sidebar';
 // This device's width for it, once dragged (utils/paneWidth.js, #2132).
 const NOTES_WIDTH_KEY = 'dg-planner-notes-width';
+// The phone sheet sits on the soft keyboard rather than under it.
+const PLANNER_SHEET = keyboardSheet('92dvh');
 import SchedTaskCard from '../sched/SchedTaskCard.jsx';
 import HyperGlanceEditor from './HyperGlanceEditor.jsx';
 import RecurringSeriesRow from './RecurringSeriesRow.jsx';
@@ -43,6 +45,7 @@ import PaneResizeHandle from '../PaneResizeHandle.jsx';
 import { readPaneWidth, writePaneWidth } from '../../utils/paneWidth.js';
 import { sortByProjectOrder, applyProjectReorder, projectReorderIds, topProjectOrder, sendToBottomIds } from '../../utils/projectOrder.js';
 import { readRetiredTaskIds } from '../../utils/retiredTaskIds.js';
+import { keyboardSheet } from '../../utils/keyboardInset.js';
 
 /**
  * PLANNER — a per-project planning dashboard, themed to the project's color.
@@ -421,6 +424,7 @@ const ProjectPlanner = ({ project, onClose, initialHyperglanceOpen = false }) =>
   return (
     <div
       className={`fixed inset-0 z-[70] flex ${isMobile ? 'flex-col justify-end' : 'items-center justify-center p-6'}`}
+      style={isMobile ? PLANNER_SHEET.overlay : undefined}
       onClick={closePlanner}
     >
       <div className="absolute inset-0 bg-black/45" />
@@ -433,11 +437,11 @@ const ProjectPlanner = ({ project, onClose, initialHyperglanceOpen = false }) =>
             // respond to touch here because the momentum-scrolling CSS is
             // scoped to .mobile-timeline-layout and this overlay lives
             // outside it. dvh, not vh, so the sheet can't extend below the
-            // visible viewport.
-            ? 'rounded-t-2xl max-h-[92dvh] w-full overflow-y-auto overscroll-contain'
+            // visible viewport; less the keyboard (PLANNER_SHEET).
+            ? 'rounded-t-2xl w-full overflow-y-auto overscroll-contain'
             : `rounded-2xl w-full ${panelOpen ? 'max-w-[104rem]' : 'max-w-3xl'} max-h-[85vh] overflow-hidden outline-none`
         }`}
-        style={isMobile ? { WebkitOverflowScrolling: 'touch' } : undefined}
+        style={isMobile ? { WebkitOverflowScrolling: 'touch', ...PLANNER_SHEET.sheet } : undefined}
         ref={panelRef}
         tabIndex={-1}
         onKeyDown={onPanelKeyDown}

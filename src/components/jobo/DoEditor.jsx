@@ -14,6 +14,11 @@ import SuggestionAutocomplete from '../SuggestionAutocomplete.jsx';
 import { matchDoLinks, linkFor, doTagSuggestions, completeDoTag } from '../../jobo/linkCandidates.js';
 import { stripWikilinks, stripWikilinksAndTags } from '../../utils/taskUtils.js';
 import useBackClose, { ABOVE_EDITORS } from '../../hooks/useBackClose.js';
+import { keyboardSheet } from '../../utils/keyboardInset.js';
+
+// The phone sheet sits on the soft keyboard rather than under it, for a new
+// Do's title (an existing record's title is frozen, so it takes no keyboard).
+const DO_SHEET = keyboardSheet('88vh');
 
 const PROGRESS = [DO_PROGRESS.STARTED, DO_PROGRESS.PARTIAL, DO_PROGRESS.MOSTLY, DO_PROGRESS.COMPLETED];
 const minute = (time) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
@@ -251,15 +256,15 @@ export default function DoEditor({ record, taskCompleted = false, onCompleteTask
   const kbd = `px-1.5 py-0.5 ${darkMode ? 'bg-gray-700' : 'bg-stone-200'} rounded`;
   const busy = saving || waiting || !writable;
 
-  return createPortal(<div className={`fixed inset-0 bg-black/50 flex justify-center z-[80] ${sheet ? 'items-end' : 'items-center'}`} onMouseDown={(event) => {
+  return createPortal(<div className={`fixed inset-0 bg-black/50 flex justify-center z-[80] ${sheet ? 'items-end' : 'items-center'}`} style={sheet ? DO_SHEET.overlay : undefined} onMouseDown={(event) => {
     if (event.target === event.currentTarget && !saving) onClose();
   }}>
     <section ref={dialogRef} onKeyDown={onKeyDown} role="dialog" aria-modal="true" aria-labelledby="jobo-do-editor-title"
       tabIndex={sheet ? -1 : undefined} data-jobo-do-editor={sheet ? 'sheet' : 'dialog'}
       className={sheet
-        ? `${cardBg} rounded-t-2xl shadow-xl px-5 pt-3 ${borderClass} border-t w-full max-h-[88vh] overflow-y-auto outline-none`
+        ? `${cardBg} rounded-t-2xl shadow-xl px-5 pt-3 ${borderClass} border-t w-full overflow-y-auto outline-none`
         : `${cardBg} rounded-lg shadow-xl p-6 ${borderClass} border max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto`}
-      style={sheet ? { paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' } : undefined}>
+      style={sheet ? { ...DO_SHEET.sheet, paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' } : undefined}>
       {sheet && <div className={`mx-auto mb-3 h-1 w-10 rounded-full ${darkMode ? 'bg-gray-600' : 'bg-stone-300'}`} aria-hidden="true" />}
       <h3 id="jobo-do-editor-title" className={`font-semibold ${textPrimary} mb-4 text-lg`}>{record ? t('common.edit') : initial?.continuing ? t('jobo.view.continueDo') : t('jobo.view.addDo')}</h3>
       <form onSubmit={(event) => { event.preventDefault(); save(); }}>

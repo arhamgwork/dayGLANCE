@@ -1,6 +1,7 @@
 import { dateToString } from '../utils/taskUtils.js';
 import { hasNativeCalendar } from '../utils/nativeCalendar.js';
 import { stampTimestamps } from '../utils/stampTimestamps.js';
+import { applyExceptionStamps, stampExceptionChanges } from '../utils/recurringExceptions.js';
 import { stampOriginalPlan, applyBaselines } from '../utils/originalPlan.js';
 import { stampDeferrals, applyDeferrals } from '../utils/deferrals.js';
 import { inBookkeepingWindow, markBookkeepingChange } from '../utils/localEditStamp.js';
@@ -528,6 +529,16 @@ export default function useDataPersistence({
     // tasks.
     const stampOnly = (key, setter) => (rows, prev) =>
       stampTaskTimestamps(setter ? stampCreated(rows, setter) : rows, key, prev);
+    // A series also stamps each date whose occurrence edit changed since the
+    // stored copy, so sync merges its exceptions per date
+    // (utils/recurringExceptions.js). An apply wrote storage before state, so
+    // it finds no difference here and stamps nothing.
+    const stampSeries = (key, setter) => (rows, prev) => {
+      if (suppressTimestampRef.current) return stampOnly(key, setter)(rows, prev);
+      const dated = stampExceptionChanges(rows, prev, new Date().toISOString());
+      if (dated !== rows) setter(live => applyExceptionStamps(live, dated));
+      return stampOnly(key, setter)(dated, prev);
+    };
     for (const [key, rows, setter] of [
       ['day-planner-unscheduled', unscheduledTasks, setUnscheduledTasks],
       ['day-planner-recycle-bin', recycleBin, null],
@@ -536,7 +547,8 @@ export default function useDataPersistence({
     ]) {
       const inputs = [rows, suppressed];
       if (unchanged(key, inputs)) continue;
-      saveRows(key, rows, stampRows(key, rows, stampOnly(key, setter)), inputs);
+      const stamp = key === 'day-planner-recurring-tasks' ? stampSeries(key, setter) : stampOnly(key, setter);
+      saveRows(key, rows, stampRows(key, rows, stamp), inputs);
     }
 
     // Prune completedTaskUids to the retention window to prevent unbounded growth.

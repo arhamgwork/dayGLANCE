@@ -17,6 +17,7 @@ import SettingsTopicPage from './settings/SettingsTopicPage.jsx';
 import useSettingsSections from './settings/useSettingsSections.js';
 import { visibleTopics, topicAttention } from './settings/settingsTopics.js';
 import { mobileViewForTopic, revealSettingsSection } from './settings/settingsLink.js';
+import { keyboardOverTabLayout } from '../utils/keyboardInset.js';
 
 // One icon per Settings topic for the mobile rows (the desktop list has none).
 const TOPIC_ICONS = {
@@ -117,7 +118,7 @@ const MobileSettingsPanel = () => {
 
 
   return (
-<div ref={scrollRef} data-mobile-settings-scroll onScroll={(e) => { if (mobileSettingsView === 'main') listScrollRef.current = e.currentTarget.scrollTop; }} className={`relative overflow-hidden mobile-tab-fade-in flex-1 min-h-0 overflow-y-auto`}>
+<div ref={scrollRef} data-mobile-settings-scroll onScroll={(e) => { if (mobileSettingsView === 'main') listScrollRef.current = e.currentTarget.scrollTop; }} className={`relative overflow-hidden mobile-tab-fade-in flex-1 min-h-0 overflow-y-auto`} style={{ marginBottom: keyboardOverTabLayout() }}>
   {/* Main settings view */}
   <div
     className={`px-4 py-4 space-y-4 transition-transform duration-200 ${mobileSettingsView !== 'main' ? '-translate-x-full' : 'translate-x-0'}`}

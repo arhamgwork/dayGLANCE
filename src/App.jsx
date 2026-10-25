@@ -7,6 +7,7 @@ import { isNativeAndroid, isNativeApp, isNativeIOS, nativeShareFile, nativeShowT
 import { readDailyNoteFresh, readDailyNoteNative, simpleHash as obsidianSimpleHash, buildNewObsidianTaskMeta, dailyNoteFilename } from './obsidian.js';
 import { appendTaskDirect, writeDailyNoteDirect } from './utils/obsidianDirectWrites.js';
 import { emitBridgeIntent } from './utils/obsidianBridgeStream.js';
+import { installKeyboardInset } from './utils/keyboardInset.js';
 import { isStreamPosture } from './utils/obsidianVaultPosture.js';
 import { loadAIConfig, saveAIConfig, aiComplete, aiJSON, testConnection, DEFAULT_CONFIG, PROVIDER_MODELS, PROVIDER_LABELS, aiFeatureOn } from './ai.js';
 import { taskSuggestSystemPrompt, taskSuggestUserPrompt, frameNudgeSystemPrompt, frameNudgeUserPrompt, rescheduleSystemPrompt, rescheduleUserPrompt, aiSubtasksSystemPrompt, aiSubtasksUserPrompt, weeklySummarySystemPrompt, weeklySummaryUserPrompt, smartScheduleSystemPrompt, smartScheduleUserPrompt } from './ai-prompts.js';
@@ -371,6 +372,9 @@ const DayPlanner = () => {
       window.visualViewport.removeEventListener('scroll', scheduleUpdate);
     };
   }, [isMobile]);
+  // The soft keyboard's height as --dg-keyboard-inset, so sheets and the Goals
+  // tab keep the field being typed in above it (utils/keyboardInset.js).
+  useEffect(() => (isMobile ? installKeyboardInset() : undefined), [isMobile]);
   // When the daily-notes modal closes, snap the tab-bar to the bottom immediately
   // instead of waiting for the keyboard dismiss animation to complete.
   useEffect(() => {

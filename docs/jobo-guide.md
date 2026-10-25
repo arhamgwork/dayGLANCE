@@ -95,8 +95,10 @@ Above the columns:
   leave it unlinked as unplanned work.
 - **Move and resize:** drag a Do card, or drag its bottom edge. Times snap to
   15 minutes, as everywhere in the app.
-- **Edit:** the pencil on a card opens the editor: title, date, start, end and
-  progress, with Delete.
+- **Edit:** the pencil on a card opens the editor: date, start, end and
+  progress, with Delete. The title shows but cannot be changed: a Do keeps the
+  title it was recorded with, even if the task is renamed later. To record
+  work under another title, add a new Do and delete the old one.
 - **Another session:** the **+** on an unfinished Do logs another session of
   the same task.
 - **Undo and redo:** `Ctrl/Cmd + Z` and `Ctrl/Cmd + Shift + Z`, as for any
@@ -318,10 +320,11 @@ shows the desktop view.
   tasks.
 - **Shared households:** with multi-user on, JOBO shows only the work visible
   to you, as the rest of the app does.
-- **A skip is saved on the recurring series.** If one device skips an
-  occurrence while another edits the same series before they sync, the newer
-  change to the series is kept and the other is lost, as with any two edits
-  to the same series.
+- **Occurrence edits sync per date.** A skip, a move or a deleted occurrence
+  made on one device survives an edit to the same series on another before
+  they sync. Only two edits to the same occurrence compete: the later one is
+  kept. Edits made by an older app version follow the old rule until every
+  device is updated.
 
 ---
 

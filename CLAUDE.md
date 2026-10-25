@@ -175,6 +175,10 @@ it. Carry it forward in `src/sync/dbAdapter.js` (vault) and `src/mergeSync.js`
 devices that each saw something different keep only one side's: `deferrals` takes
 the max and `planTrail` takes the union. Either rule has to be order-independent
 and idempotent, since both tiers may apply it more than once and in either order.
+A recurring series' per-date state is merged per date with a stamp map beside it:
+`completedDates` (`completedDatesTimestamps`) and `exceptions`
+(`exceptionsTimestamps`, derived by the save pass; `src/utils/recurringExceptions.js`,
+`docs/recurring-exceptions-merge.md`).
 
 **3. Does the apply carry it?** `src/utils/preserveStickyFields.js`, fed from the
 live task list in `applyEngineData`. Missing this makes the loss permanent rather
