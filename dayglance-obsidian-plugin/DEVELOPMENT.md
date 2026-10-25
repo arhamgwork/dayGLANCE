@@ -217,13 +217,13 @@ deploying by hand, and attach all three to a release.
 
 ## Install
 
-Each dayGLANCE GitHub release carries this plugin's `main.js`,
-`manifest.json` and `styles.css` as assets. Copy them (or your own build) into
+Users install it from Obsidian's community plugins (listed since 1.0.0,
+2026-10-25), which installs and updates from the published releases of
+`glance-apps/dayglance-bridge`. BRAT can install from the same repository, for
+testing a release before it is published to everyone. To run your own build,
+copy `main.js`, `manifest.json` and `styles.css` into
 `<vault>/.obsidian/plugins/dayglance-bridge/` and enable the plugin in
-Settings → Community plugins. BRAT users can add
-`glance-apps/dayglance-bridge` once it has a published release (BRAT needs a
-repository with `manifest.json` at the root, which the dayGLANCE repository is
-not). Community-directory submission comes later.
+Settings → Community plugins.
 
 ## Repo shape and the public mirror
 

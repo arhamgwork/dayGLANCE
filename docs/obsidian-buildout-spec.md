@@ -1031,7 +1031,15 @@ remains.
 
 Not a phase. Submit the plugin to the Obsidian community directory once Phases 6 and 7 are stable and the codebase is not expected to change substantially.
 
-**Status (2026-09-09): not yet.** The plugin shipped unlisted with 5.0.0
+**Status (2026-10-25): listed.** 1.0.0 was submitted and is in the
+community directory. The plugin moved to its own repository,
+`glance-apps/dayglance-bridge`, as a mirror generated from this one
+(`scripts/bridge-mirror/assemble.mjs`, `.github/workflows/bridge-mirror.yml`):
+the shared packages are copied into it rather than published to npm, so the
+plan in section 4 changed on that point. `dayglance-obsidian-plugin/DEVELOPMENT.md`
+describes the arrangement and the release steps.
+
+**Earlier status (2026-09-09): not yet.** The plugin shipped unlisted with 5.0.0
 as release assets (`manifest.json`, `main.js`, and a zip of both), manual
 install. BRAT is not a usable path from the monorepo: it validates a
 repository by fetching `manifest.json` from the repository root, which this
