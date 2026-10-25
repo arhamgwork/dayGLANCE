@@ -19,17 +19,18 @@ import type { StalePairing } from './bridge';
 import type { EditorHidingSettings } from './editorHidingRules';
 import { normalizeScope, SCOPE_WINDOW_MIN_DAYS, SCOPE_WINDOW_MAX_DAYS, SCOPE_WINDOW_DEFAULT_DAYS, type VaultScope, normalizeProjectNoteSettings, PROJECT_NOTE_LAYOUTS, type ProjectNoteSettings } from '@glance-apps/obsidian-format';
 
-// Stamped by esbuild at bundle time (see esbuild.config.mjs `define`).
-// Guarded so a build without the define (tests, tooling) still runs.
+// Stamped by esbuild into dev and `build:stamped` builds only (see
+// esbuild.config.mjs `define`): a release build has none, so it is
+// reproducible. Guarded so a build without the define still runs.
 declare const __BUILD_TIME__: string | undefined;
-const buildTime = (): string => {
+const buildTime = (): string | null => {
   try {
     if (typeof __BUILD_TIME__ === 'string') {
       const t = Date.parse(__BUILD_TIME__);
       if (Number.isFinite(t)) return new Date(t).toLocaleString();
     }
   } catch { /* fall through */ }
-  return 'unknown';
+  return null;
 };
 
 export interface BridgeSettingsHost extends PairingHost {
@@ -402,8 +403,9 @@ export class BridgeSettingTab extends PluginSettingTab {
   // must not depend on pairing state.
   private displayBuildInfo(): void {
     const version = (this.host.plugin as Plugin & { manifest?: { version?: string } }).manifest?.version ?? '?';
+    const built = buildTime();
     this.containerEl.createEl('p', {
-      text: `dayGLANCE Bridge v${version} · built ${buildTime()}`,
+      text: built ? `dayGLANCE Bridge v${version} · built ${built}` : `dayGLANCE Bridge v${version}`,
       cls: 'setting-item-description',
     });
   }

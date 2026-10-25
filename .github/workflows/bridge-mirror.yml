@@ -69,6 +69,12 @@ jobs:
           npm ci --no-audit --no-fund
           npm run build
           for f in main.js manifest.json styles.css; do test -s "$f" || { echo "::error::$f missing from the build"; exit 1; }; done
+          # Obsidian's directory rebuilds each release from source and flags a
+          # main.js that differs, so a release build must be reproducible: no
+          # build time or other per-run value in it.
+          cp main.js "$RUNNER_TEMP/main.first.js"
+          npm run build
+          cmp main.js "$RUNNER_TEMP/main.first.js" || { echo "::error::Two builds of the same source produced different main.js files"; exit 1; }
 
       # Obsidian's own lint rules, the ones the community directory's automated
       # review is built on. An error fails here; warnings are only reported.

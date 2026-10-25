@@ -14,6 +14,10 @@ on:
 
 permissions:
   contents: write
+  # Build-provenance attestations: proof the release files were built here,
+  # from this repository's source (verify with `gh attestation verify`).
+  id-token: write
+  attestations: write
 
 jobs:
   release:
@@ -40,6 +44,14 @@ jobs:
         run: |
           npm ci
           npm run build
+
+      - name: Attest the build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
 
       - name: Create the draft release
         env:
