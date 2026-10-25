@@ -1,6 +1,6 @@
 {
   "name": "dayglance-bridge",
-  "version": "0.9.4",
+  "version": "1.0.0",
   "description": "dayGLANCE Bridge, the Obsidian plugin that connects a vault to dayGLANCE",
   "private": true,
   "main": "main.js",
