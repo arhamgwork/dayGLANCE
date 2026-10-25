@@ -6,8 +6,9 @@ name: Bridge mirror
 # beside the app and the shared packages it is tested against;
 # scripts/bridge-mirror/assemble.mjs builds the mirror's tree.
 #
-# On a pull request: assemble the tree and build it on its own, so a change
-# that would break the mirror's build fails here first.
+# On a pull request: assemble the tree, build it on its own and run Obsidian's
+# lint rules on it, so a change that would break the mirror's build or fail
+# the community directory's review fails here first.
 # On main (and on demand): the same, then commit the tree to the mirror and,
 # when manifest.json carries a version the mirror has not tagged, push that
 # tag. The mirror's own release workflow builds the tag into a DRAFT release;
@@ -68,6 +69,12 @@ jobs:
           npm ci --no-audit --no-fund
           npm run build
           for f in main.js manifest.json styles.css; do test -s "$f" || { echo "::error::$f missing from the build"; exit 1; }; done
+
+      # Obsidian's own lint rules, the ones the community directory's automated
+      # review is built on. An error fails here; warnings are only reported.
+      - name: Lint with Obsidian's rules
+        working-directory: ${{ runner.temp }}/build
+        run: npm run lint
 
       - name: Sync to glance-apps/dayglance-bridge
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
