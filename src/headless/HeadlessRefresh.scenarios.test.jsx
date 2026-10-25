@@ -16,6 +16,7 @@ import React from 'react';
 import { act, create } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HEADLESS_BRIDGE_METHODS } from './headlessMode.js';
+import { mergeSyncData } from '../mergeSync.js';
 
 vi.mock('../utils/nativeCalendar.js', () => ({ hasNativeCalendar: () => false }));
 // The vault's root key lives in the Android Keystore; the "cached key" case
@@ -183,6 +184,45 @@ describe('HeadlessRefresh', () => {
     expect(outside).toEqual([]);
     // The deps guard saw a complete wiring.
     expect(errors.mock.calls.filter((c) => String(c[0]).includes('useSyncEngineData'))).toEqual([]);
+    root.unmount();
+  });
+
+  // docs/recurring-exceptions-merge.md: the headless root runs the same save
+  // pass and the same merge, so a series' per-date stamps reach the payload,
+  // survive the real file-tier merge, and a pulled occurrence edit lands in
+  // storage without the save that follows re-stamping the series.
+  it('carries a series\' occurrence edits and their per-date stamps through payload, merge and apply', async () => {
+    seedStorage(ls);
+    const series = { id: 'r1', title: 'Gym', startTime: '07:00', duration: 45, recurrence: { type: 'daily', startDate: '2026-10-01' },
+      completedDates: [], notes: '', subtasks: [], lastModified: '2026-10-19T08:00:00.000Z',
+      exceptions: { '2026-10-19': { skipped: true, skip: { at: '2026-10-19T09:00:00+02:00', plan: { startTime: '07:00', duration: 45, isAllDay: false } } } },
+      exceptionsTimestamps: { '2026-10-19': '2026-10-19T07:00:00.000Z' } };
+    ls.setItem('day-planner-recurring-tasks', JSON.stringify([series]));
+    // The other device renamed the series later and moved another occurrence.
+    const theirs = { ...series, title: 'Gym and stretch', lastModified: '2026-10-19T09:30:00.000Z',
+      exceptions: { '2026-10-20': { startTime: '08:00' } }, exceptionsTimestamps: { '2026-10-20': '2026-10-19T09:30:00.000Z' } };
+    const { bridge, calls } = fakeBridge();
+    globalThis.window.DayGlanceNative = bridge;
+    const seen = [];
+    const factory = vi.fn((callbacks) => ({
+      sync: async () => {
+        const payload = await callbacks.buildPayload();
+        seen.push(payload.data);
+        const { data } = mergeSyncData(payload.data, { ...payload.data, recurringTasks: [theirs] }, 0);
+        await callbacks.applyPayload(data, { allowEmpty: true });
+      },
+      getLastSynced: () => '2026-10-19T10:00:00.000Z',
+    }));
+    const root = await mount({ bridge: () => bridge, createFileEngine: factory, createVaultEngine: () => null, now: () => new Date('2026-10-19T12:00:00') });
+    await until(() => calls.headlessDone.length > 0);
+
+    expect(seen[0].recurringTasks[0].exceptionsTimestamps).toEqual(series.exceptionsTimestamps);
+    const [stored] = JSON.parse(ls.getItem('day-planner-recurring-tasks'));
+    expect(stored.title).toBe('Gym and stretch');
+    expect(stored.exceptions).toEqual({ ...series.exceptions, ...theirs.exceptions });
+    expect(stored.exceptionsTimestamps).toEqual({ ...series.exceptionsTimestamps, ...theirs.exceptionsTimestamps });
+    expect(stored.lastModified).toBe(theirs.lastModified);
+    expect(calls.headlessDone[0]).toMatchObject({ outcome: 'ran' });
     root.unmount();
   });
 

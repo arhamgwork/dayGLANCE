@@ -318,10 +318,11 @@ shows the desktop view.
   tasks.
 - **Shared households:** with multi-user on, JOBO shows only the work visible
   to you, as the rest of the app does.
-- **A skip is saved on the recurring series.** If one device skips an
-  occurrence while another edits the same series before they sync, the newer
-  change to the series is kept and the other is lost, as with any two edits
-  to the same series.
+- **Occurrence edits sync per date.** A skip, a move or a deleted occurrence
+  made on one device survives an edit to the same series on another before
+  they sync. Only two edits to the same occurrence compete: the later one is
+  kept. Edits made by an older app version follow the old rule until every
+  device is updated.
 
 ---
 

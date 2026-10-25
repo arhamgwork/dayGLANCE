@@ -87,12 +87,18 @@
 // task nobody edited (a fabricated stamp that could out-rank a real completion
 // elsewhere — see the resurrection note above). A date, cleared or changed,
 // still differs from `null` and still stamps.
+// `exceptionsTimestamps` (utils/recurringExceptions.js) is a series' per-date
+// record of when each occurrence edit last changed. The save pass derives it
+// from an edit that already re-stamps the row, and a merge moves it when it
+// takes a newer stamp from another device, which is nobody's edit. Stripped
+// like `planTrail`.
 function normalizeField(task) {
   // obsidianClearedTime is bookkeeping for the inbox merge (utils/inboxMove.js):
   // set by the move that already stamps, and cleared when the line is next
   // observed untimed. Clearing it is not an edit anyone should out-rank.
   const { lastModified: _omit, obsidianClearedTime: _marker, originalPlan: _baseline, deferrals: _slips, planTrail: _stops,
-    obsidianNoteLinkSeen: _linkSeen, obsidianNoteLinkSeenAt: _linkSeenAt, clientId: _launcherWrite, createdAt: _created, ...rest } = task;
+    obsidianNoteLinkSeen: _linkSeen, obsidianNoteLinkSeenAt: _linkSeenAt, clientId: _launcherWrite, createdAt: _created,
+    exceptionsTimestamps: _occurrenceStamps, ...rest } = task;
   return { ...rest, notes: rest.notes ?? '', subtasks: rest.subtasks ?? [], archived: rest.archived ?? false, priority: rest.priority ?? 0, starredDate: rest.starredDate ?? null, deadline: rest.deadline ?? null };
 }
 

@@ -143,20 +143,17 @@ hides any `skipped` date; the Do itself shows on the Do side as any Do does.
 Its row stays in the Skipped group with Restore, which brings it back to the
 timeline (asked by Lcub3d on #2057).
 
-## Sync: what is not guaranteed
+## Sync
 
-Templates sync as whole rows, last writer wins, with only `completedDates`
-merged per date (`applyRemoteRecurring`, `mergeSync.js`). A skip is an edit to
-the template's exceptions, so:
+Templates sync as whole rows, last writer wins, but `completedDates` and,
+since `docs/recurring-exceptions-merge.md`, `exceptions` are merged per date.
+A skip is an edit to one date's exception, so:
 
-- **A newer edit to the same series on another device wins whole**, and a
-  skip made meanwhile is lost, or a restore undone. Completing *another*
-  occurrence counts as such an edit: it stamps the template's `lastModified`.
-- This is the existing behaviour of every occurrence exception ("delete this
-  occurrence", moves, per-occurrence edits). Skip does not make it worse, and
-  this note does not change it. Merging `exceptions` per date, as
-  `completedDates` already is, would close the gap for all of them; that is a
-  sync change of its own.
+- **A concurrent edit to the same series on another device no longer loses
+  it.** A rename, a completion or a move of another occurrence keeps the
+  skip; only a later edit to the same date replaces it.
+- An older app version, which does not stamp its edits, still merges as
+  before; see that note.
 - The targeted inverse above means an Undo or Restore never resurrects data
   that sync has since changed; at worst it finds the skip gone and does
   nothing.
