@@ -129,6 +129,38 @@ describe('Linked from', () => {
   });
 });
 
+describe('the thread', () => {
+  // ROOF ← QUOTE ← CHASE: three tasks, so the panel lists the whole thread.
+  const linkedQuote = { ...QUOTE, completed: true, completedAt: '2026-10-22T10:00:00Z', notes: `After ${taskLink(ROOF)}` };
+  const chase = { id: 'c1', title: 'Chase the quote', notes: `Follows up on ${taskLink(QUOTE)}` };
+
+  it('lists every linked task by date, marks this one, and opens the others in the peek', () => {
+    const { root } = mount(chase, { tasks: [ROOF, linkedQuote], unscheduledTasks: [chase] });
+    expect(root.root.findAll(n => n.props['data-task-backlinks'])).toHaveLength(0);
+    const rows = root.root.findAll(n => n.props['data-task-thread-item'] && typeof n.type === 'string');
+    expect(rows.map(n => n.props['data-task-thread-item'])).toEqual(['r1', 'q1', 'c1']);
+    const self = rows.find(n => n.props['data-task-thread-item'] === 'c1');
+    expect(self.type).toBe('div');
+    expect(self.props['aria-current']).toBe('true');
+    const text = JSON.stringify(root.toJSON());
+    expect(text).toContain('Thread');
+    expect(text).toContain('2 open');
+    expect(text).toContain('Inbox');
+
+    const events = [];
+    globalThis.window.dispatchEvent = (e) => events.push(e);
+    globalThis.CustomEvent = class { constructor(type, init) { this.type = type; this.detail = init.detail; } };
+    act(() => { rows.find(n => n.props['data-task-thread-item'] === 'r1').props.onClick({ stopPropagation: noop }); });
+    expect(events.map(e => [e.type, e.detail.id])).toEqual([[PEEK_TASK_EVENT, 'r1']]);
+  });
+
+  it('with only two tasks keeps the "Linked from" list', () => {
+    const { root } = mount(QUOTE, { tasks: [QUOTE, chase] });
+    expect(root.root.findAll(n => n.props['data-task-thread'])).toHaveLength(0);
+    expect(root.root.findAll(n => n.props['data-task-backlinks'])).toHaveLength(1);
+  });
+});
+
 describe('the task peek', () => {
   it('names a linked task generically and lists its backlinks', () => {
     globalThis.document = { body: {} };
@@ -147,6 +179,35 @@ describe('the task peek', () => {
     expect(text).toContain('Linked task');
     expect(text).toContain('Linked from');
     expect(text).toContain('Call the roofer');
+    delete globalThis.document;
+  });
+  it('shows the whole thread when it has one', () => {
+    globalThis.document = { body: {} };
+    globalThis.window.addEventListener = noop;
+    globalThis.window.removeEventListener = noop;
+    const thread = {
+      items: [
+        { id: 'r1', task: ROOF, where: 'calendar', title: 'Roof repair', date: '2026-10-20', isSelf: true },
+        { id: 'q1', task: QUOTE, where: 'calendar', title: 'Roofing quote', date: '2026-10-22', isSelf: false },
+        { id: 'x', task: null, where: null, title: 'Old roof task', date: '', isSelf: false },
+      ],
+      open: 2,
+      more: 4,
+    };
+    let root;
+    act(() => {
+      root = create(
+        <I18nextProvider i18n={i18n}>
+          <TaskPeek found={{ task: ROOF, where: 'calendar' }} thread={thread} onClose={noop} darkMode={false} />
+        </I18nextProvider>,
+        { createNodeMock: () => ({ focus: noop }) },
+      );
+    });
+    const text = JSON.stringify(root.toJSON());
+    expect(text).toContain('Thread');
+    expect(text).toContain('Old roof task');
+    expect(text).toContain('Gone');
+    expect(text).toContain('+4 more');
     delete globalThis.document;
   });
 });

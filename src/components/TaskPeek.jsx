@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { renderFormattedText } from '../utils/textFormatting.jsx';
 import { formatShortDate } from '../utils/taskUtils.js';
 import { doneDateOf, plainTitle } from '../utils/followUp.js';
-import TaskBacklinks from './TaskBacklinks.jsx';
+import TaskThread from './TaskThread.jsx';
 
 const civil = (date) => new Date(`${date}T12:00:00`);
 
@@ -14,10 +14,11 @@ const civil = (date) => new Date(`${date}T12:00:00`);
  * is open, the task form included, so following the link never costs the
  * form its unsaved typing. Its own notes keep their links, so a chain of
  * follow-ups can be walked back, and so do the tasks that link here
- * (`backlinks`, #2145), so a chain can be walked forward too. `onShow`, when
+ * (`backlinks`, #2145), so a chain can be walked forward too; a longer chain
+ * shows whole (`thread`, utils/taskLinks.js taskThread). `onShow`, when
  * given, closes this and goes to the task where it lives.
  */
-export default function TaskPeek({ found, backlinks = [], onClose, onShow, darkMode }) {
+export default function TaskPeek({ found, backlinks = [], thread = null, onClose, onShow, darkMode }) {
   const { t } = useTranslation();
   const closeRef = useRef(null);
 
@@ -89,7 +90,7 @@ export default function TaskPeek({ found, backlinks = [], onClose, onShow, darkM
                 ))}
               </ul>
             )}
-            <TaskBacklinks backlinks={backlinks} darkMode={darkMode} />
+            <TaskThread thread={thread} backlinks={backlinks} darkMode={darkMode} />
             {onShow && found.where !== 'deleted' && (
               <div className="pt-1 flex justify-end">
                 <button type="button" onClick={onShow} data-task-peek-show

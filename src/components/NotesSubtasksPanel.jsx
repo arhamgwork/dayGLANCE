@@ -11,9 +11,9 @@ import { autoSizeTextarea } from '../utils/autoSizeTextarea.js';
 import { useSyncCtx } from '../context/SyncContext.jsx';
 import { useDayPlannerCtx } from '../context/DayPlannerContext.jsx';
 import { taskLink } from '../utils/followUp.js';
-import { canLinkTask, findBacklinks, insertTaskLink, linkCandidates, pickerQueryAt } from '../utils/taskLinks.js';
+import { buildLinkIndex, canLinkTask, findBacklinks, insertTaskLink, linkCandidates, pickerQueryAt, taskThread } from '../utils/taskLinks.js';
 import TaskLinkPicker from './TaskLinkPicker.jsx';
-import TaskBacklinks from './TaskBacklinks.jsx';
+import TaskThread from './TaskThread.jsx';
 import { dropIndex } from '../utils/subtaskOrder.js';
 import { beginLongPressReorder } from '../utils/longPressReorder.js';
 import { aiFeatureOn } from '../ai.js';
@@ -316,6 +316,7 @@ const NotesSubtasksPanel = ({
   // Task links (#2145): `@@` in the note opens a picker of tasks to link to,
   // and the tasks whose notes link here are listed under the note. Both read
   // the planner's lists; outside a planner (a bare test mount) there are none.
+  // With three or more linked tasks the list is the whole thread instead.
   const planner = useDayPlannerCtx();
   const plannerTasks = planner?.tasks;
   const plannerInbox = planner?.unscheduledTasks;
@@ -328,6 +329,11 @@ const NotesSubtasksPanel = ({
   const backlinks = useMemo(() => (!isEvent && canLinkTask(task)
     ? findBacklinks(task.id, { tasks: plannerTasks || [], unscheduledTasks: plannerInbox || [] })
     : []), [isEvent, task, plannerTasks, plannerInbox]);
+  const thread = useMemo(() => {
+    if (isEvent || !canLinkTask(task) || !plannerTasks) return null;
+    const lists = { tasks: plannerTasks, unscheduledTasks: plannerInbox || [] };
+    return taskThread(task.id, buildLinkIndex(lists), { ...lists, recurringTasks: planner?.recurringTasks || [], recycleBin: planner?.recycleBin || [] });
+  }, [isEvent, task, plannerTasks, plannerInbox, planner?.recurringTasks, planner?.recycleBin]);
   const updatePicker = (el) => {
     notesFieldElRef.current = el;
     const caret = el.selectionStart ?? el.value.length;
@@ -679,7 +685,7 @@ const NotesSubtasksPanel = ({
           )}
         </div>
       )}
-      <TaskBacklinks backlinks={backlinks} darkMode={darkMode} className="mb-3" />
+      <TaskThread thread={thread} backlinks={backlinks} darkMode={darkMode} className="mb-3" />
 
       {/* Subtasks section */}
       {!isEvent && (
