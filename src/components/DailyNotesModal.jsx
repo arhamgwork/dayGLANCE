@@ -1,9 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { NotebookPen, X, Loader } from 'lucide-react';
 import { renderFormattedText } from '../utils/textFormatting.jsx';
 import { useTranslation } from 'react-i18next';
 import { formatLocalizedDate } from '../utils/localeFormatting.js';
 import useDailyNoteDraft from '../hooks/useDailyNoteDraft.js';
+import { keyboardSheet } from '../utils/keyboardInset.js';
+
+// The phone sheet sits on the soft keyboard rather than under it.
+const NOTE_SHEET = keyboardSheet('70vh');
 
 // Daily Notes Modal — popover for adding/editing notes on a specific date
 const DailyNotesModal = ({ dateStr, note, onSave, onClose, darkMode, isMobile, template, loadFresh }) => {
@@ -15,23 +19,6 @@ const DailyNotesModal = ({ dateStr, note, onSave, onClose, darkMode, isMobile, t
   } = useDailyNoteDraft({ dateStr, note, onSave, template, loadFresh });
   const backdropRef = useRef(null);
 
-  // With windowSoftInputMode="adjustNothing" the layout viewport is never resized.
-  // Track the software keyboard height via visualViewport so the bottom sheet
-  // content can be pushed above the keyboard.
-  const [keyboardOffset, setKeyboardOffset] = useState(0);
-  useEffect(() => {
-    if (!isMobile || !window.visualViewport) return;
-    const update = () => {
-      setKeyboardOffset(Math.max(0, window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop));
-    };
-    window.visualViewport.addEventListener('resize', update);
-    window.visualViewport.addEventListener('scroll', update);
-    update(); // capture current state on mount
-    return () => {
-      window.visualViewport.removeEventListener('resize', update);
-      window.visualViewport.removeEventListener('scroll', update);
-    };
-  }, [isMobile]);
   // Focus backdrop when in preview mode (for Escape key) — on mount and after Shift+Enter
   useEffect(() => {
     if (!isEditing && backdropRef.current) backdropRef.current.focus();
@@ -97,13 +84,13 @@ const DailyNotesModal = ({ dateStr, note, onSave, onClose, darkMode, isMobile, t
     return (
       <div
         className="fixed inset-0 z-50 flex flex-col justify-end"
-        style={keyboardOffset > 0 ? { paddingBottom: `${keyboardOffset}px` } : undefined}
+        style={NOTE_SHEET.overlay}
         onClick={handleSaveAndClose}
       >
         <div className="bg-black/30 absolute inset-0" />
         <div
-          className={`relative ${cardBg} rounded-t-2xl shadow-xl max-h-[70vh] overflow-y-auto`}
-          style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+          className={`relative ${cardBg} rounded-t-2xl shadow-xl overflow-y-auto`}
+          style={{ ...NOTE_SHEET.sheet, paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
           onClick={(e) => e.stopPropagation()}
         >
           <div className={`flex items-center justify-between p-4 border-b ${borderClass}`}>

@@ -30,6 +30,10 @@ import { formatDuration } from '../utils/formatDuration.js';
 import { notBucketed } from '../utils/bucketList.js';
 import { formatLocalizedDate } from '../utils/localeFormatting.js';
 import { aiFeatureOn } from '../ai.js';
+import { keyboardSheet } from '../utils/keyboardInset.js';
+
+// The task notes and subtasks sheet sits on the soft keyboard rather than under it.
+const NOTES_SHEET = keyboardSheet('60vh');
 
 const MobileGlanceSection = () => {
   // §6.5 status surface for narrow viewports: the GLANCE tab's utility row is
@@ -1368,11 +1372,11 @@ const MobileGlanceSection = () => {
     if (!agendaTask) return null;
     const isInbox = agendaTask._agendaType === 'deadline';
     return (
-      <div className="notes-panel-container fixed inset-0 z-50 flex flex-col justify-end" onClick={() => setExpandedNotesTaskId(null)}>
+      <div className="notes-panel-container fixed inset-0 z-50 flex flex-col justify-end" style={NOTES_SHEET.overlay} onClick={() => setExpandedNotesTaskId(null)}>
         <div className="bg-black/30 absolute inset-0" />
         <div
-          className={`relative ${cardBg} rounded-t-2xl shadow-xl max-h-[60vh] overflow-y-auto`}
-          style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+          className={`relative ${cardBg} rounded-t-2xl shadow-xl overflow-y-auto`}
+          style={{ ...NOTES_SHEET.sheet, paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
           onClick={(e) => e.stopPropagation()}
         >
           <div className={`flex items-center justify-between p-4 border-b ${borderClass}`}>

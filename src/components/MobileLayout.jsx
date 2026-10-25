@@ -59,7 +59,10 @@ import useGlanceFabs from '../hooks/useGlanceFabs.js';
 import { glanceFabStagger, glanceFabVisibilityClass } from '../utils/glanceFabs.js';
 import TouchInboxTaskRow from './TouchInboxTaskRow.jsx';
 import useIncrementalList from '../hooks/useIncrementalList.js';
-import { keyboardOverTabLayout } from '../utils/keyboardInset.js';
+import { keyboardOverTabLayout, keyboardSheet } from '../utils/keyboardInset.js';
+
+// The task notes and subtasks sheet sits on the soft keyboard rather than under it.
+const NOTES_SHEET = keyboardSheet('60vh');
 
 const MobileLayout = () => {
   const [tzBannerDismissed, setTzBannerDismissed] = useState(false);
@@ -750,11 +753,11 @@ const MobileLayout = () => {
                   const noteTask = scheduledTask || deadlineTask;
                   if (!noteTask) return null;
                   return (
-                    <div className="notes-panel-container fixed inset-0 z-50 flex flex-col justify-end" onClick={() => setExpandedNotesTaskId(null)}>
+                    <div className="notes-panel-container fixed inset-0 z-50 flex flex-col justify-end" style={NOTES_SHEET.overlay} onClick={() => setExpandedNotesTaskId(null)}>
                       <div className="bg-black/30 absolute inset-0" />
                       <div
-                        className={`relative ${cardBg} rounded-t-2xl shadow-xl max-h-[60vh] overflow-y-auto`}
-                        style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+                        className={`relative ${cardBg} rounded-t-2xl shadow-xl overflow-y-auto`}
+                        style={{ ...NOTES_SHEET.sheet, paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className={`flex items-center justify-between p-4 border-b ${borderClass}`}>
@@ -870,11 +873,11 @@ const MobileLayout = () => {
                   const noteTask = filteredUnscheduledTasks.find(t => t.id === expandedNotesTaskId);
                   if (!noteTask) return null;
                   return (
-                    <div className="notes-panel-container fixed inset-0 z-50 flex flex-col justify-end" onClick={() => setExpandedNotesTaskId(null)}>
+                    <div className="notes-panel-container fixed inset-0 z-50 flex flex-col justify-end" style={NOTES_SHEET.overlay} onClick={() => setExpandedNotesTaskId(null)}>
                       <div className="bg-black/30 absolute inset-0" />
                       <div
-                        className={`relative ${cardBg} rounded-t-2xl shadow-xl max-h-[60vh] overflow-y-auto`}
-                        style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+                        className={`relative ${cardBg} rounded-t-2xl shadow-xl overflow-y-auto`}
+                        style={{ ...NOTES_SHEET.sheet, paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className={`flex items-center justify-between p-4 border-b ${borderClass}`}>
