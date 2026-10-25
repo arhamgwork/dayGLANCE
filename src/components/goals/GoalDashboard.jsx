@@ -65,6 +65,7 @@ import { enabledIntentTargets } from '../../intents/emitTargets.js';
 import { sortProjectsByOrder } from '../../utils/projectOrder.js';
 import { projectFocusTarget } from '../../utils/goalsLink.js';
 import { CARD_SIZES, cardColumns, cardScale, clampCardSize } from '../../utils/cardSize.js';
+import { keyboardSheet } from '../../utils/keyboardInset.js';
 
 // ─── Tiny helpers ─────────────────────────────────────────────────────────────
 
@@ -771,6 +772,8 @@ export const ProjectForm = ({ initial, goals, defaultGoalId, onSave, onCancel, m
 
 // ─── Overlay backdrop for inline forms ────────────────────────────────────────
 
+// The phone form sheet sits on the soft keyboard rather than under it.
+const FORM_SHEET = keyboardSheet('85vh');
 export const FormOverlay = ({ children, onClose, mobile, cardBg }) => {
   useEffect(() => {
     const handler = (e) => {
@@ -787,12 +790,13 @@ export const FormOverlay = ({ children, onClose, mobile, cardBg }) => {
     return (
       <div
         className="fixed inset-0 z-[60] flex flex-col justify-end"
+        style={FORM_SHEET.overlay}
         onClick={onClose}
       >
         <div className="bg-black/50 absolute inset-0" />
         <div
-          className={`relative ${cardBg} rounded-t-2xl shadow-xl max-h-[85vh] overflow-y-auto`}
-          style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+          className={`relative ${cardBg} rounded-t-2xl shadow-xl overflow-y-auto`}
+          style={{ ...FORM_SHEET.sheet, paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
           onClick={e => e.stopPropagation()}
         >
           {children}

@@ -347,6 +347,7 @@ class MainActivity : AppCompatActivity() {
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
             val navBottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
             v.setPadding(0, 0, 0, navBottom)
+            reportKeyboardInset(insets.getInsets(WindowInsetsCompat.Type.ime()).bottom - navBottom)
             insets
         }
 
@@ -722,6 +723,29 @@ class MainActivity : AppCompatActivity() {
     // The app language last seen, so a configuration change that is not a
     // language change (rotation, resize) does not rebuild every widget.
     private var lastLocaleTag: String? = null
+
+    private var lastKeyboardInset = -1
+
+    /**
+     * Tells the web UI how much of the WebView the soft keyboard covers, in CSS
+     * pixels. windowSoftInputMode is adjustNothing (the tab bar stays put under
+     * the keyboard), so the WebView is never resized and its visualViewport
+     * never learns the keyboard is up: without this, a field in a bottom sheet
+     * or low on the page is typed into blind. [overlapPx] is the IME inset less
+     * the navigation bar the root's padding already keeps the WebView above.
+     * The web side is utils/keyboardInset.js.
+     */
+    private fun reportKeyboardInset(overlapPx: Int) {
+        val css = Math.round(maxOf(0, overlapPx) / resources.displayMetrics.density)
+        if (css == lastKeyboardInset || !::webView.isInitialized) return
+        lastKeyboardInset = css
+        webView.post {
+            webView.evaluateJavascript(
+                "(function(){ if (window.__dayglanceKeyboardInset) window.__dayglanceKeyboardInset($css); })();",
+                null
+            )
+        }
+    }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)

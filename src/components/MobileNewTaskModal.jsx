@@ -16,6 +16,10 @@ import { extractTags, getRecurrenceLabel } from '../utils/taskUtils.js';
 import { formatLocalizedDate } from '../utils/localeFormatting.js';
 import useBackClose, { ABOVE_EDITORS } from '../hooks/useBackClose.js';
 import { aiFeatureOn } from '../ai.js';
+import { keyboardSheet } from '../utils/keyboardInset.js';
+
+// The editor sheets sit on the soft keyboard rather than under it.
+const EDITOR_SHEET = keyboardSheet('85vh');
 
 const MobileNewTaskModal = () => {
   const { t, i18n } = useTranslation();
@@ -69,11 +73,11 @@ const MobileNewTaskModal = () => {
   return (
     <>
       {showAddTask && isMobile && (
-        <div className="fixed inset-0 z-[80] flex flex-col justify-end" onClick={closeEditor}>
+        <div className="fixed inset-0 z-[80] flex flex-col justify-end" style={EDITOR_SHEET.overlay} onClick={closeEditor}>
           <div className="bg-black/30 absolute inset-0" />
           <div
-            className={`relative ${cardBg} rounded-t-2xl shadow-xl max-h-[85vh] overflow-y-auto`}
-            style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+            className={`relative ${cardBg} rounded-t-2xl shadow-xl overflow-y-auto`}
+            style={{ ...EDITOR_SHEET.sheet, paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className={`flex items-center justify-between p-4 border-b ${borderClass}`}>
@@ -504,11 +508,11 @@ const MobileNewTaskModal = () => {
 
       {/* Native Calendar Event Edit Modal (mobile) */}
       {mobileEditingNativeEvent && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={() => setMobileEditingNativeEvent(null)}>
+        <div className="fixed inset-0 z-50 flex flex-col justify-end" style={EDITOR_SHEET.overlay} onClick={() => setMobileEditingNativeEvent(null)}>
           <div className="bg-black/30 absolute inset-0" />
           <div
-            className={`relative ${cardBg} rounded-t-2xl shadow-xl max-h-[85vh] overflow-y-auto`}
-            style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+            className={`relative ${cardBg} rounded-t-2xl shadow-xl overflow-y-auto`}
+            style={{ ...EDITOR_SHEET.sheet, paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className={`flex items-center justify-between p-4 border-b ${borderClass}`}>
