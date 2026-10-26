@@ -36,6 +36,8 @@ export const HEADLESS_BRIDGE_METHODS = Object.freeze([
   'isVaultSseSupported',
   // The launcher's read model and freshness (docs/launcher-integration.md).
   'updateLauncherSnapshot', 'touchLauncherHeartbeat', 'recordLauncherRefresh',
+  // The launcher's write queue: taken, then acknowledged once each write is saved.
+  'getPendingLauncherIntents', 'ackLauncherIntents',
   // The run's own protocol with the worker.
   'headlessShouldAbort', 'headlessDone',
 ]);

@@ -82,6 +82,16 @@ class HeadlessBridge(
     @JavascriptInterface
     fun recordLauncherRefresh(json: String) = LauncherWrites.recordRefresh(context, store, json)
 
+    // ── The launcher's write queue (src/headless/HeadlessRefresh.jsx applies it) ──
+
+    /** The queued entries; writes stay queued until [ackLauncherIntents] (LauncherWriteQueue). */
+    @JavascriptInterface
+    fun getPendingLauncherIntents(): String = store.takePendingLauncherIntents()
+
+    /** The writes the run has applied and saved, by clientId: off the queue. */
+    @JavascriptInterface
+    fun ackLauncherIntents(clientIdsJson: String) = store.ackPendingLauncherIntents(clientIdsJson)
+
     // ── The run's protocol with the worker ────────────────────────────────────
 
     /** True once the app has opened: the run stops at its next phase boundary (the reverse lock). */

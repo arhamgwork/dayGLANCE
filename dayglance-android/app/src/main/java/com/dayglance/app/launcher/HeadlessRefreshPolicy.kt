@@ -31,6 +31,14 @@ object HeadlessRefreshPolicy {
         return Decision.Run
     }
 
+    /**
+     * Whether a launcher write that reached a dead app starts a headless run to apply it:
+     * not while one is queued or running (it applies the queue too), nor inside the floor
+     * (the launcher re-sends a write it has not seen land, and a later send starts the run).
+     */
+    fun runForWrite(runInFlight: Boolean, lastRunAt: Long, now: Long): Boolean =
+        !runInFlight && decide(rendererAlive = false, lastRunAt = lastRunAt, now = now) is Decision.Run
+
     /** The log entry's reason for a throttled run. */
     fun throttledReason(sinceLastMs: Long): String =
         "a headless run finished ${sinceLastMs / 1000} s ago (floor ${MIN_INTERVAL_MS / 60_000} min)"

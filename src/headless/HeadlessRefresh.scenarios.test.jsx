@@ -46,10 +46,24 @@ function memoryStorage() {
 }
 
 /** A bridge that answers only the allowlist and records every name looked up. */
-function fakeBridge({ abort = false } = {}) {
+function fakeBridge({ abort = false, queue = [] } = {}) {
   const lookups = new Set();
-  const calls = { updateLauncherSnapshot: [], touchLauncherHeartbeat: [], recordLauncherRefresh: [], headlessDone: [] };
+  const calls = { updateLauncherSnapshot: [], touchLauncherHeartbeat: [], recordLauncherRefresh: [], headlessDone: [], acked: [] };
+  // The launcher queue, taken as the shell takes it (LauncherWriteQueue): every
+  // entry handed over, the writes kept until acknowledged.
+  let pending = [...queue];
   const impl = {
+    getPendingLauncherIntents: () => {
+      const all = JSON.stringify(pending);
+      pending = pending.filter(e => e.action !== 'com.dayglance.app.launcher.REFRESH');
+      return all;
+    },
+    ackLauncherIntents: (json) => {
+      const ids = JSON.parse(json);
+      calls.acked.push(...ids);
+      pending = pending.filter(e => !ids.includes(e.clientId));
+    },
+    get pending() { return pending; },
     httpRequest: () => JSON.stringify({ status: 0, ok: false, error: 'no network in tests' }),
     supportsAsyncHttp: () => false,
     getSyncKey: () => '',
@@ -283,6 +297,79 @@ describe('HeadlessRefresh', () => {
     expect(stored).toEqual(['t1', 't2', 't3']);
     expect(calls.touchLauncherHeartbeat.at(-1).syncedAt).toBe('2026-10-19T10:05:00.000Z');
     expect(calls.headlessDone[0].outcome).toBe('ran');
+    root.unmount();
+  });
+
+  // A launcher write that reached the app while it was closed: applied after
+  // the pull, saved, acknowledged, pushed by a second pass, and in the snapshot.
+  const LAUNCHER = 'com.dayglance.app.launcher.';
+  const writesQueue = () => [
+    { action: `${LAUNCHER}REFRESH`, clientId: 'rf-0' },
+    { action: `${LAUNCHER}COMPLETE`, clientId: 'w-done', payload: { task_id: 't1' } },
+    { action: `${LAUNCHER}CREATE`, clientId: 'w-new', payload: { title: 'Call the plumber' } },
+    { action: `${LAUNCHER}TOGGLE_ROUTINE`, clientId: 'w-routine', payload: { routine_id: 'r-1' } },
+  ];
+  const flushInAct = (fn) => act(() => { fn(); });
+
+  // MUTATION: skip the writes phase (go straight to 'synced') and every expectation on t1 and the ack fails.
+  it('applies the launcher\'s queued writes after the pull, acknowledges each, pushes them, and puts them in the snapshot', async () => {
+    seedStorage(ls, { cloud: false, vault: true });
+    const { bridge, lookups, calls } = fakeBridge({ queue: writesQueue() });
+    globalThis.window.DayGlanceNative = bridge;
+    const pushed = [];
+    const createVaultEngine = vi.fn((callbacks) => ({
+      dbSyncCycle: async () => { pushed.push(callbacks.getData()); },
+      getLastSynced: () => '2026-10-19T10:05:00.000Z',
+      dispose: vi.fn(),
+    }));
+    const root = await mount({ bridge: () => bridge, createFileEngine: () => null, createVaultEngine, flush: flushInAct });
+    await until(() => calls.headlessDone.length > 0);
+
+    // Saved on this device…
+    const stored = JSON.parse(ls.getItem('day-planner-tasks'));
+    expect(stored.find(t => t.id === 't1').completed).toBe(true);
+    const created = [...stored, ...JSON.parse(ls.getItem('day-planner-unscheduled'))].find(t => t.title === 'Call the plumber');
+    expect(created).toMatchObject({ clientId: 'w-new' });
+    // …acknowledged, except the routine toggle, which waits for the app…
+    expect(calls.acked).toEqual(['w-done', 'w-new']);
+    expect(bridge.pending.map(e => e.clientId)).toEqual(['w-routine']);
+    // …pushed by a second pass of the tier, which carries them…
+    expect(pushed).toHaveLength(2);
+    expect(pushed[0].tasks.find(t => t.id === 't1').completed).toBe(false);
+    expect(pushed[1].tasks.find(t => t.id === 't1').completed).toBe(true);
+    // …and in the snapshot, with the ids the launcher retires its outbox on.
+    const snapshot = calls.updateLauncherSnapshot[0];
+    expect(snapshot.handledWrites.map(h => h.clientId)).toEqual(expect.arrayContaining(['w-done', 'w-new']));
+    expect(snapshot.tasks.find(t => t.id === 't1').completed).toBe(true);
+    expect(calls.headlessDone[0].outcome).toBe('ran');
+    const outside = [...lookups].filter((name) => !HEADLESS_BRIDGE_METHODS.includes(name) && name !== 'pending');
+    expect(outside).toEqual([]);
+    root.unmount();
+  });
+
+  it('with no sync tier, still applies the writes and pushes the snapshot, and says why it did not sync', async () => {
+    seedStorage(ls, { cloud: false });
+    const { bridge, calls } = fakeBridge({ queue: writesQueue() });
+    globalThis.window.DayGlanceNative = bridge;
+    const root = await mount({ bridge: () => bridge, createFileEngine: () => null, createVaultEngine: () => null, flush: flushInAct });
+    await until(() => calls.headlessDone.length > 0);
+    expect(JSON.parse(ls.getItem('day-planner-tasks')).find(t => t.id === 't1').completed).toBe(true);
+    expect(calls.acked).toEqual(['w-done', 'w-new']);
+    expect(calls.updateLauncherSnapshot).toHaveLength(1);
+    expect(calls.headlessDone[0]).toMatchObject({ outcome: 'failed', reason: 'no sync tier is configured' });
+    root.unmount();
+  });
+
+  it('a failed pull applies no writes: they stay queued for the next run or the app', async () => {
+    seedStorage(ls);
+    const { bridge, calls } = fakeBridge({ queue: writesQueue() });
+    globalThis.window.DayGlanceNative = bridge;
+    const engine = scriptedFileEngine({ fail: new Error('offline') });
+    const root = await mount({ bridge: () => bridge, createFileEngine: engine.factory, createVaultEngine: () => null, flush: flushInAct });
+    await until(() => calls.headlessDone.length > 0);
+    expect(calls.acked).toEqual([]);
+    expect(bridge.pending.map(e => e.clientId)).toEqual(['rf-0', 'w-done', 'w-new', 'w-routine']);
+    expect(JSON.parse(ls.getItem('day-planner-tasks')).find(t => t.id === 't1').completed).toBe(false);
     root.unmount();
   });
 
