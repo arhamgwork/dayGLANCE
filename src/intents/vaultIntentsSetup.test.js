@@ -3,6 +3,7 @@ import { deriveEnvelopeKey } from '@glance-apps/intents';
 import {
   ensureVaultIntentsKey,
   ensureVaultIntentsKeyReady,
+  enableVaultIntentsForPro,
   setupVaultIntentsEncryption,
   VaultIntentsSetupError,
 } from './vaultIntentsSetup.js';
@@ -193,5 +194,39 @@ describe('ensureVaultIntentsKeyReady (self-heal wrapper)', () => {
     });
     expect(ok).toBe(false);
     expect(slot.storeKey).not.toHaveBeenCalled();
+  });
+});
+
+describe('enableVaultIntentsForPro', () => {
+  const seams = (over = {}) => {
+    const slot = memSlot('stale-key-from-another-salt');
+    let config = { ttlMs: 123, pollIntervalMinutes: 7 };
+    return {
+      slot,
+      config: () => config,
+      opts: {
+        connection: CONN,
+        vaultClient: okVaultClient(),
+        clearKey: vi.fn(async () => { slot.storeKey(null); }),
+        storeKey: slot.storeKey,
+        getConfig: () => config,
+        setConfig: vi.fn((c) => { config = c; }),
+        ...over,
+      },
+    };
+  };
+
+  it('replaces any cached key and turns intents on, keeping the other settings', async () => {
+    const s = seams();
+    expect(await enableVaultIntentsForPro('pw', s.opts)).toBe(true);
+    expect(s.opts.clearKey).toHaveBeenCalled();
+    expect(s.slot.peek()).toBeInstanceOf(CryptoKey);
+    expect(s.config()).toEqual({ ttlMs: 123, pollIntervalMinutes: 7, enabled: true });
+  });
+
+  it('leaves intents off, without throwing, when the vault has no salt', async () => {
+    const s = seams({ vaultClient: okVaultClient(null) });
+    expect(await enableVaultIntentsForPro('pw', s.opts)).toBe(false);
+    expect(s.opts.setConfig).not.toHaveBeenCalled();
   });
 });
