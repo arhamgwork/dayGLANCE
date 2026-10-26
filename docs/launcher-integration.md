@@ -211,6 +211,24 @@ write in its own slot (several deep, unlike the automation transport's single
 slot) and sends the same package-scoped wake broadcast, so a running app
 drains at once and a dead app on next launch.
 
+Two rules keep a write from being lost on the way (`intents/useAndroidIntentBridge.js`):
+
+- **Nothing drains before the data has loaded.** The bridge waits for
+  `dataLoaded` and, with vault sync on, the first pull of the session
+  (`intentDrainGate.js`), like the other intent drains. Draining at mount
+  handled every write against the empty initial task lists: a `COMPLETE` found
+  no such task and recorded the failure, and a created task was replaced by the
+  stored list a moment later. That was every write sent while the app was
+  closed, which the self-closing page (`LauncherPageRetire`) made the usual case.
+- **A write leaves the queue only once it is saved.** `getPendingLauncherIntents`
+  hands the page every entry but keeps the writes (`LauncherWriteQueue`); the page
+  handles each with its setters inside a synchronous flush, so the change is
+  committed and saved before the write is recorded in the ledger and acknowledged
+  (`ackLauncherIntents`). A page that stalls in the background, or is closed or
+  killed first, leaves its writes for the next, which dedupes on the id (a CREATE
+  also on a task already carrying it). Writes are handled before refreshes, so
+  none waits behind a sync cycle. A REFRESH is still taken off on read.
+
 The web layer (`src/intents/launcherWrites.js`) dedupes on `clientId` with a
 ledger kept in localStorage: a re-sent write is acknowledged, never applied
 twice. A write that fails for good (an unknown id, a read-only block, a routine

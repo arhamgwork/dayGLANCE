@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { ACTIONS } from '@glance-apps/intents';
-import { isNativeAndroid, nativeGetPendingIntent, nativeGetPendingLauncherIntents, nativeReportIntentResult } from '../native';
+import { isNativeAndroid, nativeAckLauncherIntents, nativeGetPendingIntent, nativeGetPendingLauncherIntents, nativeReportIntentResult } from '../native';
 import { handleIntent } from './handleIntent.js';
-import { handleLauncherIntent } from './launcherWrites.js';
+import { handleLauncherIntent, LAUNCHER_ACTIONS, LAUNCHER_ONLY } from './launcherWrites.js';
+import { intentDrainAllowed, INTENT_DRAIN_RETRY_MS } from './intentDrainGate.js';
 import { retireCheck } from './retireCheck.js';
 
 /**
@@ -19,6 +21,68 @@ const BROADCAST_ACTION_MAP = {
   'app.dayglance.QUERY': ACTIONS.QUERY,
 };
 
+const isRefresh = (entry) => LAUNCHER_ACTIONS[entry?.action] === LAUNCHER_ONLY.REFRESH;
+
+// Setters a launcher write calls. Each runs inside a synchronous flush, so the
+// change is committed and saved (useSaveOnChange's effect flushes with a sync
+// commit) before the write is recorded in the ledger and taken off the native
+// queue. Nothing then waits on a timer or a frame, which a page in the
+// background may never get.
+const DURABLE_SETTERS = ['setTasks', 'setUnscheduledTasks', 'setRecurringTasks', 'toggleRoutineCompletion'];
+
+/** The context with its setters flushed synchronously ([flush] is react-dom's flushSync in the app). */
+export function durableContext(context, flush = flushSync) {
+  const out = { ...context };
+  for (const key of DURABLE_SETTERS) {
+    const fn = context[key];
+    if (typeof fn !== 'function') continue;
+    out[key] = (...args) => {
+      let result;
+      flush(() => { result = fn(...args); });
+      return result;
+    };
+  }
+  return out;
+}
+
+/**
+ * Handle the launcher's queued entries (docs/launcher-integration.md): writes
+ * first, each acknowledged to the native queue only once it is handled and
+ * saved, then refreshes. A REFRESH awaits a whole sync cycle, which a page in
+ * the background can stall on for hours; a write queued behind it must not
+ * wait on it, nor be lost with the page.
+ *
+ * @param {object} io { entries, context(), ack(ids), flush, inFlight, log }
+ */
+export async function drainLauncherQueue({ entries, context, ack = nativeAckLauncherIntents, flush = flushSync, inFlight = new Set(), log = () => {} }) {
+  const writes = entries.filter(e => !isRefresh(e));
+  const refreshes = entries.filter(isRefresh);
+  for (const write of writes) {
+    const id = write?.clientId;
+    // A second drain while this one awaits (a wake and a visibility change
+    // together) sees the write still queued: it is this drain's.
+    if (id && inFlight.has(id)) continue;
+    if (id) inFlight.add(id);
+    try {
+      log(write.action, await handleLauncherIntent(write, durableContext(context(), flush)));
+    } catch (err) {
+      log(write.action, err);
+    } finally {
+      if (id) inFlight.delete(id);
+    }
+    // Handled (or refused, which the ledger records) and saved: off the queue.
+    // A handler that threw is taken off too, or it would throw on every start.
+    if (id) ack([id]);
+  }
+  for (const refresh of refreshes) {
+    try {
+      log(refresh.action, await handleLauncherIntent(refresh, context()));
+    } catch (err) {
+      log(refresh.action, err);
+    }
+  }
+}
+
 /**
  * Android intent transport bridge.
  *
@@ -28,31 +92,44 @@ const BROADCAST_ACTION_MAP = {
  * NativeBridge.reportIntentResult so Tasker/other apps can receive it as a
  * app.dayglance.RESULT broadcast.
  *
+ * Nothing is drained until the context says the data has loaded (`ready`) and,
+ * with vault sync on, the first pull has committed (intentDrainGate.js). A
+ * drain that ran earlier handled every write against empty task lists: a
+ * complete found no such task and recorded the failure, and a created task was
+ * replaced a moment later by the stored list. That was every write the
+ * launcher sent while the app was closed.
+ *
  * No-ops on non-Android platforms.
  *
- * @param {object} context  The handleIntent context (same shape as useIntentPoller's context).
+ * @param {object} context  The handleIntent context (same shape as useIntentPoller's context), plus `ready`.
  */
 export function useAndroidIntentBridge(context) {
   // Keep a ref so the visibilitychange handler always sees the latest context
   // without needing to be re-registered every render.
   const contextRef = useRef(context);
   contextRef.current = context;
+  const checkRef = useRef(null);
 
   useEffect(() => {
     if (!isNativeAndroid()) return;
+    const inFlight = new Set();
+    let retry = null;
 
     const checkPending = async () => {
-      // The launcher's queue first (docs/launcher-integration.md): its own
-      // slot, several deep, handled in order; no RESULT broadcast, the
-      // launcher reads the outcome from the next snapshot.
-      for (const launcherIntent of nativeGetPendingLauncherIntents()) {
-        try {
-          const result = await handleLauncherIntent(launcherIntent, contextRef.current);
-          if (import.meta.env.DEV) console.log('[launcher-bridge]', launcherIntent.action, result);
-        } catch (err) {
-          if (import.meta.env.DEV) console.warn('[launcher-bridge]', err);
-        }
+      if (!contextRef.current.ready) return; // the effect below runs it once the data is in
+      if (!intentDrainAllowed()) {
+        if (!retry) retry = setTimeout(() => { retry = null; checkPending(); }, INTENT_DRAIN_RETRY_MS);
+        return;
       }
+      // The launcher's queue first: its own slot, several deep, handled in
+      // order; no RESULT broadcast, the launcher reads the outcome from the
+      // next snapshot.
+      await drainLauncherQueue({
+        entries: nativeGetPendingLauncherIntents(),
+        context: () => contextRef.current,
+        inFlight,
+        log: (action, result) => { if (import.meta.env.DEV) console.log('[launcher-bridge]', action, result); },
+      });
 
       const intent = nativeGetPendingIntent();
       if (!intent) return;
@@ -74,6 +151,8 @@ export function useAndroidIntentBridge(context) {
       nativeReportIntentResult(action, JSON.stringify(result));
     };
 
+    checkRef.current = checkPending;
+
     // Expose an unconditional entry point for the native side to invoke directly
     // (from MainActivity's INTENT_RECEIVED forward receiver and onResume). This
     // must NOT be gated on document.visibilityState: the WebView is never paused
@@ -91,11 +170,14 @@ export function useAndroidIntentBridge(context) {
       }
     };
 
-    // Check immediately on mount (app may have been opened via intent)
-    checkPending();
+    // Check on mount (the app may have been opened via intent). Off the effect
+    // phase, so a write's synchronous flush is not inside React's commit.
+    Promise.resolve().then(checkPending);
 
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
+      if (retry) clearTimeout(retry);
+      checkRef.current = null;
       document.removeEventListener('visibilitychange', onVisibilityChange);
       if (window.__dayglanceCheckPendingIntent === checkPending) {
         delete window.__dayglanceCheckPendingIntent;
@@ -103,4 +185,10 @@ export function useAndroidIntentBridge(context) {
       if (window.__dayglanceRetireCheck === retireCheck) delete window.__dayglanceRetireCheck;
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The queue waited for the data: drain it the moment it has loaded.
+  const ready = !!context.ready;
+  useEffect(() => {
+    if (ready) Promise.resolve().then(() => checkRef.current?.());
+  }, [ready]);
 }

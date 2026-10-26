@@ -1885,6 +1885,9 @@ const DayPlanner = () => {
   }), [cloudSyncConfig?.enabled]);
 
   useAndroidIntentBridge({
+    // Nothing drains before the data has loaded: a write handled against the
+    // empty initial lists is lost (intents/useAndroidIntentBridge.js).
+    ready: dataLoaded,
     tasks, unscheduledTasks, recurringTasks, projects,
     setTasks, setUnscheduledTasks, setRecurringTasks,
     goals, addGoal, updateGoal, deleteGoal,
