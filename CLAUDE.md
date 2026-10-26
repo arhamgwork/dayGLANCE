@@ -208,7 +208,8 @@ Activity, to answer the launcher's REFRESH while the app's process is dead
 
 - **Headless mode is an ALLOWLIST, not a skip list.** `HeadlessRefresh.jsx`
   composes only the data layer (the store, `useDataPersistence`,
-  `useSaveOnChange`, the day windows, the JOBO ledger), both sync tiers with
+  `useSaveOnChange`, the day windows, the JOBO ledger and its completion
+  detector), both sync tiers with
   the app's own engines, payload and apply (`hooks/useSyncEngines.js`,
   `hooks/useSyncEngineData.js`), the launcher's queued writes, and the
   launcher snapshot and heartbeat push. Nothing else initialises: no
@@ -224,7 +225,10 @@ Activity, to answer the launcher's REFRESH while the app's process is dead
   the native queue drops it, and a second pass of the tiers when any changed
   something. TOGGLE_ROUTINE stays queued for the app (routine completions are
   saved by `useRoutines`, which the root does not compose). A failed pull
-  applies none. The receiver schedules a run when a write reaches a dead app,
+  applies none. A completion a run applies or pulls is a transition only
+  there (the app, opened later, sees it as first sight), so the root runs
+  `useJoboDetector` under the device's JOBO flag, and the push after the
+  writes waits for the detector's records. The receiver schedules a run when a write reaches a dead app,
   outside the floor and with no run in flight (`HeadlessRefreshPolicy.runForWrite`).
 - **The forecast is the one named exception.** The dial's weather ring reads
   it, and a phone left with the app closed for days would otherwise show the

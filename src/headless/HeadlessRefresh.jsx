@@ -7,7 +7,9 @@
 // only:
 //   - the data layer: the store (useHeadlessStore), loadData and saveData
 //     (useDataPersistence, useSaveOnChange), the day windows and the JOBO
-//     ledger, which the sync apply writes through;
+//     ledger, which the sync apply writes through, with its completion
+//     detector (useJoboDetector), so a completion this run makes or pulls
+//     gets its Do record as it would with the app open;
 //   - both sync tiers: the file-tier engine (sync/adapter.js) and the
 //     GLANCEvault engine (sync/dbEngine.js), built and wired the way the app
 //     builds them (hooks/useSyncEngines.js), with the same payload and apply
@@ -43,6 +45,7 @@ import useDataPersistence from '../hooks/useDataPersistence.js';
 import useSaveOnChange from '../hooks/useSaveOnChange.js';
 import useDayWindows from '../hooks/useDayWindows.js';
 import useJoboLedger from '../hooks/useJoboLedger.js';
+import useJoboDetector from '../hooks/useJoboDetector.js';
 import useSyncEngineData from '../hooks/useSyncEngineData.js';
 import { useFileSyncEngine, useVaultSyncEngine } from '../hooks/useSyncEngines.js';
 import { createDayGlanceEngine } from '../sync/adapter.js';
@@ -58,7 +61,7 @@ import { expandRecurringTasks } from '../utils/expandRecurringTasks.js';
 import { computeRecurringExpansionRange } from '../utils/recurringExpansionRange.js';
 import { frameInstancesForDate } from '../utils/frameInstances.js';
 import { isTaskVisibleForUser, isOwnedBy } from '../utils/userScope.js';
-import { readWeekStartDay, readCalendarFilter, readNativeTimeOverrides } from '../utils/storedSlices.js';
+import { readWeekStartDay, readCalendarFilter, readNativeTimeOverrides, readJoboEnabled } from '../utils/storedSlices.js';
 import { getStoredWeatherCoords } from '../utils/solar.js';
 import { fetchHourlyForecast } from '../utils/weatherForecast.js';
 import { loadAlarmPrefs, loadDialLayers } from '../utils/dialPrefs.js';
@@ -84,6 +87,7 @@ const SCHED_DAYS_SHOWN = 14;
  * @param {Function} [props.createVaultEngine] test seam for sync/dbEngine.js
  * @param {Function} [props.fetchForecast]     test seam for utils/weatherForecast.js
  * @param {Function} [props.flush]             react-dom's flushSync; a test seam for another renderer
+ * @param {object}   [props.joboStore]         test seam for the JOBO ledger's store (jobo/store.js)
  * @param {() => Date} [props.now]
  */
 export default function HeadlessRefresh({
@@ -93,6 +97,7 @@ export default function HeadlessRefresh({
   createVaultEngine = createDbEngine,
   fetchForecast = fetchHourlyForecast,
   flush = flushSync,
+  joboStore,
   now = () => new Date(),
 } = {}) {
   const clientId = clientIdProp ?? headlessRequest(window.location?.search ?? '')?.clientId ?? '';
@@ -109,7 +114,7 @@ export default function HeadlessRefresh({
     suppressCloudUploadRef, suppressTimestampRef, suppressClearPendingRef, cloudSyncInitialDoneRef,
   } = useCloudSync();
   const { dayWindowsRef, getDayWindow, applyRemoteDayWindows } = useDayWindows();
-  const { joboRecords, joboLoaded, joboError, applyRemoteJobo } = useJoboLedger();
+  const { joboRecords, joboLoaded, joboError, joboWritable, recordJobo, readJoboWorkingSet, applyRemoteJobo } = useJoboLedger({ store: joboStore });
   const joboRecordsRef = useRef(joboRecords);
   joboRecordsRef.current = joboRecords;
   const tasksLiveRef = useRef(tasks);
@@ -130,6 +135,25 @@ export default function HeadlessRefresh({
     todayRoutines: allTodayRoutines,
     saveData, checkConflicts: noop,
     suppressClearPendingRef, suppressCloudUploadRef, suppressTimestampRef,
+  });
+  // The app's completion detector over this run's state. A launcher completion
+  // this run applies is a transition here and nowhere else: the app, opened
+  // later, loads the task already completed and treats that as history (first
+  // sight). The detector's writes are tracked so the push after the writes
+  // can carry their records.
+  const [joboEnabled] = useState(readJoboEnabled);
+  const joboWritesRef = useRef(new Set());
+  const recordJoboTracked = useCallback((records) => {
+    const write = Promise.resolve(recordJobo(records));
+    joboWritesRef.current.add(write);
+    write.finally(() => joboWritesRef.current.delete(write)).catch(() => {});
+    return write;
+  }, [recordJobo]);
+  useJoboDetector({
+    tasks, unscheduledTasks, recurringTasks,
+    readJoboWorkingSet, joboLoaded, joboWritable, recordJobo: recordJoboTracked,
+    isRemoteApply,
+    enabled: joboEnabled,
   });
 
   // ── Sync tiers ───────────────────────────────────────────────────────────
@@ -303,6 +327,13 @@ export default function HeadlessRefresh({
         applied = results.filter(r => r.result?.success && !r.result?.deduped).length;
       } catch (err) {
         console.warn('[headless] launcher writes:', err);
+      }
+      if (applied > 0) {
+        // The detector records a completion one microtask after its commit;
+        // let those writes land, and their state commit, before the push.
+        await new Promise(resolve => setTimeout(resolve, 0));
+        await Promise.allSettled([...joboWritesRef.current]);
+        await new Promise(resolve => setTimeout(resolve, 0));
       }
       if (applied > 0 && jobsRef.current.length > 0) {
         if (shouldAbort()) return finish(HEADLESS_OUTCOMES.ABORTED, { reason: 'app opened' });

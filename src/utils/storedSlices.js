@@ -136,6 +136,18 @@ export const readHabitsEnabled = () => {
   return false;
 };
 
+/**
+ * The JOBO experiment's per-device switch. Gates the interface and whether
+ * this device creates Do records from its own completions, never the data
+ * (CLAUDE.md, "JOBO ledger"). Read by App and by the headless root's detector.
+ */
+export const readJoboEnabled = () => {
+  try {
+    const saved = localStorage.getItem('day-planner-jobo-enabled');
+    return saved !== null ? JSON.parse(saved) === true : false;
+  } catch { return false; }
+};
+
 export const readRoutinesEnabled = () => {
   const stored = localStorage.getItem('day-planner-routines-enabled');
   if (stored !== null) return JSON.parse(stored);
