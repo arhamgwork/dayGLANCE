@@ -21,7 +21,7 @@ const BROADCAST_ACTION_MAP = {
   'app.dayglance.QUERY': ACTIONS.QUERY,
 };
 
-const isRefresh = (entry) => LAUNCHER_ACTIONS[entry?.action] === LAUNCHER_ONLY.REFRESH;
+export const isRefresh = (entry) => LAUNCHER_ACTIONS[entry?.action] === LAUNCHER_ONLY.REFRESH;
 
 // Setters a launcher write calls. Each runs inside a synchronous flush, so the
 // change is committed and saved (useSaveOnChange's effect flushes with a sync
@@ -53,10 +53,12 @@ export function durableContext(context, flush = flushSync) {
  * wait on it, nor be lost with the page.
  *
  * @param {object} io { entries, context(), ack(ids), flush, inFlight, log }
+ * @returns {Promise<Array<{clientId?: string, action: string, result: object}>>} each write's result, in order
  */
 export async function drainLauncherQueue({ entries, context, ack = nativeAckLauncherIntents, flush = flushSync, inFlight = new Set(), log = () => {} }) {
   const writes = entries.filter(e => !isRefresh(e));
   const refreshes = entries.filter(isRefresh);
+  const results = [];
   for (const write of writes) {
     const id = write?.clientId;
     // A second drain while this one awaits (a wake and a visibility change
@@ -64,8 +66,11 @@ export async function drainLauncherQueue({ entries, context, ack = nativeAckLaun
     if (id && inFlight.has(id)) continue;
     if (id) inFlight.add(id);
     try {
-      log(write.action, await handleLauncherIntent(write, durableContext(context(), flush)));
+      const result = await handleLauncherIntent(write, durableContext(context(), flush));
+      results.push({ clientId: id, action: write.action, result });
+      log(write.action, result);
     } catch (err) {
+      results.push({ clientId: id, action: write.action, result: { success: false, error: err?.message ?? String(err) } });
       log(write.action, err);
     } finally {
       if (id) inFlight.delete(id);
@@ -81,6 +86,7 @@ export async function drainLauncherQueue({ entries, context, ack = nativeAckLaun
       log(refresh.action, err);
     }
   }
+  return results;
 }
 
 /**

@@ -38,4 +38,13 @@ class HeadlessRefreshPolicyTest {
         assertEquals("failed" to "the WebView renderer died", HeadlessRefreshPolicy.unreportedOutcome(false, false, true))
         assertEquals("failed" to "the run ended without reporting", HeadlessRefreshPolicy.unreportedOutcome(false, false, false))
     }
+
+    @Test
+    fun `a write at a dead app starts a run, unless one is in flight or the floor holds`() {
+        val now = 10_000_000L
+        assertEquals(true, HeadlessRefreshPolicy.runForWrite(runInFlight = false, lastRunAt = 0, now = now))
+        assertEquals(true, HeadlessRefreshPolicy.runForWrite(runInFlight = false, lastRunAt = now - HeadlessRefreshPolicy.MIN_INTERVAL_MS, now = now))
+        assertEquals(false, HeadlessRefreshPolicy.runForWrite(runInFlight = true, lastRunAt = 0, now = now))
+        assertEquals(false, HeadlessRefreshPolicy.runForWrite(runInFlight = false, lastRunAt = now - 60_000, now = now))
+    }
 }

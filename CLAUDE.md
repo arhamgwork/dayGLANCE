@@ -210,13 +210,22 @@ Activity, to answer the launcher's REFRESH while the app's process is dead
   composes only the data layer (the store, `useDataPersistence`,
   `useSaveOnChange`, the day windows, the JOBO ledger), both sync tiers with
   the app's own engines, payload and apply (`hooks/useSyncEngines.js`,
-  `hooks/useSyncEngineData.js`), and the
+  `hooks/useSyncEngineData.js`), the launcher's queued writes, and the
   launcher snapshot and heartbeat push. Nothing else initialises: no
-  calendar fetch, Obsidian, reminders, widgets, intents or UI. It is
+  calendar fetch, Obsidian, reminders, widgets, automation intents or UI. It is
   never `<App headless />`: a feature that must not run headlessly is one the
   root does not import, not one that checks a flag. The native
   `HeadlessBridge` is the same allowlist (`HEADLESS_BRIDGE_METHODS` in
   `headlessMode.js`); keep the two lists equal.
+- **The launcher's writes are applied after the pull, then pushed.** A write
+  is data the user made, so a run applies the queue the way the app does
+  (`drainLauncherQueue`, the same handler and ledger): not before the cycle's
+  pull has settled (the drain rule, `intentDrainGate.js`), each saved before
+  the native queue drops it, and a second pass of the tiers when any changed
+  something. TOGGLE_ROUTINE stays queued for the app (routine completions are
+  saved by `useRoutines`, which the root does not compose). A failed pull
+  applies none. The receiver schedules a run when a write reaches a dead app,
+  outside the floor and with no run in flight (`HeadlessRefreshPolicy.runForWrite`).
 - **The forecast is the one named exception.** The dial's weather ring reads
   it, and a phone left with the app closed for days would otherwise show the
   temperatures of the day it was last opened. One read-only request for the

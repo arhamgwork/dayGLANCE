@@ -13,9 +13,13 @@
 //     builds them (hooks/useSyncEngines.js), with the same payload and apply
 //     (hooks/useSyncEngineData.js);
 //   - the launcher snapshot and heartbeat push (utils/launcherSnapshot.js,
-//     utils/launcherHeartbeat.js).
+//     utils/launcherHeartbeat.js);
+//   - the launcher's queued writes, applied after the cycle's pull and pushed
+//     by a second pass of the tiers (intents/useAndroidIntentBridge.js's
+//     drainLauncherQueue, the app's own handler and ledger). A launcher write
+//     is data the user made; without this it waited for the app to open.
 // Nothing else initialises: no calendar fetch, no Obsidian, no reminders, no
-// weather, no widgets, no intents, no UI. The native side holds the same
+// weather, no widgets, no automation intents, no UI. The native side holds the same
 // line: its HeadlessBridge exposes only HEADLESS_BRIDGE_METHODS, so a module
 // that did boot here would find no method, not a side effect.
 //
@@ -26,9 +30,12 @@
 // `headlessShouldAbort` at each phase boundary. The live instance's own start
 // runs a cycle anyway, so nothing is lost by stopping; waiting would hold the
 // splash for up to the cap for a result the app is about to produce itself.
-// A run has no local edits to protect, which is what makes aborting cheap.
+// A run's only local edits are launcher writes, and each is saved before the
+// native queue drops it: one the abort cut short is still queued for the app,
+// and one saved but not yet pushed is pushed by the app's own first cycle.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import useHeadlessStore from './useHeadlessStore.js';
 import { HEADLESS_OUTCOMES, headlessRequest } from './headlessMode.js';
 import useCloudSync from '../hooks/useCloudSync.js';
@@ -45,7 +52,8 @@ import { buildLauncherSnapshot } from '../utils/launcherSnapshot.js';
 import { inboxFromStorage, inboxCountOf } from '../utils/inboxFilter.js';
 import { latestSyncedAt } from '../utils/launcherHeartbeat.js';
 import { nativeBridge, nativeTouchLauncherHeartbeat, nativeRecordLauncherRefresh } from '../native.js';
-import { readLauncherLedger } from '../intents/launcherWrites.js';
+import { LAUNCHER_ACTIONS, LAUNCHER_ONLY, readLauncherLedger } from '../intents/launcherWrites.js';
+import { drainLauncherQueue } from '../intents/useAndroidIntentBridge.js';
 import { expandRecurringTasks } from '../utils/expandRecurringTasks.js';
 import { computeRecurringExpansionRange } from '../utils/recurringExpansionRange.js';
 import { frameInstancesForDate } from '../utils/frameInstances.js';
@@ -57,6 +65,13 @@ import { loadAlarmPrefs, loadDialLayers } from '../utils/dialPrefs.js';
 import { dateToString } from '../utils/taskUtils.js';
 
 const noop = () => {};
+/**
+ * The launcher writes a headless run applies. TOGGLE_ROUTINE is left queued for
+ * the app: routine completions are saved by useRoutines, which this root does
+ * not compose. A REFRESH is this run.
+ */
+const HEADLESS_WRITES = new Set(['create', 'complete', LAUNCHER_ONLY.UNCOMPLETE, LAUNCHER_ONLY.MOVE, LAUNCHER_ONLY.RESIZE]);
+const appliesHeadlessly = (entry) => HEADLESS_WRITES.has(LAUNCHER_ACTIONS[entry?.action]);
 const identity = (s) => s;
 /** App's SCHED window default; it only widens the recurring expansion range. */
 const SCHED_DAYS_SHOWN = 14;
@@ -68,6 +83,7 @@ const SCHED_DAYS_SHOWN = 14;
  * @param {Function} [props.createFileEngine]  test seam for sync/adapter.js
  * @param {Function} [props.createVaultEngine] test seam for sync/dbEngine.js
  * @param {Function} [props.fetchForecast]     test seam for utils/weatherForecast.js
+ * @param {Function} [props.flush]             react-dom's flushSync; a test seam for another renderer
  * @param {() => Date} [props.now]
  */
 export default function HeadlessRefresh({
@@ -76,6 +92,7 @@ export default function HeadlessRefresh({
   createFileEngine = createDayGlanceEngine,
   createVaultEngine = createDbEngine,
   fetchForecast = fetchHourlyForecast,
+  flush = flushSync,
   now = () => new Date(),
 } = {}) {
   const clientId = clientIdProp ?? headlessRequest(window.location?.search ?? '')?.clientId ?? '';
@@ -169,8 +186,20 @@ export default function HeadlessRefresh({
     handlers: { onError: noteError('vault') },
   });
 
+  // What a launcher write reads and calls: the app's handler context, from the
+  // latest commit (each write's flush re-renders, so the next one sees it).
+  const writeContextRef = useRef(null);
+  writeContextRef.current = {
+    tasks, unscheduledTasks, recurringTasks, projects, goals, recycleBin: store.recycleBin,
+    setTasks: store.setTasks, setUnscheduledTasks: store.setUnscheduledTasks, setRecurringTasks: store.setRecurringTasks,
+  };
+
   // ── The run ──────────────────────────────────────────────────────────────
-  const [phase, setPhase] = useState('loading'); // loading | syncing | synced | done
+  const [phase, setPhase] = useState('loading'); // loading | syncing | writes | synced | done
+  // The tiers' cycles, run once for the pull and again to push launcher writes.
+  const jobsRef = useRef([]);
+  // No tier configured: the writes and the snapshot still run, the outcome says why.
+  const noTierRef = useRef(false);
   const startedAtRef = useRef(null);
   // One cycle per root, whatever React does with effects (StrictMode re-runs them).
   const startedRef = useRef(false);
@@ -228,7 +257,14 @@ export default function HeadlessRefresh({
       const jobs = [];
       if (cloudSyncConfig?.enabled && fileEngineRef.current?.sync) jobs.push(() => fileEngineRef.current.sync());
       if (vaultEngineRef.current?.dbSyncCycle) jobs.push(() => vaultEngineRef.current.dbSyncCycle());
-      if (jobs.length === 0) return finish(HEADLESS_OUTCOMES.FAILED, { reason: 'no sync tier is configured' });
+      jobsRef.current = jobs;
+      if (jobs.length === 0) {
+        // Nothing to pull from, so nothing to wait for: the launcher's writes
+        // still land on this device and in the snapshot.
+        noTierRef.current = true;
+        setPhase('writes');
+        return;
+      }
       try {
         for (const job of jobs) await job();
       } catch (err) {
@@ -237,11 +273,50 @@ export default function HeadlessRefresh({
       if (blockerRef.current) return finish(HEADLESS_OUTCOMES.FAILED, { reason: blockerRef.current });
       if (shouldAbort()) return finish(HEADLESS_OUTCOMES.ABORTED, { reason: 'app opened' });
       // The apply's state updates are committed before the next effect pass.
-      setPhase('synced');
+      setPhase('writes');
     })();
     // Keyed on readiness only: the cycle runs once (startedRef).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, dataLoaded, syncKeyReady, joboLoaded, joboError]);
+
+  // After the pull: the launcher's queued writes, against the state the pull
+  // settled (the same rule as the app's drain: not before the first pull,
+  // intents/intentDrainGate.js). Each is saved before the queue drops it.
+  // When any changed something, the tiers run again to push it.
+  useEffect(() => {
+    if (phase !== 'writes') return;
+    (async () => {
+      // Out of the effect phase: a write's setters flush synchronously.
+      await Promise.resolve();
+      if (shouldAbort()) return finish(HEADLESS_OUTCOMES.ABORTED, { reason: 'app opened' });
+      let applied = 0;
+      try {
+        const raw = bridge()?.getPendingLauncherIntents?.();
+        const parsed = raw ? JSON.parse(raw) : [];
+        const writes = (Array.isArray(parsed) ? parsed : []).filter(appliesHeadlessly);
+        const results = await drainLauncherQueue({
+          entries: writes,
+          context: () => writeContextRef.current,
+          ack: (ids) => { try { bridge()?.ackLauncherIntents?.(JSON.stringify(ids)); } catch { /* re-delivered; the ledger dedupes */ } },
+          flush,
+        });
+        applied = results.filter(r => r.result?.success && !r.result?.deduped).length;
+      } catch (err) {
+        console.warn('[headless] launcher writes:', err);
+      }
+      if (applied > 0 && jobsRef.current.length > 0) {
+        if (shouldAbort()) return finish(HEADLESS_OUTCOMES.ABORTED, { reason: 'app opened' });
+        try {
+          for (const job of jobsRef.current) await job();
+        } catch (err) {
+          return finish(HEADLESS_OUTCOMES.FAILED, { reason: `pushing launcher writes: ${err?.message || err}` });
+        }
+        if (blockerRef.current) return finish(HEADLESS_OUTCOMES.FAILED, { reason: blockerRef.current });
+      }
+      setPhase('synced');
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   // After the cycle: the snapshot from settled state, then the outcome.
   // Declared after useSaveOnChange, so the save pass has already run for this
@@ -289,7 +364,8 @@ export default function HeadlessRefresh({
         });
         if (shouldAbort()) return finish(HEADLESS_OUTCOMES.ABORTED, { reason: 'app opened' });
         bridge()?.updateLauncherSnapshot?.(JSON.stringify(snapshot));
-        finish(HEADLESS_OUTCOMES.RAN);
+        if (noTierRef.current) finish(HEADLESS_OUTCOMES.FAILED, { reason: 'no sync tier is configured' });
+        else finish(HEADLESS_OUTCOMES.RAN);
       } catch (err) {
         finish(HEADLESS_OUTCOMES.FAILED, { reason: `snapshot: ${err?.message || err}` });
       }

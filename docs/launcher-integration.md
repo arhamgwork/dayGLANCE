@@ -229,6 +229,14 @@ Two rules keep a write from being lost on the way (`intents/useAndroidIntentBrid
   also on a task already carrying it). Writes are handled before refreshes, so
   none waits behind a sync cycle. A REFRESH is still taken off on read.
 
+A write that reaches the app while it is closed does not wait for it to open:
+the receiver schedules a headless run (logged as `<clientId>-write`, unless a
+run is already queued or running, or one ran in the last ten minutes; the
+launcher re-sends a write until it sees it land, so a later send starts it),
+and the headless root applies the queue after its pull, saves each write,
+acknowledges it, and runs the tiers again to push what changed
+(`src/headless/HeadlessRefresh.jsx`). `TOGGLE_ROUTINE` waits for the app.
+
 The web layer (`src/intents/launcherWrites.js`) dedupes on `clientId` with a
 ledger kept in localStorage: a re-sent write is acknowledged, never applied
 twice. A write that fails for good (an unknown id, a read-only block, a routine
