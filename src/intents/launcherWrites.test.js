@@ -204,6 +204,33 @@ describe('recordHandled', () => {
       expect(toggled).toHaveLength(2);
     });
 
+    // MUTATION: always toggle and the already-done case flips the routine back.
+    it('TOGGLE_ROUTINE with `completed` sets the state, and changes nothing when it already holds', async () => {
+      const { ctx } = makeContext();
+      let completions = { r1: todayStr };
+      ctx.todayRoutines = [{ id: 'r1', name: 'Stretch', startTime: '07:00', duration: 15 }, { id: 'r2', name: 'Read', startTime: '21:00', duration: 15 }];
+      ctx.routinesDate = todayStr;
+      Object.defineProperty(ctx, 'routineCompletions', { get: () => completions });
+      const toggled = [];
+      ctx.toggleRoutineCompletion = (id) => {
+        toggled.push(id);
+        const next = { ...completions };
+        if (next[id]) delete next[id]; else next[id] = todayStr;
+        completions = next;
+      };
+      // r1 was ticked on another device; this launcher's view had not caught up, so its tap asks for done.
+      expect(await handleLauncherIntent(write('TOGGLE_ROUTINE', { routine_id: 'r1', completed: true }, 'w-s1'), ctx, io()))
+        .toMatchObject({ success: true, completed: true });
+      expect(toggled).toEqual([]);
+      expect(completions.r1).toBe(todayStr);
+      expect(await handleLauncherIntent(write('TOGGLE_ROUTINE', { routine_id: 'r2', completed: true }, 'w-s2'), ctx, io()))
+        .toMatchObject({ success: true, completed: true });
+      expect(await handleLauncherIntent(write('TOGGLE_ROUTINE', { routine_id: 'r1', completed: false }, 'w-s3'), ctx, io()))
+        .toMatchObject({ success: true, completed: false });
+      expect(toggled).toEqual(['r2', 'r1']);
+      expect(completions).toEqual({ r2: todayStr });
+    });
+
     // MUTATION: compare `r.id === routineId` again and this fails: the launcher's
     // string never equals a numeric id, and the toggle is refused for good.
     it('TOGGLE_ROUTINE finds a routine with a numeric id by the string the snapshot sent', async () => {
