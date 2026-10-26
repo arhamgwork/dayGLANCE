@@ -21,6 +21,16 @@ const BROADCAST_ACTION_MAP = {
   'app.dayglance.QUERY': ACTIONS.QUERY,
 };
 
+// Launcher writes being handled right now. A write's setters flush
+// synchronously, so the app's launcher-snapshot effect runs before the write
+// has been recorded in the ledger: a snapshot pushed then shows the change
+// without its id in `handledWrites`, and the launcher, still holding the write
+// as pending, applies it again on top. A TOGGLE_ROUTINE then flips back. The
+// snapshot effect holds while this is true, and runs again once the drain calls
+// `onSettled`.
+let writesInFlight = 0;
+export const launcherWritesInFlight = () => writesInFlight > 0;
+
 export const isRefresh = (entry) => LAUNCHER_ACTIONS[entry?.action] === LAUNCHER_ONLY.REFRESH;
 
 // Setters a launcher write calls. Each runs inside a synchronous flush, so the
@@ -52,10 +62,10 @@ export function durableContext(context, flush = flushSync) {
  * the background can stall on for hours; a write queued behind it must not
  * wait on it, nor be lost with the page.
  *
- * @param {object} io { entries, context(), ack(ids), flush, inFlight, log }
+ * @param {object} io { entries, context(), ack(ids), flush, inFlight, log, onSettled }
  * @returns {Promise<Array<{clientId?: string, action: string, result: object}>>} each write's result, in order
  */
-export async function drainLauncherQueue({ entries, context, ack = nativeAckLauncherIntents, flush = flushSync, inFlight = new Set(), log = () => {} }) {
+export async function drainLauncherQueue({ entries, context, ack = nativeAckLauncherIntents, flush = flushSync, inFlight = new Set(), log = () => {}, onSettled = () => {} }) {
   const writes = entries.filter(e => !isRefresh(e));
   const refreshes = entries.filter(isRefresh);
   const results = [];
@@ -65,6 +75,7 @@ export async function drainLauncherQueue({ entries, context, ack = nativeAckLaun
     // together) sees the write still queued: it is this drain's.
     if (id && inFlight.has(id)) continue;
     if (id) inFlight.add(id);
+    writesInFlight += 1;
     try {
       const result = await handleLauncherIntent(write, durableContext(context(), flush));
       results.push({ clientId: id, action: write.action, result });
@@ -74,11 +85,14 @@ export async function drainLauncherQueue({ entries, context, ack = nativeAckLaun
       log(write.action, err);
     } finally {
       if (id) inFlight.delete(id);
+      writesInFlight -= 1;
     }
     // Handled (or refused, which the ledger records) and saved: off the queue.
     // A handler that threw is taken off too, or it would throw on every start.
     if (id) ack([id]);
   }
+  // Every write is in the ledger now: the snapshot can say so.
+  if (results.length) onSettled();
   for (const refresh of refreshes) {
     try {
       log(refresh.action, await handleLauncherIntent(refresh, context()));
@@ -135,6 +149,7 @@ export function useAndroidIntentBridge(context) {
         context: () => contextRef.current,
         inFlight,
         log: (action, result) => { if (import.meta.env.DEV) console.log('[launcher-bridge]', action, result); },
+        onSettled: () => contextRef.current.onLauncherWritesSettled?.(),
       });
 
       const intent = nativeGetPendingIntent();
