@@ -5,6 +5,7 @@ import { setupEncryptionKey, setSyncPassphrase, clearEncryptionKey, getSyncPassp
 import { directAccessEncryptsWrites } from '../sync/directAccessTransport.js';
 import { getStoredVaultConfig, setVaultConfig, planVaultSave, planProVaultSave, isProConnection, PRO_VAULT_URL } from '../sync/vaultConfig.js';
 import { enrollWithAccountKey } from '../sync/vaultProEnroll.js';
+import { enableVaultIntentsForPro } from '../intents/vaultIntentsSetup.js';
 import SettingsCard from './settings/SettingsCard.jsx';
 import { webdavSaveConfig, encryptionSaveConfig, webdavDirty, encryptionDirty } from '../sync/syncFormPlan.js';
 import { createDbEngine, resetDbRootKey, resetVaultSyncCursor } from '../sync/dbEngine.js';
@@ -412,6 +413,12 @@ const CloudSyncSettingsForm = ({ darkMode, textPrimary, textSecondary, borderCla
         }
         setVaultBootstrapError(t(key, opts));
         return;
+      }
+      // Pro is one box for sync and intents. The first sync above has
+      // established the account salt, and the passphrase is still in hand.
+      if (vaultPro) {
+        const passphraseNow = getSyncPassphrase();
+        if (passphraseNow) await enableVaultIntentsForPro(passphraseNow);
       }
       setVaultBootstrapping(false);
     }

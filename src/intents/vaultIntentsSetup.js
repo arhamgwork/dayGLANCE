@@ -15,9 +15,9 @@
 import { deriveIntentsRootKey } from '@glance-apps/intents';
 import { createVaultClient } from '@glance-apps/sync';
 import { getSyncPassphrase } from '../utils/crypto.js';
-import { getDbIntentsConnection } from './dbIntentsConfig.js';
+import { getDbIntentsConfig, getDbIntentsConnection, setDbIntentsConfig } from './dbIntentsConfig.js';
 import { defaultVaultFetch } from './dbIntentsTransport.js';
-import { loadVaultIntentsRootKey, storeVaultIntentsRootKey } from './intentsKeyStore.js';
+import { clearVaultIntentsRootKey, loadVaultIntentsRootKey, storeVaultIntentsRootKey } from './intentsKeyStore.js';
 
 export class VaultIntentsSetupError extends Error {
   constructor(message, code) {
@@ -144,6 +144,36 @@ export async function ensureVaultIntentsKeyReady(opts = {}) {
   } catch (err) {
     // NO_CONNECTION / NO_VAULT_SALT / transient network — defer, never break.
     console.warn('[vault-intents] key derivation deferred:', err?.code || err?.message || err);
+    return false;
+  }
+}
+
+/**
+ * GLANCEvault Pro: ticking the Pro box turns on sync AND intents in one step.
+ * Called by the vault card's Save after the first sync has run on a new Pro
+ * connection, while the passphrase is still in memory and the account salt
+ * exists. A key cached for an earlier connection was derived from another
+ * salt, so it is dropped and derived afresh for this one. The DB intents
+ * config is spread so ttlMs / pollIntervalMinutes survive. Multi-user is a
+ * separate choice and is not touched.
+ *
+ * NEVER throws: sync is already connected, and a failure here leaves intents
+ * off for the person to enable from Integrations, rather than undoing sync.
+ *
+ * @param {string} passphrase - the sync passphrase
+ * @param {object} [opts] - clearKey, getConfig, setConfig, plus every
+ *   setupVaultIntentsEncryption seam
+ * @returns {Promise<boolean>} true iff intents are now enabled
+ */
+export async function enableVaultIntentsForPro(passphrase, opts = {}) {
+  try {
+    await (opts.clearKey ?? clearVaultIntentsRootKey)();
+    await setupVaultIntentsEncryption(passphrase, opts);
+    const existing = (opts.getConfig ?? getDbIntentsConfig)() || {};
+    (opts.setConfig ?? setDbIntentsConfig)({ ...existing, enabled: true });
+    return true;
+  } catch (err) {
+    console.warn('[vault-intents] Pro could not enable intents:', err?.code || err?.message || err);
     return false;
   }
 }
