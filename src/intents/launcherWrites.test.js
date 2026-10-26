@@ -203,6 +203,22 @@ describe('recordHandled', () => {
       expect(await handleLauncherIntent(write('TOGGLE_ROUTINE', { routine_id: 'r1' }, 'w-t1'), ctx, io())).toMatchObject({ deduped: true });
       expect(toggled).toHaveLength(2);
     });
+
+    // MUTATION: compare `r.id === routineId` again and this fails: the launcher's
+    // string never equals a numeric id, and the toggle is refused for good.
+    it('TOGGLE_ROUTINE finds a routine with a numeric id by the string the snapshot sent', async () => {
+      const { ctx } = makeContext();
+      let completions = {};
+      ctx.todayRoutines = [{ id: 1729000000000, name: 'Stretch', startTime: '07:00', duration: 15 }];
+      ctx.routinesDate = todayStr;
+      Object.defineProperty(ctx, 'routineCompletions', { get: () => completions });
+      const toggled = [];
+      ctx.toggleRoutineCompletion = (id) => { toggled.push(id); completions = { [id]: todayStr }; };
+      expect(await handleLauncherIntent(write('TOGGLE_ROUTINE', { routine_id: '1729000000000', date: todayStr }, 'w-n1'), ctx, io()))
+        .toMatchObject({ success: true, routine_id: '1729000000000', completed: true });
+      // Toggled by the routine's own id, as the app's own toggle is.
+      expect(toggled).toEqual([1729000000000]);
+    });
   });
 
   describe('REFRESH', () => {

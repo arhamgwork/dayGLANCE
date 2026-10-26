@@ -19,6 +19,8 @@ vi.mock('../native.js', async (importOriginal) => ({
 vi.mock('./intentDrainGate.js', () => ({ intentDrainAllowed: () => true, INTENT_DRAIN_RETRY_MS: 15000 }));
 
 const { drainLauncherQueue, durableContext, useAndroidIntentBridge } = await import('./useAndroidIntentBridge.js');
+const { default: useRoutines } = await import('../hooks/useRoutines.js');
+const { dateToString } = await import('../utils/taskUtils.js');
 
 const COMPLETE = 'com.dayglance.app.launcher.COMPLETE';
 const CREATE = 'com.dayglance.app.launcher.CREATE';
@@ -120,4 +122,43 @@ describe('useAndroidIntentBridge', () => {
     expect(native.acked).toEqual(['w2']);
     act(() => renderer.unmount());
   });
+
+  // The app's own routines hook: a toggle sent from the launcher's dial lands
+  // in the completions the app draws and in storage, for a routine with a
+  // string id and one an older build made with a numeric id.
+  function RoutinesApp({ api, id }) {
+    const r = useRoutines({ currentTime: new Date(), onboardingProgress: {}, setOnboardingProgress: () => {}, hrOwnerRef: { current: null } });
+    const [ready, setReady] = useState(false);
+    api.load = () => {
+      r.setTodayRoutines([{ id, name: 'Stretch', startTime: '07:00', duration: 15, isAllDay: false }]);
+      r.setRoutinesDate(dateToString(new Date()));
+      setReady(true);
+    };
+    api.completions = r.routineCompletions;
+    useAndroidIntentBridge({
+      ready, tasks: [], unscheduledTasks: [], recurringTasks: [], setTasks: () => {}, setUnscheduledTasks: () => {}, setRecurringTasks: () => {},
+      todayRoutines: r.todayRoutines, routinesDate: r.routinesDate, routineCompletions: r.routineCompletions, routinesEnabled: true,
+      toggleRoutineCompletion: r.toggleRoutineCompletion,
+    });
+    return null;
+  }
+
+  for (const id of ['routine-uuid', 1729000000000]) {
+    it(`a routine completed in the launcher is completed in the app and saved (${typeof id} id)`, async () => {
+      const store = new Map();
+      globalThis.localStorage = { getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: k => store.delete(k) };
+      const today = dateToString(new Date());
+      native.queue = [{ action: 'com.dayglance.app.launcher.TOGGLE_ROUTINE', clientId: 'w-r', payload: { routine_id: String(id), date: today } }];
+      const api = {};
+      let renderer;
+      await act(async () => { renderer = create(<RoutinesApp api={api} id={id} />); });
+      await act(async () => { api.load(); });
+      await act(async () => {});
+      expect(api.completions[String(id)]).toBe(today);
+      expect(JSON.parse(store.get('day-planner-routine-completions'))).toEqual({ [String(id)]: today });
+      expect(native.acked).toEqual(['w-r']);
+      act(() => renderer.unmount());
+      delete globalThis.localStorage;
+    });
+  }
 });
