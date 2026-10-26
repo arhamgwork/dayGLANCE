@@ -194,10 +194,14 @@ function toggleRoutine(payload, context) {
   const today = dateToString(new Date());
   if (payload.date != null && payload.date !== today) return fail(`routine completions are kept for today (${today}) only`);
   const { todayRoutines = [], routineCompletions = {}, toggleRoutineCompletion } = context;
-  if (!todayRoutines.some(r => r.id === routineId)) return fail('no such routine today');
+  // The snapshot sends every routine id as a string (utils/launcherSnapshot.js);
+  // a routine made by an older build can carry a numeric one. Matched on the
+  // string, toggled by the routine's own id, as the app's own toggle is.
+  const routine = todayRoutines.find(r => String(r.id) === routineId);
+  if (!routine) return fail('no such routine today');
   if (typeof toggleRoutineCompletion !== 'function') return fail('routines are not available');
-  toggleRoutineCompletion(routineId);
-  return ok({ routine_id: routineId, completed: !routineCompletions[routineId] });
+  toggleRoutineCompletion(routine.id);
+  return ok({ routine_id: routineId, completed: !routineCompletions[routine.id] });
 }
 
 /**
