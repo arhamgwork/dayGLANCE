@@ -99,10 +99,56 @@ export function planVaultSave(stored, form) {
   if (form.enabled) next = { enabled: true, ...entered };
   else if (hasConnection(stored)) {
     next = { enabled: false, vaultUrl: stored.vaultUrl, vaultToken: stored.vaultToken, accountId: stored.accountId };
+    // A paused Pro connection resumes as Pro (the form reads the flag).
+    if (stored.pro) next.pro = true;
   } else next = null;
   const changed = JSON.stringify(next) !== JSON.stringify(stored || null);
   const connectionChanged = !!form.enabled && !sameConnection(stored, entered);
   return { next, changed, connectionChanged };
+}
+
+// GLANCEvault Pro: the hosted vault. The person pastes one account key; the
+// app enrolls this device with it (sync/vaultProEnroll.js) and stores the
+// result as an ordinary connection, so the engine, the event stream, intents
+// and the bridge read a Pro vault exactly like a self-hosted one. Only the
+// form knows the difference, through `pro: true` on the stored config.
+export const PRO_VAULT_URL = 'https://sync.glancevault.com';
+
+export const isProConnection = (cfg) => !!(cfg && cfg.pro && hasConnection(cfg));
+
+/**
+ * What a Save does when GLANCEvault Pro is selected and switched on.
+ *
+ * The account key is never stored. A pasted key means "enroll this device":
+ * the save handler enrolls, then calls withEnrollment() for the config to
+ * store. No key and an existing Pro connection means "keep it" (a resume or
+ * an unchanged save). No key and no Pro connection is nothing to save.
+ *
+ * @param stored  getStoredVaultConfig() when the form opened.
+ * @param form    { accountKey } as entered.
+ * @returns {{ next: object|null, changed: boolean, connectionChanged: boolean,
+ *             needsEnroll: boolean, withEnrollment: Function }}
+ */
+export function planProVaultSave(stored, form) {
+  const accountKey = (form.accountKey || '').trim();
+  const withEnrollment = ({ credential, accountId }) => {
+    const next = { enabled: true, pro: true, vaultUrl: PRO_VAULT_URL, vaultToken: credential, accountId };
+    return { next, changed: true, connectionChanged: !sameConnection(stored, next) };
+  };
+  if (accountKey) {
+    return { next: null, changed: true, connectionChanged: true, needsEnroll: true, withEnrollment };
+  }
+  if (isProConnection(stored)) {
+    const next = { enabled: true, pro: true, vaultUrl: stored.vaultUrl, vaultToken: stored.vaultToken, accountId: stored.accountId };
+    return {
+      next,
+      changed: JSON.stringify(next) !== JSON.stringify(stored),
+      connectionChanged: false,
+      needsEnroll: false,
+      withEnrollment,
+    };
+  }
+  return { next: null, changed: false, connectionChanged: false, needsEnroll: false, withEnrollment };
 }
 
 export function _resetVaultConfigSecureRestoreForTests() { secureRestoreTried = false; }

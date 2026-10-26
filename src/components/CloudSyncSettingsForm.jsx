@@ -3,7 +3,8 @@ import { AlertTriangle, Cloud, Database, Eye, EyeOff, Lock, Network } from 'luci
 import { cloudSyncProviders } from '../utils/cloudSyncProviders.js';
 import { setupEncryptionKey, setSyncPassphrase, clearEncryptionKey, getSyncPassphrase } from '../utils/crypto.js';
 import { directAccessEncryptsWrites } from '../sync/directAccessTransport.js';
-import { getStoredVaultConfig, setVaultConfig, planVaultSave } from '../sync/vaultConfig.js';
+import { getStoredVaultConfig, setVaultConfig, planVaultSave, planProVaultSave, isProConnection, PRO_VAULT_URL } from '../sync/vaultConfig.js';
+import { enrollWithAccountKey } from '../sync/vaultProEnroll.js';
 import SettingsCard from './settings/SettingsCard.jsx';
 import { webdavSaveConfig, encryptionSaveConfig, webdavDirty, encryptionDirty } from '../sync/syncFormPlan.js';
 import { createDbEngine, resetDbRootKey, resetVaultSyncCursor } from '../sync/dbEngine.js';
@@ -57,6 +58,13 @@ const CloudSyncSettingsForm = ({ darkMode, textPrimary, textSecondary, borderCla
   const [vaultBootstrapping, setVaultBootstrapping] = useState(false);
   const [vaultBootstrapError, setVaultBootstrapError] = useState(null);
   const [showVaultToken, setShowVaultToken] = useState(false);
+  // GLANCEvault Pro: the hosted vault. Checked, the card asks only for the
+  // account key; the URL is fixed and the token and account come from
+  // enrolling with the key on Save. The key lives in this state only and is
+  // gone with the reload that follows a successful Save.
+  const [vaultPro, setVaultPro] = useState(() => !!vaultOriginal?.pro);
+  const [vaultAccountKey, setVaultAccountKey] = useState('');
+  const [showAccountKey, setShowAccountKey] = useState(false);
   // Pre-save vault credential check (mirrors the WebDAV Test Connection UX above,
   // but the LOGIC is the vault getSalt probe — see testVaultConnection).
   const [vaultTesting, setVaultTesting] = useState(false);
@@ -200,11 +208,15 @@ const CloudSyncSettingsForm = ({ darkMode, textPrimary, textSecondary, borderCla
   // WebDAV encryption works off its cached key — in that case the user must
   // (re)enter it in the encryption field above. A passphrase setup must therefore
   // exist (encryption on, or already configured) and a passphrase must be in hand.
-  const vaultFilled = vaultEnabled && !!vaultUrl.trim() && !!vaultToken.trim() && !!vaultAccountId.trim();
+  // Pro: a pasted key, or the Pro connection already stored.
+  const vaultProConnected = isProConnection(vaultOriginal);
+  const vaultFilled = vaultEnabled && (vaultPro
+    ? (!!vaultAccountKey.trim() || vaultProConnected)
+    : (!!vaultUrl.trim() && !!vaultToken.trim() && !!vaultAccountId.trim()));
   // Transport-security check on the vault URL: block cleartext http:// on the public
   // internet (the Bearer token would travel unencrypted), allow it on localhost/LAN
   // with a warning. Only meaningful once a URL is typed; empty is handled by vaultFilled.
-  const vaultUrlCheck = classifyVaultUrl(vaultUrl);
+  const vaultUrlCheck = classifyVaultUrl(vaultPro ? PRO_VAULT_URL : vaultUrl);
   const vaultUrlOk = !vaultFilled || vaultUrlCheck.ok;
   // Each card saves on its own, so GLANCEvault depends on encryption as SAVED,
   // and takes the passphrase from its own field when the session has none.
@@ -215,7 +227,11 @@ const CloudSyncSettingsForm = ({ darkMode, textPrimary, textSecondary, borderCla
   // switched off keeps the connection, paused; only a new or edited connection
   // needs the passphrase, a fresh key and fresh sync cursors, so pausing and
   // resuming the same connection asks for nothing and keeps its place.
-  const vaultPlan = planVaultSave(vaultOriginal, { enabled: vaultEnabled, vaultUrl, vaultToken, accountId: vaultAccountId });
+  // Pro switched on plans through planProVaultSave (enroll first when a key
+  // was pasted); switched off, Pro pauses like any connection.
+  const vaultPlan = vaultEnabled && vaultPro
+    ? planProVaultSave(vaultOriginal, { accountKey: vaultAccountKey })
+    : planVaultSave(vaultOriginal, { enabled: vaultEnabled, vaultUrl, vaultToken, accountId: vaultAccountId });
   const nextVaultConfig = vaultPlan.next;
   const vaultChanged = vaultPlan.changed;
   const vaultConnectionChanged = vaultPlan.connectionChanged;
@@ -237,7 +253,8 @@ const CloudSyncSettingsForm = ({ darkMode, textPrimary, textSecondary, borderCla
   const encryptionCanSave = passphraseValid && !passphraseMismatch;
   const webdavIsDirty = webdavDirty({ saved: cloudSyncConfig, form: formData, webdavEnabled, providers: cloudSyncProviders, normalizeFolder: normalizeSyncFolder });
   const webdavCanSave = webdavEnabled ? webdavConfigured : true;
-  const vaultIsDirty = vaultChanged;
+  // Flipping the Pro box alone is a change worth a Cancel, even before a key.
+  const vaultIsDirty = vaultChanged || (vaultEnabled && vaultPro !== !!vaultOriginal?.pro);
   const vaultCanSave = (vaultEnabled ? vaultFilled : true) && vaultUrlOk && vaultReady;
 
   // On desktop, the pre-flight reports a private-network server the proxy would
@@ -314,10 +331,31 @@ const CloudSyncSettingsForm = ({ darkMode, textPrimary, textSecondary, borderCla
       setVaultBootstrapError(t(vaultUrlCheck.messageKey));
       return;
     }
+    // Pro with a pasted key: enroll this device first. The server answers with
+    // this device's credential and the account the key belongs to, which
+    // become the stored connection; the key itself is never stored.
+    let saveConfig = nextVaultConfig;
+    let saveConnectionChanged = vaultConnectionChanged;
+    if (vaultEnabled && vaultPro && vaultPlan.needsEnroll) {
+      setVaultBootstrapping(true);
+      try {
+        const enrolled = await enrollWithAccountKey(vaultAccountKey);
+        const planned = vaultPlan.withEnrollment(enrolled);
+        saveConfig = planned.next;
+        saveConnectionChanged = planned.connectionChanged;
+      } catch (err) {
+        setVaultBootstrapping(false);
+        setVaultBootstrapError(err?.code === 'KEY_REJECTED'
+          ? t('sync.errors.vaultProKeyRejected')
+          : t('sync.errors.vaultProUnavailable', { detail: err?.message || t('sync.errors.requestFailed') }));
+        return;
+      }
+    }
+
     // The vault always shares the sync passphrase; make sure it is in the session
     // before deriving the DB root key.
     if (vaultEnabled && vaultPassphrase) setSyncPassphrase(vaultPassphrase);
-    setVaultConfig(nextVaultConfig);
+    setVaultConfig(saveConfig);
 
     // A new or edited connection makes the entered passphrase authoritative: drop a cached
     // DB root key (in-memory + keystore/IndexedDB) so the next derive uses the
@@ -333,7 +371,7 @@ const CloudSyncSettingsForm = ({ darkMode, textPrimary, textSecondary, borderCla
     // + full-seed, which merges per-entity LWW (see resetVaultSyncCursor).
     // Pausing and resuming the SAME connection keeps both: the key and the
     // cursors still describe that link, so it picks up where it stopped.
-    if (vaultConnectionChanged) {
+    if (saveConnectionChanged) {
       await resetDbRootKey();
       resetVaultSyncCursor();
     }
@@ -344,7 +382,7 @@ const CloudSyncSettingsForm = ({ darkMode, textPrimary, textSecondary, borderCla
     // cadence. The passphrase itself is never persisted. It also validates the
     // vault URL/token AND the passphrase — on failure we surface the error and roll
     // back instead of reloading.
-    if (vaultEnabled && vaultConnectionChanged) {
+    if (vaultEnabled && saveConnectionChanged) {
       setVaultBootstrapping(true);
       try {
         let result = { ok: true };
@@ -387,6 +425,8 @@ const CloudSyncSettingsForm = ({ darkMode, textPrimary, textSecondary, borderCla
     setVaultUrl(vaultOriginal?.vaultUrl || '');
     setVaultToken(vaultOriginal?.vaultToken || '');
     setVaultAccountId(vaultOriginal?.accountId || '');
+    setVaultPro(!!vaultOriginal?.pro);
+    setVaultAccountKey('');
     setVaultPassphrase('');
     setVaultBootstrapError(null);
     setVaultTestResult(null);
@@ -770,12 +810,54 @@ const CloudSyncSettingsForm = ({ darkMode, textPrimary, textSecondary, borderCla
         footer={cardActions({ id: 'vault', dirty: vaultIsDirty, canSave: vaultCanSave, busy: vaultBootstrapping, onSave: handleSaveVault, onCancel: handleCancelVault, saveLabel: vaultBootstrapping ? t('sync.form.enabling') : null })}
         darkMode={darkMode} textPrimary={textPrimary} textSecondary={textSecondary} borderClass={borderClass}
       >
-        <p className="text-xs text-amber-500 flex items-start gap-1.5">
-          <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
-          <span>{t('sync.form.vaultExperimentalWarning')}</span>
-        </p>
+        {!(vaultEnabled && vaultPro) && (
+          <p className="text-xs text-amber-500 flex items-start gap-1.5">
+            <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
+            <span>{t('sync.form.vaultExperimentalWarning')}</span>
+          </p>
+        )}
         {vaultEnabled && (
           <div className="space-y-3">
+            <label className={`flex items-start gap-2 text-sm ${textPrimary} cursor-pointer`}>
+              <input
+                type="checkbox"
+                checked={vaultPro}
+                onChange={(e) => { setVaultPro(e.target.checked); setVaultTestResult(null); setVaultBootstrapError(null); }}
+                className="mt-1"
+                data-vault-pro
+              />
+              <span>
+                <span className="block">{t('sync.form.vaultProToggle')}</span>
+                <span className={`block text-xs ${textSecondary}`}>{t('sync.form.vaultProHint')}</span>
+              </span>
+            </label>
+            {vaultPro ? (
+              <div>
+                {vaultProConnected && (
+                  <p className={`text-xs ${textSecondary} mb-2`} data-vault-pro-connected>{t('sync.form.vaultProConnected')}</p>
+                )}
+                <label className={`block text-sm ${textSecondary} mb-1`}>{t('sync.form.accountKeyLabel')}</label>
+                <div className="relative">
+                  <input
+                    type={showAccountKey ? 'text' : 'password'}
+                    placeholder="gvk_…"
+                    value={vaultAccountKey}
+                    onChange={(e) => setVaultAccountKey(e.target.value)}
+                    autoComplete="off"
+                    data-vault-account-key
+                    className={`w-full px-3 py-2 pr-10 border ${borderClass} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none leading-normal text-base ${darkMode ? 'bg-gray-700 text-white' : 'bg-white text-stone-900'}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAccountKey(v => !v)}
+                    aria-label={showAccountKey ? t('sync.form.hideAccountKey') : t('sync.form.showAccountKey')}
+                    className={`absolute inset-y-0 right-0 flex items-center px-3 ${textSecondary}`}
+                  >
+                    {showAccountKey ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+            ) : (<>
             <div>
               <label className={`block text-sm ${textSecondary} mb-1`}>{t('sync.form.vaultUrlLabel')}</label>
               <input
@@ -856,6 +938,7 @@ const CloudSyncSettingsForm = ({ darkMode, textPrimary, textSecondary, borderCla
                 <p className={`text-xs ${textSecondary}`}>{t('sync.form.vaultAllowPrivateAddressHint')}</p>
               </div>
             )}
+            </>)}
             <p className={`text-xs ${textSecondary}`}>{t('sync.form.vaultReloadHint')}</p>
             {!vaultEncryptionReady && (
               <p className="text-xs text-amber-500">

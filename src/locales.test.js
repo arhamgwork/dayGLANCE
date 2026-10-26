@@ -176,6 +176,7 @@ describe('locale bundles', () => {
   const ENGLISH_ON_PURPOSE = {
     'backup.providerNames.nextcloud': 'Product names: Nextcloud and WebDAV.',
     'sync.form.vaultTitle': 'GLANCEvault is the product name. fr, uk and zh-CN localize the "(Beta)" part only.',
+    'sync.form.vaultProToggle': 'GLANCEvault Pro is the product name, kept as is in every language.',
     'settings.liveActivity': "Live Activity is Apple's name for the feature.",
     'settings.trmnlWebhookUrl': 'TRMNL plus "Webhook URL", left technical.',
     'settings.aiOllamaUrl': 'Ollama plus "URL", left technical.',
