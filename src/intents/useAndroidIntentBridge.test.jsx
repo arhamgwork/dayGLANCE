@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { act, create } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -18,7 +18,8 @@ vi.mock('../native.js', async (importOriginal) => ({
 }));
 vi.mock('./intentDrainGate.js', () => ({ intentDrainAllowed: () => true, INTENT_DRAIN_RETRY_MS: 15000 }));
 
-const { drainLauncherQueue, durableContext, useAndroidIntentBridge } = await import('./useAndroidIntentBridge.js');
+const { drainLauncherQueue, durableContext, launcherWritesInFlight, useAndroidIntentBridge } = await import('./useAndroidIntentBridge.js');
+const { readLauncherLedger } = await import('./launcherWrites.js');
 const { default: useRoutines } = await import('../hooks/useRoutines.js');
 const { dateToString } = await import('../utils/taskUtils.js');
 
@@ -161,4 +162,50 @@ describe('useAndroidIntentBridge', () => {
       delete globalThis.localStorage;
     });
   }
+
+  // What the launcher saw: tap a routine, and dayGLANCE pushed a snapshot with
+  // the routine completed but without the write's id in handledWrites. The
+  // launcher, still holding the toggle as pending, applied it again on top, and
+  // the routine flipped back; the ledger never reached a later snapshot. App's
+  // snapshot effect holds while a write is in flight and runs again when the
+  // drain settles.
+  function SnapshotApp({ api }) {
+    const r = useRoutines({ currentTime: new Date(), onboardingProgress: {}, setOnboardingProgress: () => {}, hrOwnerRef: { current: null } });
+    const [ready, setReady] = useState(false);
+    const [tick, setTick] = useState(0);
+    api.load = () => {
+      r.setTodayRoutines([{ id: 1729000000000, name: 'Stretch', startTime: '07:00', duration: 15, isAllDay: false }]);
+      r.setRoutinesDate(dateToString(new Date()));
+      setReady(true);
+    };
+    useAndroidIntentBridge({
+      ready, onLauncherWritesSettled: () => setTick(t => t + 1),
+      tasks: [], unscheduledTasks: [], recurringTasks: [], setTasks: () => {}, setUnscheduledTasks: () => {}, setRecurringTasks: () => {},
+      todayRoutines: r.todayRoutines, routinesDate: r.routinesDate, routineCompletions: r.routineCompletions, routinesEnabled: true,
+      toggleRoutineCompletion: r.toggleRoutineCompletion,
+    });
+    // App.jsx's launcher snapshot effect, reduced to what the launcher reads here.
+    useEffect(() => {
+      if (!ready || launcherWritesInFlight()) return;
+      api.snapshots.push({ completed: !!r.routineCompletions['1729000000000'], handled: readLauncherLedger().map(h => h.clientId) });
+    }, [ready, tick, r.routineCompletions]); // eslint-disable-line react-hooks/exhaustive-deps
+    return null;
+  }
+
+  // MUTATION: drop the in-flight hold in the effect and a snapshot shows the
+  // routine completed without the id; drop the settle bump and none carries it.
+  it('never pushes a launcher write\'s change without its id, and pushes the id once the drain settles', async () => {
+    const store = new Map();
+    globalThis.localStorage = { getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: k => store.delete(k) };
+    native.queue = [{ action: 'com.dayglance.app.launcher.TOGGLE_ROUTINE', clientId: 'w-tap', payload: { routine_id: '1729000000000', date: dateToString(new Date()) } }];
+    const api = { snapshots: [] };
+    let renderer;
+    await act(async () => { renderer = create(<SnapshotApp api={api} />); });
+    await act(async () => { api.load(); });
+    await act(async () => {});
+    for (const snap of api.snapshots) if (snap.completed) expect(snap.handled).toContain('w-tap');
+    expect(api.snapshots.at(-1)).toEqual({ completed: true, handled: ['w-tap'] });
+    act(() => renderer.unmount());
+    delete globalThis.localStorage;
+  });
 });

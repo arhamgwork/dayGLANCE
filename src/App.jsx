@@ -183,7 +183,7 @@ import { useGoalNotifyEmitter } from './intents/useGoalNotifyEmitter.js';
 import { useOutboxFlush } from './intents/useOutboxFlush.js';
 import { useDirectAccessIntents } from './intents/useDirectAccessIntents.js';
 import useConflictCopySweep from './hooks/useConflictCopySweep.js';
-import { useAndroidIntentBridge } from './intents/useAndroidIntentBridge.js';
+import { launcherWritesInFlight, useAndroidIntentBridge } from './intents/useAndroidIntentBridge.js';
 import { useUrlActionHandler } from './intents/useUrlActionHandler.js';
 import { syncSharedUsers, syncSharedUsersViaICloud, syncSharedUsersViaDirectAccess } from './intents/sharedUsers.js';
 import useVoiceAI from './hooks/useVoiceAI.js';
@@ -1884,7 +1884,12 @@ const DayPlanner = () => {
     vault: dbEngineRef.current,
   }), [cloudSyncConfig?.enabled]);
 
+  // Bumped once the launcher's writes are handled AND in the ledger, so the
+  // launcher snapshot is pushed again with their ids (it holds while they are
+  // in flight; intents/useAndroidIntentBridge.js says why).
+  const [launcherWritesTick, setLauncherWritesTick] = useState(0);
   useAndroidIntentBridge({
+    onLauncherWritesSettled: () => setLauncherWritesTick(t => t + 1),
     // Nothing drains before the data has loaded: a write handled against the
     // empty initial lists is lost (intents/useAndroidIntentBridge.js).
     ready: dataLoaded,
@@ -6430,6 +6435,10 @@ const DayPlanner = () => {
   useEffect(() => {
     if (!dataLoaded || !isNativeAndroid() || !window.DayGlanceNative?.updateLauncherSnapshot) return;
     if (isResizing) return;
+    // A launcher write mid-flight: its change is in state but not yet in the
+    // ledger. Pushed now, the launcher would apply it twice; it is pushed when
+    // the drain settles (launcherWritesTick).
+    if (launcherWritesInFlight()) return;
     const now = new Date();
     const snapshot = buildLauncherSnapshot({
       now, todayStr: getTodayStr(),
@@ -6467,10 +6476,10 @@ const DayPlanner = () => {
     } catch (_) {}
     touchLauncherHeartbeat();
     // getFrameInstancesForDate and getDayWindow are stable per their inputs;
-    // the ledger changes only with a launcher write, which changes tasks too.
+    // the ledger changes only with a launcher write, whose drain bumps launcherWritesTick.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    dataLoaded, isResizing, tasks, unscheduledTasks, expandedRecurringTasks,
+    dataLoaded, isResizing, launcherWritesTick, tasks, unscheduledTasks, expandedRecurringTasks,
     projects, goals, goalsProjectsEnabled, isVisibleForUser, filteredUnscheduledTasks,
     todayRoutines, routineCompletions, routinesEnabled, weather, weatherTempUnit,
     getFrameInstancesForDate, getDayWindow, use24HourClock, currentTime, widgetNative, calendarFilter,

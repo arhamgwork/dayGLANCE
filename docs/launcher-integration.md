@@ -228,6 +228,12 @@ Two rules keep a write from being lost on the way (`intents/useAndroidIntentBrid
   killed first, leaves its writes for the next, which dedupes on the id (a CREATE
   also on a task already carrying it). Writes are handled before refreshes, so
   none waits behind a sync cycle. A REFRESH is still taken off on read.
+- **The snapshot waits for the ledger.** A write's synchronous flush runs the
+  app's launcher-snapshot effect before the write is recorded, so the effect
+  holds while a write is in flight (`launcherWritesInFlight`) and runs again
+  when the drain settles. Pushed in between, the snapshot showed the change
+  without its id in `handledWrites`, and the launcher, still holding the write
+  as pending, applied it again on top: a TOGGLE_ROUTINE flipped straight back.
 
 A write that reaches the app while it is closed does not wait for it to open:
 the receiver schedules a headless run (logged as `<clientId>-write`, unless a
