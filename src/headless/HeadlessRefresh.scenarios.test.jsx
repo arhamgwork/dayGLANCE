@@ -31,6 +31,7 @@ const { default: HeadlessRefresh } = await import('./HeadlessRefresh.jsx');
 const { IDBFactory } = await import('fake-indexeddb');
 const notesStore = await import('../utils/dailyNotesStore.js');
 const { openDatabase } = await import('../utils/idbKeyValue.js');
+const { createJoboStore } = await import('../jobo/store.js');
 const { missingSyncEngineDeps } = await import('../hooks/useSyncEngineData.js');
 
 function memoryStorage() {
@@ -346,6 +347,42 @@ describe('HeadlessRefresh', () => {
     expect(outside).toEqual([]);
     root.unmount();
   });
+
+  // JOBO: a launcher completion this run applies is a completion transition
+  // here and nowhere else (the app, opened later, sees the task already done),
+  // so the run's own detector records it, and the push after the writes
+  // carries the record. With JOBO off on this device, nothing is recorded.
+  // MUTATION: drop useJoboDetector from the root and the first case fails.
+  for (const on of [true, false]) {
+    it(`a launcher completion applied here ${on ? 'gets its JOBO Do record, pushed with it' : 'makes no Do record with JOBO off'}`, async () => {
+      seedStorage(ls, { cloud: false, vault: true });
+      if (on) ls.setItem('day-planner-jobo-enabled', 'true');
+      // The ledger lives in IndexedDB, as in a WebView; without it the ledger is read-only.
+      globalThis.indexedDB = new IDBFactory();
+      const { bridge, calls } = fakeBridge({ queue: [{ action: `${LAUNCHER}COMPLETE`, clientId: 'w-jobo', payload: { task_id: 't1' } }] });
+      globalThis.window.DayGlanceNative = bridge;
+      const pushed = [];
+      const createVaultEngine = vi.fn((callbacks) => ({
+        dbSyncCycle: async () => { pushed.push(callbacks.getData()); },
+        getLastSynced: () => '2026-10-19T10:05:00.000Z',
+        dispose: vi.fn(),
+      }));
+      // A database of its own: the opener caches one connection per name, and an
+      // earlier test without IndexedDB cached "unavailable" for the default one.
+      const joboStore = createJoboStore({ dbName: `headless-jobo-${Math.random()}` });
+      const root = await mount({ bridge: () => bridge, createFileEngine: () => null, createVaultEngine, flush: flushInAct, joboStore });
+      await until(() => calls.headlessDone.length > 0);
+      expect(calls.headlessDone[0].outcome).toBe('ran');
+      const completedAt = JSON.parse(ls.getItem('day-planner-tasks')).find(t => t.id === 't1').completedAt;
+      expect(completedAt).toEqual(expect.any(String));
+      expect(pushed).toHaveLength(2);
+      const doRecords = (pushed[1].joboRecords || []).filter(r => r.id === `do:t1:${completedAt}`);
+      expect(doRecords).toHaveLength(on ? 1 : 0);
+      if (on) expect(doRecords[0]).toMatchObject({ progress: 'completed' });
+      root.unmount();
+      delete globalThis.indexedDB;
+    });
+  }
 
   it('with no sync tier, still applies the writes and pushes the snapshot, and says why it did not sync', async () => {
     seedStorage(ls, { cloud: false });

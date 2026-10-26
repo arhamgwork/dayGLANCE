@@ -14,7 +14,7 @@ import { taskSuggestSystemPrompt, taskSuggestUserPrompt, frameNudgeSystemPrompt,
 import { checkForUpdate } from './versionCheck.js';
 import { getStorageUsage, formatBytes } from './utils/storage.js';
 import { tombstoneCutoff, pruneCompletedTaskUids } from './sync/tombstoneRetention.js';
-import { readMinimizedSections, readUse24HourClock, readWeekStartDay, readBucketConfig, readDailyNotes, readMultiUserEnabled, readUsers, readMeUserSyncId, readCalendarFilter, readNativeTimeOverrides } from './utils/storedSlices.js';
+import { readMinimizedSections, readUse24HourClock, readWeekStartDay, readBucketConfig, readDailyNotes, readMultiUserEnabled, readUsers, readMeUserSyncId, readCalendarFilter, readNativeTimeOverrides, readJoboEnabled } from './utils/storedSlices.js';
 import { isTaskVisibleForUser, isOwnedBy } from './utils/userScope.js';
 import { preserveStickyFields } from './utils/preserveStickyFields.js';
 import { rescueUnsyncedTasks } from './utils/rescueUnsyncedTasks.js';
@@ -401,10 +401,7 @@ const DayPlanner = () => {
   // list needs to know the flag exists. Per device, like the hidden views, and
   // deliberately not part of a backup: an experiment is opted into where it is
   // being tried, not carried to every device by a restore.
-  const [joboEnabled, setJoboEnabled] = useState(() => {
-    const saved = localStorage.getItem('day-planner-jobo-enabled');
-    return saved !== null ? JSON.parse(saved) === true : false;
-  });
+  const [joboEnabled, setJoboEnabled] = useState(readJoboEnabled);
   useEffect(() => { writeItem('day-planner-jobo-enabled', JSON.stringify(joboEnabled)); }, [joboEnabled]);
   // Aspire (life planning: wish list, five-year vision, mottos) — placeholder
   // behind the same Experimental switch pattern; the FAB lives in the Goals &
