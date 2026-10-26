@@ -115,7 +115,7 @@ import EditRecurrenceModal from './components/EditRecurrenceModal.jsx';
 import ReminderToasts from './components/ReminderToasts.jsx';
 import TaskPeek from './components/TaskPeek.jsx';
 import { FOLLOW_UP_TAG_KEY, PEEK_TASK_EVENT, canFollowUp, completionFollowUpDraft, doneDateOf, normalizeFollowUpTag, resolveTaskRef, taskLink } from './utils/followUp.js';
-import { canLinkTask, findBacklinks } from './utils/taskLinks.js';
+import { buildLinkIndex, canLinkTask, findBacklinks, taskThread } from './utils/taskLinks.js';
 import ObsidianSyncToast from './components/ObsidianSyncToast.jsx';
 import { useSettingsLink } from './components/settings/settingsLink.js';
 import MobileNewTaskModal from './components/MobileNewTaskModal.jsx';
@@ -848,6 +848,10 @@ const DayPlanner = () => {
     window.addEventListener(PEEK_TASK_EVENT, onPeek);
     return () => window.removeEventListener(PEEK_TASK_EVENT, onPeek);
   }, []);
+  // The peeked task's whole thread (#2145): read only while the peek is open.
+  const peekThread = useMemo(() => (peekTaskId == null ? null
+    : taskThread(peekTaskId, buildLinkIndex({ tasks, unscheduledTasks }), { tasks, unscheduledTasks, recurringTasks, recycleBin })),
+  [peekTaskId, tasks, unscheduledTasks, recurringTasks, recycleBin]);
   const [inboxProjectFilter, setInboxProjectFilter] = useState(() => readInboxFilterPrefs().inboxProjectFilter);
   const [inboxArchivedExpanded, setInboxArchivedExpanded] = useState(false);
   const [priorityPromptDismissed, setPriorityPromptDismissed] = useState(() => {
@@ -8160,6 +8164,7 @@ const DayPlanner = () => {
         <TaskPeek
           found={resolveTaskRef(peekTaskId, { tasks, unscheduledTasks, recurringTasks, recycleBin })}
           backlinks={findBacklinks(peekTaskId, { tasks, unscheduledTasks })}
+          thread={peekThread}
           darkMode={darkMode}
           onClose={() => setPeekTaskId(null)}
           // Going to the task leaves the form behind: offered only without one.

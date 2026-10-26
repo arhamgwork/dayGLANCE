@@ -6,7 +6,8 @@
 // A link is to a task the app keeps: a scheduled or Inbox task, or one
 // occurrence of a recurring task (its occurrence id). Never a calendar event
 // (the calendar owns it, and its id is not ours) or a recurring template.
-import { canFollowUp, findTaskLinks, plainTitle } from './followUp.js';
+import { canFollowUp, doneDateOf, findTaskLinks, plainTitle, resolveTaskRef } from './followUp.js';
+import { parseRecurringId } from './recurringId.js';
 
 /** Whether `task` can be linked to: the follow-up's rule, a task we own. */
 export const canLinkTask = canFollowUp;
@@ -90,4 +91,92 @@ export function findBacklinks(id, { tasks = [], unscheduledTasks = [] }) {
     out.push({ task, title: plainTitle(task.title) });
   }
   return out;
+}
+
+/**
+ * Every link between the tasks we keep, read in one pass over the notes:
+ * `out` (id → the ids its notes link to, in order), `in` (id → the ids whose
+ * notes link to it, in list order), `labels` (id → the first link's label,
+ * what a task that is gone is still called) and `live` (id → the task).
+ * Self-links and repeats are dropped. A recurring occurrence is never a
+ * source: it carries its template's notes, and reading them would join every
+ * occurrence of the series into one thread.
+ */
+export function buildLinkIndex({ tasks = [], unscheduledTasks = [] }) {
+  const out = new Map();
+  const into = new Map();
+  const labels = new Map();
+  const live = new Map();
+  for (const task of [...tasks, ...unscheduledTasks]) {
+    if (!task || task._native || task.id == null) continue;
+    const id = String(task.id);
+    if (live.has(id)) continue;
+    live.set(id, task);
+    const notes = typeof task.notes === 'string' ? task.notes : '';
+    if (!notes.includes('dayglance://task?id=') || parseRecurringId(id)) continue;
+    const targets = [];
+    for (const link of findTaskLinks(notes)) {
+      if (link.id === id || targets.includes(link.id)) continue;
+      targets.push(link.id);
+      if (!labels.has(link.id)) labels.set(link.id, link.label);
+      if (!into.has(link.id)) into.set(link.id, []);
+      into.get(link.id).push(id);
+    }
+    if (targets.length) out.set(id, targets);
+  }
+  return { out, in: into, labels, live };
+}
+
+/** How many tasks a thread lists before it says how many more. */
+const THREAD_MAX = 30;
+
+/**
+ * The thread `id` belongs to: every task reachable from it over links, in
+ * either direction. Nearest first up to `limit` (so a long thread drops the
+ * farthest, not the oldest), then ordered by date: the day it was done, else
+ * the day it is planned for; the Inbox and tasks that are gone come last.
+ *
+ * Links are followed both ways from the tasks we keep. A task in the Recycle
+ * Bin, a recurring occurrence or one that is gone has no notes of its own in
+ * the index, so only the links INTO it are followed.
+ *
+ * @param refs the lists `resolveTaskRef` reads, for what is not live
+ * @returns {{ items: Array<{ id, task, where, title, date, isSelf }>, open: number, more: number }}
+ *   `task` and `where` are null for a task that is gone. `open` counts the
+ *   listed tasks not done (gone and deleted ones aside).
+ */
+export function taskThread(id, index, refs = {}, { limit = THREAD_MAX } = {}) {
+  if (id == null || id === '' || !index) return { items: [], open: 0, more: 0 };
+  const start = String(id);
+  const seen = new Set([start]);
+  const order = [start];
+  for (let i = 0; i < order.length; i += 1) {
+    const at = order[i];
+    for (const next of [...(index.out.get(at) || []), ...(index.in.get(at) || [])]) {
+      if (seen.has(next)) continue;
+      seen.add(next);
+      order.push(next);
+    }
+  }
+  const items = order.slice(0, limit).map((key, hop) => {
+    const kept = index.live.get(key);
+    const found = kept
+      ? { task: kept, where: kept.date ? 'calendar' : 'inbox' }
+      : resolveTaskRef(key, refs);
+    const task = found?.task || null;
+    const date = !task || found.where === 'deleted' ? ''
+      : task.completed ? doneDateOf(task, task.date || '') : (task.date || '');
+    return {
+      id: key,
+      task,
+      where: found?.where || null,
+      title: (task ? plainTitle(task.title) : '') || index.labels.get(key) || '',
+      date,
+      isSelf: key === start,
+      hop,
+    };
+  });
+  items.sort((a, b) => (!a.date - !b.date) || a.date.localeCompare(b.date) || a.hop - b.hop);
+  const open = items.filter(item => item.task && item.where !== 'deleted' && !item.task.completed).length;
+  return { items: items.map(({ hop: _hop, ...item }) => item), open, more: order.length - items.length };
 }
