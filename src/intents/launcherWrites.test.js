@@ -46,6 +46,18 @@ describe('handleLauncherIntent', () => {
     expect(state.tasks.length + state.unscheduledTasks.length).toBe(1);
   });
 
+  // MUTATION: drop the clientId check before CREATE and this fails (two tasks).
+  it('a CREATE delivered again after its task was saved but before the ledger caught up makes no second task', async () => {
+    const { ctx, state } = makeContext();
+    const intent = { action: 'com.dayglance.app.launcher.CREATE', payload: { title: 'Call dentist' }, clientId: 'w-1' };
+    const first = await handleLauncherIntent(intent, ctx, io());
+    ledger = []; // the page died between saving the task and recording the id
+    const again = await handleLauncherIntent(intent, ctx, io());
+    expect(again).toMatchObject({ success: true, deduped: true, task_id: first.task_id });
+    expect(state.tasks.length + state.unscheduledTasks.length).toBe(1);
+    expect(findHandled(ledger, 'w-1')).toMatchObject({ taskId: first.task_id });
+  });
+
   it('COMPLETE by id completes once and is idempotent after that', async () => {
     const { ctx, state } = makeContext({ tasks: [{ id: 't1', title: 'Groceries', date: '2026-10-19', completed: false }] });
     const done = await handleLauncherIntent(

@@ -473,8 +473,9 @@ export const nativeGetPendingIntent = () => {
  * @param resultJson The handleIntent result object serialised as a JSON string
  */
 /**
- * The GLANCElauncher's queued writes ({action, payload, clientId} each), drained
- * and cleared in one call (intents/launcherWrites.js). Empty off Android.
+ * The GLANCElauncher's queued entries ({action, payload, clientId} each), oldest
+ * first (intents/launcherWrites.js). The writes stay queued until acknowledged
+ * (nativeAckLauncherIntents); a REFRESH is taken off at once. Empty off Android.
  */
 export const nativeGetPendingLauncherIntents = () => {
   const bridge = nativeBridge();
@@ -486,6 +487,20 @@ export const nativeGetPendingLauncherIntents = () => {
   } catch {
     return [];
   }
+};
+
+/**
+ * Takes the launcher writes the page has handled and saved off the native queue,
+ * by clientId. Until then they stay queued, so a page that dies first (closed in
+ * the background, killed, swiped away) leaves them for the next. No-op off
+ * Android, and on a shell from before the queue kept writes (it cleared them on read).
+ */
+export const nativeAckLauncherIntents = (clientIds) => {
+  const bridge = nativeBridge();
+  if (!bridge?.ackLauncherIntents || !clientIds?.length) return;
+  try {
+    bridge.ackLauncherIntents(JSON.stringify(clientIds));
+  } catch { /* the next page re-delivers; the ledger dedupes */ }
 };
 
 /**

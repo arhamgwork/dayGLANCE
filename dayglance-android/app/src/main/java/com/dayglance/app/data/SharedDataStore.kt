@@ -115,19 +115,36 @@ class SharedDataStore(context: Context) {
      * append is kept simple and the size is capped rather than policed.
      */
     fun appendPendingLauncherIntent(entryJson: String) {
-        val arr = try { JSONArray(prefs.getString(KEY_PENDING_LAUNCHER_INTENTS, "[]")) } catch (e: Exception) { JSONArray() }
-        arr.put(JSONObject(entryJson))
-        val bounded = if (arr.length() > MAX_PENDING_LAUNCHER_INTENTS) {
-            JSONArray().also { out -> for (i in arr.length() - MAX_PENDING_LAUNCHER_INTENTS until arr.length()) out.put(arr.get(i)) }
-        } else arr
-        prefs.edit { putString(KEY_PENDING_LAUNCHER_INTENTS, bounded.toString()) }
+        synchronized(LAUNCHER_QUEUE_LOCK) {
+            val arr = try { JSONArray(prefs.getString(KEY_PENDING_LAUNCHER_INTENTS, "[]")) } catch (e: Exception) { JSONArray() }
+            arr.put(JSONObject(entryJson))
+            val bounded = if (arr.length() > MAX_PENDING_LAUNCHER_INTENTS) {
+                JSONArray().also { out -> for (i in arr.length() - MAX_PENDING_LAUNCHER_INTENTS until arr.length()) out.put(arr.get(i)) }
+            } else arr
+            prefs.edit(commit = true) { putString(KEY_PENDING_LAUNCHER_INTENTS, bounded.toString()) }
+        }
     }
 
-    /** Takes every queued launcher write, oldest first, and clears the queue. */
-    fun drainPendingLauncherIntents(): String {
-        val json = prefs.getString(KEY_PENDING_LAUNCHER_INTENTS, null) ?: return "[]"
-        prefs.edit { remove(KEY_PENDING_LAUNCHER_INTENTS) }
-        return json
+    /**
+     * Every queued launcher entry, oldest first. The writes STAY queued until the page
+     * acknowledges each one as saved ([ackPendingLauncherIntents]); a REFRESH is taken off
+     * at once (com.dayglance.app.launcher.LauncherWriteQueue says why).
+     */
+    fun takePendingLauncherIntents(): String {
+        synchronized(LAUNCHER_QUEUE_LOCK) {
+            val json = prefs.getString(KEY_PENDING_LAUNCHER_INTENTS, null) ?: return "[]"
+            val taken = com.dayglance.app.launcher.LauncherWriteQueue.take(json, com.dayglance.app.launcher.LauncherIntentReceiver.ACTION_REFRESH)
+            prefs.edit(commit = true) { putString(KEY_PENDING_LAUNCHER_INTENTS, taken.kept) }
+            return taken.delivered
+        }
+    }
+
+    /** Removes the launcher writes the page has saved, by clientId (a JSON array of strings). */
+    fun ackPendingLauncherIntents(idsJson: String) {
+        synchronized(LAUNCHER_QUEUE_LOCK) {
+            val json = prefs.getString(KEY_PENDING_LAUNCHER_INTENTS, null) ?: return
+            prefs.edit(commit = true) { putString(KEY_PENDING_LAUNCHER_INTENTS, com.dayglance.app.launcher.LauncherWriteQueue.ack(json, idsJson)) }
+        }
     }
 
     /**
@@ -506,6 +523,8 @@ class SharedDataStore(context: Context) {
         private const val KEY_LAUNCHER_HEADLESS_LAST_RUN = "launcher_headless_last_run"
         private const val MAX_LAUNCHER_REFRESH_LOG = 20
         private const val MAX_PENDING_LAUNCHER_INTENTS = 200
+        /** The receiver appends on the main thread while the page takes and acks on the bridge thread. */
+        private val LAUNCHER_QUEUE_LOCK = Any()
         private const val KEY_PENDING_DEEP_LINK = "pending_deep_link"
         private const val KEY_AUTOMATION_INTENTS_ENABLED = "automation_intents_enabled"
         private const val KEY_APP_DARK_MODE = "app_dark_mode"

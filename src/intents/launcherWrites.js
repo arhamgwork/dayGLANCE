@@ -261,6 +261,18 @@ export async function handleLauncherIntent(intent, context = {}, io = {}) {
       : ok({ task_id: prior.taskId ?? undefined, deduped: true });
   }
 
+  // A task already carrying this id was made by this write: the page that made
+  // it saved it, then died before the ledger or the queue's ack caught up
+  // (intents/useAndroidIntentBridge.js), and the queue delivered it again.
+  if (mapped === ACTIONS.CREATE) {
+    const { tasks = [], unscheduledTasks = [] } = context;
+    const made = tasks.find(t => t.clientId === clientId) || unscheduledTasks.find(t => t.clientId === clientId);
+    if (made) {
+      persist(recordHandled(ledger, { clientId, action: mapped, taskId: made.id, at: new Date().toISOString() }));
+      return ok({ task_id: made.id, deduped: true });
+    }
+  }
+
   let result;
   switch (mapped) {
     case ACTIONS.CREATE:
