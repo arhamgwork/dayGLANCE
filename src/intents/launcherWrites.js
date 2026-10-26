@@ -184,7 +184,8 @@ function resizeTask(payload, context) {
 }
 
 /**
- * TOGGLE_ROUTINE {routine_id, date?}. Routine completions are kept for today
+ * TOGGLE_ROUTINE {routine_id, date?, completed?}: `completed` sets the state;
+ * without it the routine's completion flips. Routine completions are kept for today
  * only (useRoutines), so a date other than today is refused rather than
  * recorded against the wrong day.
  */
@@ -200,8 +201,14 @@ function toggleRoutine(payload, context) {
   const routine = todayRoutines.find(r => String(r.id) === routineId);
   if (!routine) return fail('no such routine today');
   if (typeof toggleRoutineCompletion !== 'function') return fail('routines are not available');
-  toggleRoutineCompletion(routine.id);
-  return ok({ routine_id: routineId, completed: !routineCompletions[routine.id] });
+  const done = !!routineCompletions[routine.id];
+  // `completed` is the state the user asked for: set, not flipped, so a tap
+  // made on a launcher whose view was behind (a tick made on another device
+  // and not yet synced) cannot undo it. A launcher that sends no `completed`
+  // gets the flip, as before.
+  const wanted = typeof payload.completed === 'boolean' ? payload.completed : !done;
+  if (wanted !== done) toggleRoutineCompletion(routine.id);
+  return ok({ routine_id: routineId, completed: wanted });
 }
 
 /**

@@ -199,7 +199,7 @@ launcher generates per write. The actions and their payloads:
 | `UNCOMPLETE` | `task_id` | reopens it, Inbox and recurring occurrences included |
 | `MOVE` | `task_id`, `date` (`YYYY-MM-DD`), optional `start` (`HH:MM`) | an Inbox task is scheduled (it needs `start`; priority and deadline are dropped, as the app's own schedule path does); a block moves to the date and, when given, the time; without `start` an all-day task stays all-day and a timed one keeps its time |
 | `RESIZE` | `task_id`, `duration` (minutes, 5 or more) | changes the block's length |
-| `TOGGLE_ROUTINE` | `routine_id`, optional `date` | flips today's completion of the routine; another date is refused, since completions are kept for today only |
+| `TOGGLE_ROUTINE` | `routine_id`, optional `date`, optional `completed` | sets today's completion of the routine to `completed` (already so: nothing changes), or flips it when `completed` is absent (a launcher from before it was sent); another date is refused, since completions are kept for today only |
 
 MOVE, RESIZE, COMPLETE and UNCOMPLETE run through the MCP write model's pure
 mutations (`utils/taskMutations.js`), so a calendar event, a device-calendar
