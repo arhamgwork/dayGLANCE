@@ -30,6 +30,8 @@
 // duration. Each stage masks the text it claims so "every monday" is a
 // recurrence, not a date; "3-4pm" is a range, not the time "4pm".
 
+import { TAG_OR_ADDRESS } from './taskUtils.js';
+
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 const DAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -127,17 +129,21 @@ const maskSigils = (chars, text) => {
 // tags live inline and are extracted at save by extractTags).
 // ---------------------------------------------------------------------------
 
+// Read the way extractTags reads them (TAG_OR_ADDRESS, utils/taskUtils.js),
+// so a chip is exactly a tag the title saves with: any script's letters, then
+// letters, digits, _ / and -, and none inside a web address. An ASCII-only
+// pattern here cut "#rückrufe" to the chip "#r" while it saved whole (a user
+// report, 2026-10-27), and left the rest of the tag to the later stages.
 const matchTags = (masked, spans) => {
-  const re = /(^|\s)#([a-zA-Z]\w*)/g;
-  let m;
-  while ((m = re.exec(masked)) !== null) {
-    const start = m.index + m[1].length;
+  for (const m of masked.matchAll(TAG_OR_ADDRESS)) {
+    if (m[1] !== undefined) continue; // a web address, tag-shaped fragment and all
+    const name = m[2].toLowerCase();
     spans.push({
       type: 'tag',
-      start,
-      end: start + 1 + m[2].length,
-      value: m[2].toLowerCase(),
-      display: `#${m[2].toLowerCase()}`,
+      start: m.index,
+      end: m.index + 1 + m[2].length,
+      value: name,
+      display: `#${name}`,
     });
   }
 };

@@ -55,6 +55,8 @@ export const completionTimestamp = (d = new Date()) => {
 const TAG_START = '\\p{L}';
 const TAG_BODY = '[\\p{L}\\p{N}_/-]';
 
+/** A tag name's pattern source, without the `#`, for a regex built with the `u` flag. */
+export const TAG_NAME_SOURCE = `${TAG_START}${TAG_BODY}*`;
 /** One character that may follow the first in a tag name. */
 export const TAG_BODY_CHAR = new RegExp(`^${TAG_BODY}$`, 'u');
 /** A whole tag name, without the leading `#`. */

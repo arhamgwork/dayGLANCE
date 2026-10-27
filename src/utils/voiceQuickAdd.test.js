@@ -11,6 +11,10 @@ describe('normalizeTranscript', () => {
     ['standup at 9 A.M.', 'standup at 9 am'],
     ['gym hashtag fitness tomorrow', 'gym #fitness tomorrow'],
     ['gym hash tag fitness', 'gym #fitness'],
+    // Any script's letters, as typed tags take (2026-10-27).
+    ['anrufen hashtag Rückrufe morgen', 'anrufen #Rückrufe morgen'],
+    ['hashtag 工作 meeting', '#工作 meeting'],
+    ['hashtag Ärger notieren', '#Ärger notieren'],
     ['Buy milk.', 'Buy milk'],
     ['Really?!', 'Really'],
   ])('%s → %s', (input, expected) => {
