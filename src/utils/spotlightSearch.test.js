@@ -163,7 +163,8 @@ describe('goals, projects and areas', () => {
     { id: 'p5', title: 'Launcher shelved', status: 'archived' },
     { id: 'p6', title: 'Launcher orphan', goalId: 'gone', status: 'active' },
   ];
-  const areas = [{ id: 'a1', title: 'Launcher work', color: 'bg-teal-500' }];
+  // The shape useGoalsProjects addArea stores: an area has a name, no title.
+  const areas = [{ id: 'a1', name: 'Launcher work', color: 'bg-teal-500' }];
   const isVisibleForUser = (item) => item.assignedTo !== 'other';
   const run = (over = {}) => buildSpotlightResults({ query: 'launcher', goals, projects, areas, isVisibleForUser, now: NOW, ...over });
 
@@ -175,6 +176,12 @@ describe('goals, projects and areas', () => {
     // A project takes its goal's colour when it has none of its own.
     expect(out.find(r => r.task.id === 'p1').task.color).toBe('bg-red-500');
     expect(out.find(r => r.task.id === 'p2').task.color).toBe('bg-amber-500');
+  });
+
+  it('finds an area by its name, and shows the name as the row\'s title', () => {
+    const [area] = buildSpotlightResults({ query: 'work', areas, now: NOW });
+    expect(area).toMatchObject({ source: 'area', task: { id: 'a1', title: 'Launcher work', color: 'bg-teal-500' } });
+    expect(area.match).toEqual({ field: 'title', text: 'Launcher work' });
   });
 
   it('come first, in their own group, ahead of tasks dated today', () => {
