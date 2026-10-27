@@ -3,6 +3,7 @@ import { BookOpen, CheckSquare, ExternalLink, FileSymlink, FileText, Phone } fro
 import { isOnlyPhoneNumber, phoneTelUrl, canDialHere } from './phoneNumber.js';
 import { splitTitleNoteLinks, splitTitleLinks, stripTags, stripWikilinks, stripWikilinksAndTags } from './taskUtils.js';
 import { PEEK_TASK_EVENT, findTaskLinks } from './followUp.js';
+import { asSearchQuery, matchRanges } from './searchQuery.js';
 
 // URL detection regex for notes
 export const URL_REGEX = /https?:\/\/[^\s<>"{}|\\^`[\]]+/g;
@@ -397,26 +398,34 @@ export const splitChipTitleTag = (title) => {
   return [stripped, null];
 };
 
+// Spotlight's result rows: every word of the query that matched, in bold
+// (utils/searchQuery.js, #2235). Long text (a note) is cut to the stretch
+// around the first hit.
 export const highlightMatch = (text, query) => {
-  if (!query) return text;
-  const idx = text.toLowerCase().indexOf(query.toLowerCase());
-  if (idx === -1) return text;
-  // Truncate long text (e.g. notes) to ±30 chars around the match
-  let display = text;
-  let matchIdx = idx;
+  if (!query || !text) return text;
+  const ranges = matchRanges(asSearchQuery(query), text);
+  if (!ranges.length) return text;
+  // The stretch of `text` shown: all of it, or ±30 characters around the first hit.
+  let start = 0;
+  let end = text.length;
   if (text.length > 80) {
-    const start = Math.max(0, idx - 30);
-    const end = Math.min(text.length, idx + query.length + 30);
-    display = (start > 0 ? '…' : '') + text.slice(start, end) + (end < text.length ? '…' : '');
-    matchIdx = idx - start + (start > 0 ? 1 : 0);
+    start = Math.max(0, ranges[0].start - 30);
+    end = Math.min(text.length, ranges[0].end + 30);
   }
-  return (
-    <span>
-      {display.slice(0, matchIdx)}
-      <span className="font-bold text-blue-500">{display.slice(matchIdx, matchIdx + query.length)}</span>
-      {display.slice(matchIdx + query.length)}
-    </span>
-  );
+  const parts = [];
+  if (start > 0) parts.push('…');
+  let at = start;
+  for (const r of ranges) {
+    const from = Math.max(r.start, at);
+    const to = Math.min(r.end, end);
+    if (to <= from) continue;
+    parts.push(text.slice(at, from));
+    parts.push(<span key={from} className="font-bold text-blue-500">{text.slice(from, to)}</span>);
+    at = to;
+  }
+  parts.push(text.slice(at, end));
+  if (end < text.length) parts.push('…');
+  return <span>{parts}</span>;
 };
 
 // Remove wikilinks AND hashtags: the compact rows (SCHED, Bucket List, the

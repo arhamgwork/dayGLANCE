@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   normalizeFollowUpTag, taskLink, findTaskLinks, doneDateOf, canFollowUp,
-  completionFollowUpDraft, resolveTaskRef, peekNavigationTarget, plainTitle,
+  completionFollowUpDraft, resolveTaskRef, peekNavigationTarget, plainTitle, taskLinksAsLabels,
 } from './followUp.js';
 
 const projects = [
@@ -192,5 +192,19 @@ describe('peekNavigationTarget', () => {
     expect(target('gone-1')).toBeNull();
     expect(target('nope')).toBeNull();
     expect(peekNavigationTarget({ where: 'calendar', task: { id: 'x' } })).toBeNull();
+  });
+});
+
+// A note as it reads: what search looks at.
+describe('taskLinksAsLabels', () => {
+  it('reads each task link as its label, the rest as typed', () => {
+    const text = `Ask about ${taskLink({ id: 'a 1', title: 'Roofing quote' })} and ${taskLink({ id: 'b', title: 'Tiles' })}.`;
+    expect(taskLinksAsLabels(text)).toBe('Ask about Roofing quote and Tiles.');
+  });
+  it('leaves an ordinary link, a bare URL and plain text alone', () => {
+    const text = 'See [docs](https://example.com) and https://example.org/task?id=1';
+    expect(taskLinksAsLabels(text)).toBe(text);
+    expect(taskLinksAsLabels('')).toBe('');
+    expect(taskLinksAsLabels(undefined)).toBe('');
   });
 });

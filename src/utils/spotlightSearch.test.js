@@ -198,3 +198,82 @@ describe('goals, projects and areas', () => {
   });
 });
 
+
+// #2235: several words, wildcards, phrases and exclusions (utils/searchQuery.js).
+describe('the query language', () => {
+  const tasks = [
+    task({ id: 'quote', title: 'Roofing quote', date: '2026-09-16' }),
+    task({ id: 'call', title: 'Call the roofer', notes: 'ask for a quote', date: '2026-09-16' }),
+    task({ id: 'sub', title: 'House', subtasks: [{ title: 'roof check' }, { title: 'get a quote' }], date: '2026-09-16' }),
+    task({ id: 'other', title: 'Quote for the fence', date: '2026-09-16' }),
+  ];
+  const ids = (query, extra = {}) => buildSpotlightResults({ query, tasks, now: NOW, ...extra }).map(r => r.task.id).sort();
+
+  it('several words find tasks holding all of them, across title, notes and subtasks', () => {
+    expect(ids('roof quote')).toEqual(['call', 'quote', 'sub']);
+  });
+
+  it('shows the title when it holds every word, else the field holding the rest', () => {
+    const both = buildSpotlightResults({ query: 'roof quote', tasks, now: NOW });
+    expect(both.find(r => r.task.id === 'quote').match).toEqual({ field: 'title', text: 'Roofing quote' });
+    // "roof" is in the title, "quote" only in the notes: the notes say why it matched.
+    expect(both.find(r => r.task.id === 'call').match).toEqual({ field: 'notes', text: 'ask for a quote' });
+    const out = buildSpotlightResults({ query: 'quote ask', tasks, now: NOW });
+    expect(out.find(r => r.task.id === 'call').match).toEqual({ field: 'notes', text: 'ask for a quote' });
+    expect(out.find(r => r.task.id === 'sub')).toBeUndefined();
+    const sub = buildSpotlightResults({ query: 'roof quote', tasks, now: NOW }).find(r => r.task.id === 'sub');
+    expect(sub.match).toEqual({ field: 'subtask', text: 'roof check' });
+  });
+
+  it('a phrase, a wildcard and an exclusion', () => {
+    expect(ids('"the roofer"')).toEqual(['call']);
+    expect(ids('roof*quote')).toEqual(['quote']);
+    expect(ids('quote -roof')).toEqual(['other']);
+  });
+
+  it('a query of exclusions alone finds nothing', () => {
+    expect(ids('-fence')).toEqual([]);
+  });
+
+  it('daily notes: every word in the note, shown by the line holding the most of them', () => {
+    const notes = { '2026-09-15': { text: '# Log\nroof leak in the attic\ncalled the roofer about the leak' } };
+    const out = buildSpotlightResults({ query: 'roofer leak', dailyNotes: notes, now: NOW });
+    expect(out).toHaveLength(1);
+    expect(out[0].match.text).toBe('called the roofer about the leak');
+    expect(buildSpotlightResults({ query: 'roofer plumber', dailyNotes: notes, now: NOW })).toEqual([]);
+  });
+
+  it('goals and projects: every word across the title and the notes', () => {
+    const projects = [{ id: 'p', title: 'Roof', description: 'replace the tiles', status: 'active' }];
+    expect(buildSpotlightResults({ query: 'roof tiles', projects, now: NOW }).map(r => r.task.id)).toEqual(['p']);
+    expect(buildSpotlightResults({ query: 'roof -tiles', projects, now: NOW })).toEqual([]);
+  });
+});
+
+// A note is searched as it reads: a task link is its label. Its address,
+// dayglance://task?id=…, is the same in every link, so "task" used to find
+// every note holding one.
+describe('notes holding links to other tasks', () => {
+  const link = '[Roofing quote](dayglance://task?id=task-a)';
+  const tasks = [task({ id: 'call', title: 'Call the roofer', notes: `Ask about ${link}`, date: '2026-09-16' })];
+
+  it('the link\'s address is not searched', () => {
+    for (const query of ['task', 'dayglance', 'id=']) {
+      expect(buildSpotlightResults({ query, tasks, now: NOW })).toEqual([]);
+    }
+  });
+
+  it('its label is, and the row shows the note as it reads', () => {
+    const [hit] = buildSpotlightResults({ query: 'quote', tasks, now: NOW });
+    expect(hit.match).toEqual({ field: 'notes', text: 'Ask about Roofing quote' });
+  });
+
+  it('the same in daily notes and in a project\'s notes', () => {
+    const dailyNotes = { '2026-09-15': { text: `Called them.\nFollow up on ${link}` } };
+    expect(buildSpotlightResults({ query: 'task', dailyNotes, now: NOW })).toEqual([]);
+    expect(buildSpotlightResults({ query: 'quote', dailyNotes, now: NOW })[0].match.text).toBe('Follow up on Roofing quote');
+    const projects = [{ id: 'p', title: 'Roof', description: `Blocked on ${link}`, status: 'active' }];
+    expect(buildSpotlightResults({ query: 'task', projects, now: NOW })).toEqual([]);
+    expect(buildSpotlightResults({ query: 'roof quote', projects, now: NOW })[0].match).toEqual({ field: 'notes', text: 'Blocked on Roofing quote' });
+  });
+});

@@ -60,6 +60,22 @@ export function findTaskLinks(text) {
   return found;
 }
 
+/**
+ * `text` as a note shows it: each task link reads as its label, the way
+ * renderFormattedText draws it. Search reads notes this way, so "task" does
+ * not find every note holding a link (its address is dayglance://task?id=…).
+ */
+export function taskLinksAsLabels(text) {
+  const source = String(text ?? '');
+  let out = '';
+  let at = 0;
+  for (const link of findTaskLinks(source)) {
+    out += source.slice(at, link.index) + link.label;
+    at = link.index + link.length;
+  }
+  return out + source.slice(at);
+}
+
 /** The civil date a task was finished on, else `fallback`. */
 export function doneDateOf(task, fallback) {
   const stamp = typeof task?.completedAt === 'string' ? task.completedAt.slice(0, 10) : '';

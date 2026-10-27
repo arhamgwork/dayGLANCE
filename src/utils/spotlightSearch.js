@@ -22,8 +22,21 @@
 // vault, bounded by the retention window, and Obsidian's own search is the
 // authoritative tool for what lives there; the caller passes `null` in that
 // case (issue #1672) so Spotlight never claims to search the vault.
+//
+// The query is parsed by searchQuery.js (#2235): several words must all
+// match, each anywhere in the item, `*` and `?` are wildcards, a quoted
+// phrase matches as written and `-word` leaves out what matches it. One plain
+// word matches as it always did. A result shows its title when the title
+// holds every word, and otherwise the first field (tag, notes, subtask)
+// holding a word the title lacks, so the row says why it matched.
+//
+// Notes are searched, and shown, as a note reads: a link to another task is
+// its label, never its dayglance://task?id=… address, which every such link
+// shares (taskLinksAsLabels).
 import { dateToString, extractTags } from './taskUtils.js';
 import { getProjectColor } from './colorUtils.js';
+import { asSearchQuery, queryMatchesFields, termMatches } from './searchQuery.js';
+import { taskLinksAsLabels } from './followUp.js';
 
 export const SPOTLIGHT_MAX_RESULTS = 50;
 /** Scheduled tasks older than this many years are not searched. */
@@ -51,22 +64,25 @@ export function dailyNoteTitle(text, dateStr) {
 }
 
 /**
- * Search daily notes for `q` (already trimmed and lower-cased). A note that
- * matches yields one result carrying the matching line so the result row can
- * highlight the hit in context. Deleted tombstones and empty notes never match.
+ * Search daily notes for `query` (the typed text, or a parsed query). A note
+ * that matches yields one result carrying the line that holds the most of the
+ * query's words, so the result row can highlight the hit in context. Deleted
+ * tombstones and empty notes never match.
  *
  * @param {Record<string, {text?:string, deleted?:boolean}>|null|undefined} dailyNotes
- * @param {string} q
+ * @param {string|import('./searchQuery.js').SearchQuery} query
  * @returns {Array<object>} spotlight results with source 'dailynote'
  */
-export function searchDailyNotes(dailyNotes, q) {
+export function searchDailyNotes(dailyNotes, query) {
   const results = [];
-  if (!dailyNotes || !q) return results;
+  const q = asSearchQuery(query);
+  if (!dailyNotes || !q.include.length) return results;
   for (const [dateStr, note] of Object.entries(dailyNotes)) {
     if (!note || note.deleted) continue;
-    const text = note.text || '';
-    if (!text.toLowerCase().includes(q)) continue;
-    const line = text.split('\n').find(l => l.toLowerCase().includes(q)) ?? '';
+    const text = taskLinksAsLabels(note.text || '');
+    if (!queryMatchesFields(q, [text])) continue;
+    const hits = (l) => q.include.filter(term => term.regex.test(l)).length;
+    const line = text.split('\n').reduce((best, l) => (hits(l) > hits(best) ? l : best), '');
     results.push({
       task: { id: `dailynote-${dateStr}`, title: dailyNoteTitle(text, dateStr), color: 'bg-indigo-500', date: dateStr },
       source: 'dailynote',
@@ -79,21 +95,24 @@ export function searchDailyNotes(dailyNotes, q) {
 }
 
 /**
- * Search goals, projects and areas by title (and notes) for `q` (already trimmed and
- * lower-cased). See the module comment for which ones are searchable.
+ * Search goals, projects and areas by title (and notes) for `query` (the typed
+ * text, or a parsed query). See the module comment for which ones are
+ * searchable.
  *
  * @returns {Array<object>} spotlight results with source 'goal' | 'project' | 'area'
  */
-export function searchGoalsAndProjects({ goals = [], projects = [], areas = [], isVisibleForUser = () => true }, q) {
+export function searchGoalsAndProjects({ goals = [], projects = [], areas = [], isVisibleForUser = () => true }, query) {
   const results = [];
-  if (!q) return results;
+  const q = asSearchQuery(query);
+  if (!q.include.length) return results;
   const drawnGoals = goals.filter(g => g.status !== 'archived' && isVisibleForUser(g));
   const goalById = new Map(drawnGoals.map(g => [g.id, g]));
   const push = (item, source, sourceLabel, color) => {
-    let match = null;
-    if ((item.title || '').toLowerCase().includes(q)) match = { field: 'title', text: item.title };
-    else if (item.description && item.description.toLowerCase().includes(q)) match = { field: 'notes', text: item.description };
-    if (!match) return;
+    const description = item.description ? taskLinksAsLabels(item.description) : item.description;
+    if (!queryMatchesFields(q, [item.title, description])) return;
+    const match = q.include.every(term => termMatches(term, item.title))
+      ? { field: 'title', text: item.title }
+      : { field: 'notes', text: description };
     results.push({ task: { id: item.id, title: item.title, color }, source, sourceLabel, match, date: null });
   };
   for (const goal of drawnGoals) push(goal, 'goal', 'Goal', goal.color);
@@ -139,8 +158,8 @@ export function buildSpotlightResults({
   isVisibleForUser = () => true,
   now = new Date(),
 }) {
-  const q = (query || '').trim().toLowerCase();
-  if (!q) return [];
+  const q = asSearchQuery(query);
+  if (!q.include.length) return [];
   const results = [];
   const cutoff = new Date(now.getFullYear() - SCHEDULED_LOOKBACK_YEARS, now.getMonth(), now.getDate());
   const cutoffStr = dateToString(cutoff);
@@ -151,28 +170,21 @@ export function buildSpotlightResults({
     if (!isVisibleForUser(task)) return;
     // Skip scheduled tasks older than the lookback window
     if (date && date < cutoffStr) return;
-    // Check title
-    if (task.title.toLowerCase().includes(q)) {
-      results.push({ task, source, sourceLabel, match: { field: 'title', text: task.title }, date });
-      return;
-    }
-    // Check tags
-    const tags = extractTags(task.title);
-    const matchedTag = tags.find(t => t.toLowerCase().includes(q));
-    if (matchedTag) {
-      results.push({ task, source, sourceLabel, match: { field: 'tag', text: '#' + matchedTag }, date });
-      return;
-    }
-    // Check notes
-    if (task.notes && task.notes.toLowerCase().includes(q)) {
-      results.push({ task, source, sourceLabel, match: { field: 'notes', text: task.notes }, date });
-      return;
-    }
-    // Check subtasks
-    const matchedSub = (task.subtasks || []).find(s => s.title.toLowerCase().includes(q));
-    if (matchedSub) {
-      results.push({ task, source, sourceLabel, match: { field: 'subtask', text: matchedSub.title }, date });
-    }
+    const subtaskTitles = (task.subtasks || []).map(s => s.title);
+    const notes = task.notes ? taskLinksAsLabels(task.notes) : task.notes;
+    // Every word somewhere in the task (the tags are part of the title).
+    if (!queryMatchesFields(q, [task.title, notes, ...subtaskTitles])) return;
+    // Shown by its title when that holds every word; otherwise by the first
+    // field holding a word the title lacks: tag, notes, subtask.
+    const missing = q.include.filter(term => !termMatches(term, task.title));
+    const has = (text) => missing.some(term => termMatches(term, text));
+    const matchedTag = extractTags(task.title).find(has);
+    const matchedSub = subtaskTitles.find(has);
+    const match = !missing.length ? { field: 'title', text: task.title }
+      : matchedTag ? { field: 'tag', text: '#' + matchedTag }
+        : has(notes) ? { field: 'notes', text: notes }
+          : { field: 'subtask', text: matchedSub };
+    results.push({ task, source, sourceLabel, match, date });
   };
 
   // Scheduled tasks. Native (device-calendar) events that the timeline merged into

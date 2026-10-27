@@ -1380,6 +1380,7 @@
     "resultsCount_one": "{{count}} resultado",
     "resultsCount_other": "{{count}} resultados",
     "typeToSearch": "Escribe para buscar…",
+    "syntaxHint": "Varias palabras buscan tareas que las contengan todas · \"frase exacta\" · * cualquier texto · ? un carácter · -palabra excluye",
     "noResults": "No se encontraron resultados",
     "groupToday": "Hoy",
     "groupThisWeek": "Esta semana",

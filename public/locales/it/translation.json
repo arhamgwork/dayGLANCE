@@ -1382,6 +1382,7 @@
     "resultsCount_one": "{{count}} risultato",
     "resultsCount_other": "{{count}} risultati",
     "typeToSearch": "Digita per cercare…",
+    "syntaxHint": "Più parole trovano le attività che le contengono tutte · \"frase esatta\" · * qualsiasi testo · ? un carattere · -parola esclude",
     "noResults": "Nessun risultato trovato",
     "groupToday": "Oggi",
     "groupThisWeek": "Questa settimana",

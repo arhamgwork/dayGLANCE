@@ -83,7 +83,10 @@ export default function TraySpotlight({ darkMode, onClose }) {
       {/* Results */}
       <div className="flex-1 overflow-y-auto mt-2 space-y-0.5">
         {!spotlightQuery.trim() && (
-          <p className={`text-sm ${textSecondary} text-center py-10`}>{t('spotlight.typeToSearch')}</p>
+          <div className={`text-sm ${textSecondary} text-center py-10`}>
+            <p>{t('spotlight.typeToSearch')}</p>
+            <p data-spotlight-syntax className="mt-2 text-xs opacity-75">{t('spotlight.syntaxHint')}</p>
+          </div>
         )}
         {spotlightQuery.trim() && spotlightResults.length === 0 && (
           <p className={`text-sm ${textSecondary} text-center py-10`}>{t('spotlight.noResults')}</p>
