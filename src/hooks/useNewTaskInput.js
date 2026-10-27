@@ -326,7 +326,10 @@ export default function useNewTaskInput({ allTags, showAddTask, t, language, use
       const cursorPos = newTaskInputRef.current?.selectionStart || newTask.title.length;
       const { text: newText, newCursorPos } = applyTagCompletion(newTask.title, cursorPos, suggestion.value);
       const textWithSpace = newText.slice(0, newCursorPos) + ' ' + newText.slice(newCursorPos);
-      setNewTask(prev => ({ ...prev, title: textWithSpace }));
+      // Re-parsed like typed text: the chips follow the completed tag, and
+      // the spans save strips by position follow the text the completion
+      // moved (a chip read "#rückr" after "#rückrufe" was accepted).
+      setNewTask(prev => applyNlLayer(prev, textWithSpace));
       setShowSuggestions(false);
       setSuggestions([]);
       setSelectedSuggestionIndex(0);
@@ -339,13 +342,15 @@ export default function useNewTaskInput({ allTags, showAddTask, t, language, use
     } else {
       // Autocomplete the shortcut text and apply the selected suggestion
       const { text: completed, cursorPos } = completeShortcutText(newTask.title, suggestion);
-      const updates = { title: completed };
+      const updates = {};
       if (suggestion.type === 'date') updates.date = suggestion.value;
       else if (suggestion.type === 'time') updates.startTime = suggestion.value;
       else if (suggestion.type === 'deadline') updates.deadline = suggestion.value;
       else if (suggestion.type === 'priority') updates.priority = suggestion.value;
       else if (suggestion.type === 'duration') updates.duration = suggestion.value;
-      setNewTask(prev => ({ ...prev, ...updates }));
+      // As typing does: the NL layer re-reads the completed title, then the
+      // chosen suggestion applies over it (explicit syntax wins).
+      setNewTask(prev => ({ ...applyNlLayer(prev, completed), ...updates }));
       setShowSuggestions(false);
       setSuggestions([]);
       setSelectedSuggestionIndex(0);

@@ -12,6 +12,7 @@
 // - English vocabulary, matching quickAddParser.
 
 import { parseQuickAdd, stripSpans } from './quickAddParser.js';
+import { TAG_NAME_SOURCE } from './taskUtils.js';
 
 const pad2 = (n) => String(n).padStart(2, '0');
 const toDateStr = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
@@ -19,6 +20,10 @@ const toDateStr = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.
 // Spoken lead-ins to discard: "add a task to", "remind me to", "new task",
 // "create a task called" … Only stripped at the very start of the utterance.
 const LEAD_IN_RE = /^\s*(?:please\s+)?(?:(?:add|create|make)\s+(?:a\s+)?(?:new\s+)?task(?:\s+(?:to|called|named|for))?|remind\s+me\s+to|remember\s+to|new\s+task|task)\b[:,]?\s+/i;
+
+// "hashtag <name>": the name in the tag alphabet every reader uses
+// (utils/taskUtils.js), so "hashtag Rückrufe" is "#Rückrufe" whole.
+const SPOKEN_HASHTAG_RE = new RegExp(`\\bhash\\s?tag\\s+(${TAG_NAME_SOURCE})`, 'giu');
 
 /**
  * Normalize common speech-to-text artifacts so the deterministic parser sees
@@ -30,7 +35,7 @@ const LEAD_IN_RE = /^\s*(?:please\s+)?(?:(?:add|create|make)\s+(?:a\s+)?(?:new\s
 export const normalizeTranscript = (text) => {
   return text
     .replace(/\b([ap])\.m\.?/gi, (_, letter) => `${letter.toLowerCase()}m`)
-    .replace(/\bhash\s?tag\s+([a-zA-Z]\w*)/gi, '#$1')
+    .replace(SPOKEN_HASHTAG_RE, '#$1')
     .replace(/[.!?]+\s*$/, '')
     .trim();
 };

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseQuickAdd, stripSpans, spanSignature } from './quickAddParser.js';
+import { extractTags } from './taskUtils.js';
 
 // Pinned clock: Monday, July 27 2026, 10:00 local.
 // Derived anchors used throughout:
@@ -221,6 +222,40 @@ describe('tags', () => {
     const tags = r.spans.filter((s) => s.type === 'tag');
     expect(tags.map((t) => t.value)).toEqual(['fitness', 'health']);
     expect(stripSpans('gym #fitness #health tomorrow', r.spans)).toBe('gym #fitness #health');
+  });
+});
+
+// A user wrote in (2026-10-27): typing "#rückr" showed the chip "#r", and
+// accepting the suggestion "rückrufe" left it there, though the tag saved
+// whole. The chip read tags with an ASCII-only pattern; saving reads them
+// with extractTags. The chip now reads them the same way.
+describe('tags in any script', () => {
+  const tagValues = (text) => P(text).spans.filter((s) => s.type === 'tag').map((t) => t.value);
+
+  it('an umlaut does not end the tag, whether typed or completed', () => {
+    expect(tagValues('Anrufen #rückr')).toEqual(['rückr']);
+    const r = P('Anrufen #rückrufe morgen');
+    expect(span(r, 'tag')).toMatchObject({ value: 'rückrufe', display: '#rückrufe', text: '#rückrufe' });
+  });
+
+  it('any letter, digits, _ / and - as everywhere else', () => {
+    expect(tagValues('#Ärger #größe #café-2026 #工作 #work/deep #a_b')).toEqual(['ärger', 'größe', 'café-2026', '工作', 'work/deep', 'a_b']);
+  });
+
+  it('the whole tag is masked from the later stages', () => {
+    const r = P('#büro tomorrow');
+    expect(span(r, 'tag')).toMatchObject({ value: 'büro', start: 0, end: 5 });
+    expect(span(r, 'date')).toMatchObject({ value: '2026-07-28' });
+  });
+
+  it('a # in a web address is not a tag', () => {
+    expect(tagValues('read https://example.com/guide#setup')).toEqual([]);
+  });
+
+  it('the chips are exactly the tags the title saves with', () => {
+    for (const title of ['Anrufen #rückrufe', 'mix #Ärger and #work/deep', 'see https://x.org/a#b then #ok', '#工作 #café', 'no tags here']) {
+      expect(tagValues(title)).toEqual([...extractTags(title)]);
+    }
   });
 });
 
