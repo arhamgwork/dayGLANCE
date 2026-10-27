@@ -1,7 +1,9 @@
 # Day Dial — iOS `systemLarge` widget: handoff
 
 **Status:** phases 0–5 landed and walked on device (21 Sep 2026). iOS only.
-Android and Wear OS are decided, not deferred: §"Android, if it happens".
+The Android widget has shipped at parity (§"Android, if it happens"). Wear OS
+is planned, not started: a complication, a tile and a watch face, revised
+27 Oct 2026 (§"Wear OS: feasible, and the better fit").
 **Companion files:** `docs/day-dial-widget-spec.html` (reference render, exact geometry),
 `docs/day-dial-palette-study.html` (block band treatment; variant C is what ships),
 `docs/day-dial-widget-feasibility.md` (prior investigation, PR #1665).
@@ -428,9 +430,9 @@ do not have.
 2. **Open — for the first Android surface.** Low-opacity sky-ring segments
    at dawn and dusk on OLED in daylight: opacity carries the signal alone now
    that width is constant. No OLED iOS device is available to this project,
-   so the check rides whichever Android surface is built first (§"Android,
-   if it happens": the Wear OS tile, most likely, whose screen is OLED and
-   is read outdoors more than any phone widget). If the faintest segments
+   so the check rides the Android widget (§"Android, if it happens"), on an
+   OLED phone, and again on the watch, whose screen is OLED and is read
+   outdoors more than any phone widget. If the faintest segments
    disappear there, raise the floor and compress the range rather than
    widening, and mirror the change in `DialSpec.skyOpacity` so every port
    agrees.
@@ -765,9 +767,9 @@ radius-agnostic and the fixture evaluates them at both canvases, so no
 > So the Android widget is parity after all: `dayglance-android/.../widget/dial/`
 > ports DialSpec, the palette, the hub and the face input against the same
 > vectors and fixture, and draws the same face. The Wear OS analysis below
-> stands for a watch surface. §8 item 2 (the faintest sky segments on OLED
-> in daylight) now rides this widget. What follows is the original decision,
-> kept for its reasoning.
+> stands for a watch surface, as revised at its head on 27 Oct 2026. §8
+> item 2 (the faintest sky segments on OLED in daylight) now rides this
+> widget. What follows is the original decision, kept for its reasoning.
 >
 > **Cards (Android only).** A placement taller or wider than the face shows
 > the in-app dial's All Day pill and legend beside it (`DialArrangement`
@@ -837,6 +839,132 @@ home-screen widgets moving to Remote Compose, as Wear OS 7's are, would
 reopen it. Watch for that; do not re-open on library releases alone.
 
 #### Wear OS: feasible, and the better fit
+
+> **Revised 27 Oct 2026; no Wear OS work has started.** Three things changed
+> after this section was written: the Android widget shipped, GLANCElauncher
+> gave the phone app a write path that works from outside it, and the scope
+> grew to include a watch face. Where this note and the 22 Sep text below
+> disagree, this note wins; the platform facts below still stand.
+>
+> **Scope and order.** Three surfaces, each reusing the one before:
+>
+> 1. **A complication data source.** It works on any watch face the user
+>    already has, so it is the cheapest and reaches the most people.
+> 2. **The tile**, as analysed below.
+> 3. **A watch face.** Committed, not a stretch goal. It is the showiest
+>    surface and the most expensive, and it only helps users willing to
+>    switch faces.
+>
+> A full-screen interactive watch app is **not planned**: dragging blocks on
+> a ~450 px round screen is a poor fit.
+>
+> **Open: complication first, or tile first.** The 22 Sep text puts the tile
+> first because only it carries a live needle and countdown. The October
+> plan puts the complication first, for reach and cost. Decide before
+> starting.
+>
+> **The watch face.** From the September investigation; not re-verified
+> here:
+>
+> - **The format.** Watch Face Format (WFF) has been required to install a
+>   watch face on every Wear OS device since January 2026. It is declarative
+>   XML with no code.
+> - **What a face can read.** A WFF face is sandboxed and cannot read app
+>   storage. Data reaches it only through system sources and complication
+>   slots, at most 8 per face.
+> - **The listing.** Since 15 Jul 2026, watch face apps on Play must meet
+>   policy WO-G4: the listing icon is the face, centred and circular.
+> - **The documented escape hatch.**
+>   - Bundle our own complication data source in the same APK, as the face's
+>     default (`DefaultProviderPolicy`), with the slot's `isCustomizable`
+>     false, so the slot becomes a private data channel.
+>   - The ring is drawn to a bitmap in Kotlin inside the data source and
+>     served as an image complication.
+>   - WFF draws the ticks, labels, hub text and needle on top. The needle is
+>     a `Transform` rotation on a time expression, so it moves smoothly with
+>     no updates from us.
+>   - Step 1's data source is this channel, so the face builds on it.
+> - **What maps directly.** WFF arcs take thickness and gradients, so the sky
+>   ring and block band map almost one to one.
+> - **What is hard.**
+>   - *Ambient (always-on) mode is the real design problem.* It restricts
+>     colour, refreshes about once a minute, and burn-in rules forbid large
+>     filled areas. The dial is mostly filled rings, so the ambient face is
+>     its own design, not a dimmed copy.
+>   - *Size.* A round face is ~450 px against the 364×382 pt the widget
+>     was already cut hard for. The hub likely drops to the countdown alone,
+>     and the sky ring may not survive.
+>
+> **What exists now:**
+>
+> - **The face renderer.** `dayglance-android/.../widget/dial/` is the
+>   geometry port this section budgeted 2 days for: `DialSpec`, the palette
+>   and the hub. `DialFacePainter` draws the face to a bitmap with
+>   `android.graphics.Canvas`, and the needle is a separate rotating layer.
+>   That is the bitmap the complication, the tile image and the watch face's
+>   private slot all need.
+> - **The data for the dial.** The face reads the widget snapshot's `dial` and
+>   `sky` (`DialFaceInput`), for the pushed day and every projected
+>   `days[]` entry. That is what goes to the watch. The projected days also
+>   let the watch show a day's shape while the phone is out of reach.
+> - **Writes from outside the app** (complete a task, toggle a routine,
+>   add a task), built for GLANCElauncher and described in
+>   `docs/launcher-integration.md`:
+>   - each carries a client id, so a repeat is never applied twice;
+>   - a routine toggle sets a state rather than flipping it;
+>   - each is held in a durable queue (`LauncherWriteQueue`) until the page
+>     acks it;
+>   - each is applied by the app's own handlers, JOBO record included;
+>   - while the app is closed, the headless refresh applies them (CLAUDE.md,
+>     "Headless refresh").
+>
+>   A tap on the watch is one more client of this path: the phone side of
+>   the Data Layer hands it to the same queue the launcher's receiver
+>   (`LauncherIntentReceiver`) fills.
+> - **Launcher code that runs on a watch unchanged.** In
+>   `krelltunez/dayGLANCE-launcher`, `data/provider/SnapshotParser.kt`,
+>   `data/Models.kt` and `data/provider/Outbox.kt` are plain Kotlin plus
+>   `org.json`, about 900 lines.
+>   - They are needed only for task and routine lists the watch can act on,
+>     not for the dial.
+>   - They read through the `GlanceClient` interface, so a Data Layer client
+>     would replace the content provider one.
+>   - They would first move out of the launcher's app module into a shared
+>     module, as `:daydial` already is.
+>   - The launcher's `:daydial` geometry, sky, frames, solar, lunar and
+>     weather are pure, JVM-tested Kotlin. Its `DayDial.kt` is Compose,
+>     which complications, tiles and watch faces cannot host.
+>
+> **A constraint the 22 Sep text missed.** The Data Layer connects a watch
+> app only to a phone app with the same package name and the same signing
+> certificate. So the watch app is `com.dayglance.app`, a `wear` module in
+> `dayglance-android/`, signed with dayGLANCE's key. Consequences:
+>
+> - Watch users do not need GLANCElauncher.
+> - lastGLANCE content on the watch would need lastGLANCE's own watch app.
+> - Play is the practical way to ship it, since sideloading to a watch is
+>   adb over Wi-Fi.
+>
+> **Still new work:**
+>
+> - **The Data Layer transport.** A `WearableListenerService` in the phone
+>   shell, a `DataClient` push on each snapshot write, capability discovery,
+>   and handling a watch that is not connected.
+> - **Update cadence against watch battery.** The launcher's refresh floor
+>   and freshness log are a model, but the tuning is new.
+> - **ProtoLayout** for the tile.
+> - **The ambient design and the size pass** for every surface.
+>
+> **Estimate, replacing the 8–10 days below.** Rough figures, before device
+> time:
+>
+> - **Complication, with the `wear` module and the relay:** 3–4 days.
+> - **Tile on top of it:** 3–4 days.
+> - **Watch face on top of both:** 4–6 days, a rougher figure. Most of it is
+>   the ambient design and the WFF layout.
+>
+> Most of the remaining risk is the ambient design and the size pass, which
+> nothing built so far covers.
 
 Verified against the ProtoLayout sources and the Wear OS docs on 22 Sep
 2026; each claim names what it rests on so the next person can re-check
