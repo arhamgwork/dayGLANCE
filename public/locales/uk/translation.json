@@ -2084,6 +2084,9 @@
       "incompleteOnly": "Лише незавершені",
       "projectTasks": "Завдання проєктів",
       "projectTasksHint": "Завдання, пов’язані з проєктом",
+      "expandGroup": "Показати {{name}}",
+      "collapseGroup": "Сховати {{name}}",
+      "selectGroup": "Усі проєкти в {{name}}",
       "standaloneHint": "Завдання, не пов’язані з жодним проєктом"
     },
     "noMatches": "Нічого не знайдено",

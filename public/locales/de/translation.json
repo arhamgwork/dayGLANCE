@@ -1987,6 +1987,9 @@
       "incompleteOnly": "Nur offene",
       "projectTasks": "Projektaufgaben",
       "projectTasksHint": "Mit einem Projekt verknüpfte Aufgaben",
+      "expandGroup": "{{name}} einblenden",
+      "collapseGroup": "{{name}} ausblenden",
+      "selectGroup": "Alle Projekte in {{name}}",
       "standaloneHint": "Aufgaben ohne Projektverknüpfung"
     },
     "noMatches": "Keine Treffer",

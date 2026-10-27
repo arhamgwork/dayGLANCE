@@ -1989,6 +1989,9 @@
       "incompleteOnly": "Solo incomplete",
       "projectTasks": "Attività di progetto",
       "projectTasksHint": "Attività collegate a un progetto",
+      "expandGroup": "Mostra {{name}}",
+      "collapseGroup": "Nascondi {{name}}",
+      "selectGroup": "Tutti i progetti in {{name}}",
       "standaloneHint": "Attività non collegate ad alcun progetto"
     },
     "noMatches": "Nessuna corrispondenza",
