@@ -28,6 +28,7 @@ export default function useNavigation({
   calendarRef,
   closePlanner = () => {},
   openGoalsTarget = () => {},
+  setDesktopSpace = () => {},
 }) {
   const changeDate = useCallback((direction) => {
     // MONTH: the chrome's arrows page whole months, keeping the day of the
@@ -88,6 +89,10 @@ export default function useNavigation({
     // cover: the calendar, the inbox or the Goals space (#2131).
     closePlanner();
     const { task, source } = result;
+    // The calendar and the Inbox are hidden, and inert, while the Goals &
+    // Projects space is up: every other result is in the Calendar space
+    // (#2231). A no-op on a phone, which has a tab instead.
+    if (source !== 'goal' && source !== 'project' && source !== 'area') setDesktopSpace('calendar');
 
     // `ownScroller`: the row is not on the calendar (an Inbox task), so it is
     // scrolled into view in whatever list holds it, not the calendar's
@@ -158,7 +163,7 @@ export default function useNavigation({
       // launcher's links open it (#2131).
       openGoalsTarget(source, task.id);
     }
-  }, [setShowSpotlight, isMobile, setMobileActiveTab, setTabletActiveTab, setInboxProjectFilter, setInboxArchivedExpanded, setDailyNotesModalDate, calendarRef, goToDate, closePlanner, openGoalsTarget]);
+  }, [setShowSpotlight, isMobile, setMobileActiveTab, setTabletActiveTab, setInboxProjectFilter, setInboxArchivedExpanded, setDailyNotesModalDate, calendarRef, goToDate, closePlanner, openGoalsTarget, setDesktopSpace]);
 
   return { changeDate, goToToday, goToDate, handleSpotlightSelect };
 }

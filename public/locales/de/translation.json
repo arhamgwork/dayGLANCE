@@ -2726,6 +2726,7 @@
     "peekOn": "Geplant für {{date}}",
     "peekDeleted": "Im Papierkorb",
     "peekGone": "Diese Aufgabe gibt es in dayGLANCE nicht mehr.",
+    "peekSaveAndShow": "Speichern und zur Aufgabe",
     "peekShow": "Zur Aufgabe"
   },
   "tagManager": {
