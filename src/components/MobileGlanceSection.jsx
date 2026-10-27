@@ -1264,7 +1264,6 @@ const MobileGlanceSection = () => {
   {routinesEnabled && (() => {
     const realRoutines = todayRoutines;
     const visibleRoutines = realRoutines.filter(r => !routineCompletions[r.id]);
-    if (realRoutines.length > 0 && visibleRoutines.length === 0) return null;
     const openRoutinesSettings = () => {
       setDashboardSelectedChips(todayRoutines.map(r => ({ id: r.id, name: r.name, bucket: r.bucket, startTime: r.startTime || null })));
       setRoutineAddingToBucket(null);
@@ -1272,6 +1271,24 @@ const MobileGlanceSection = () => {
       setMobileActiveTab('settings');
       setMobileSettingsView('routines');
     };
+    // All of today's done: one quiet line instead of no row at all, so the way
+    // back to the routines stays visible (#2234; GlanceSidebar does the same).
+    if (realRoutines.length > 0 && visibleRoutines.length === 0) {
+      return (
+        <button
+          type="button"
+          data-routines-all-done
+          onClick={openRoutinesSettings}
+          className={`w-full text-left flex items-center gap-2 mt-3 pt-3 border-t ${borderClass} active:opacity-70 transition-opacity`}
+        >
+          <span className={`text-xs font-semibold uppercase tracking-wide ${textSecondary}`}>{t('settings.routines')}</span>
+          <span className={`flex items-center gap-1 text-xs ${textSecondary}`}>
+            <Check size={12} className="text-teal-500" aria-hidden="true" />
+            {t('routines.allDone')}
+          </span>
+        </button>
+      );
+    }
     if (visibleRoutines.length === 0) {
       return (
         <div className={`mt-3 pt-3 border-t ${borderClass} cursor-pointer active:opacity-70 transition-opacity`} onClick={openRoutinesSettings}>

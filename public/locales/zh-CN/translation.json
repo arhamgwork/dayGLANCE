@@ -1542,6 +1542,7 @@
     "whatsInRoutine": "今天的日常流程有哪些？",
     "everyDay": "每天",
     "done": "完成",
+    "allDone": "今天已全部完成",
     "forOwner": "以下成员的日常流程",
     "unassignedHint": "部分日常流程尚未分配给任何人。请将其认领为自己的流程，以便它们在不同设备上始终归属于您。",
     "claim": "认领",

@@ -1411,7 +1411,25 @@ const GlanceSidebar = ({ variant = 'desktop' }) => {
   {routinesEnabled && (() => {
     const realRoutines = todayRoutines;
     const visibleRoutines = realRoutines.filter(r => !routineCompletions[r.id]);
-    if (realRoutines.length > 0 && visibleRoutines.length === 0) return null;
+    // GLANCE shows what is coming up, so done routines leave the row. Once all
+    // of today's are done it keeps one quiet line rather than vanishing: the
+    // row was the only way back to the Routines modal a new user knew (#2234).
+    if (realRoutines.length > 0 && visibleRoutines.length === 0) {
+      return (
+        <button
+          type="button"
+          data-routines-all-done
+          onClick={() => isTray ? openMainAt({ action: 'routines' }) : openRoutinesDashboard()}
+          className={`w-full text-left flex items-center gap-2 ${isDesktop ? `rounded-lg border ${borderClass} px-3 py-2 hover:opacity-80` : `mt-3 pt-3 border-t ${borderClass} active:opacity-70`} transition-opacity`}
+        >
+          <span className={`text-xs font-semibold uppercase tracking-wide ${textSecondary}`}>{t('settings.routines')}</span>
+          <span className={`flex items-center gap-1 text-xs ${textSecondary}`}>
+            <Check size={12} className="text-teal-500" aria-hidden="true" />
+            {t('routines.allDone')}
+          </span>
+        </button>
+      );
+    }
     if (visibleRoutines.length === 0) {
       return (
         <div className={isDesktop ? `rounded-lg border ${borderClass} p-3 cursor-pointer hover:opacity-80 transition-opacity` : `mt-3 pt-3 border-t ${borderClass} cursor-pointer active:opacity-70 transition-opacity`} onClick={() => isTray ? openMainAt({ action: 'routines' }) : openRoutinesDashboard()}>
