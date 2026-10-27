@@ -22,6 +22,7 @@ import { createSyncEngine } from '@glance-apps/sync';
 import { mergeSyncData } from '../mergeSync.js';
 import { nativeHttpRequest } from '../native.js';
 import { createAbsentRemoteSeedGuard } from './absentRemoteSeedGuard.js';
+import { createMidCycleEditGuard } from './midCycleEdits.js';
 import {
   createVerifiedWriteGuard,
   installVerifiedWriteGuard,
@@ -165,13 +166,19 @@ export const createDayGlanceEngine = (callbacks, { appFolderName = 'GLANCE/daygl
     targetKey,
   });
 
+  // An edit made between the cycle's read and its apply (the upload runs in
+  // between) is merged back over the result rather than lost (#2233).
+  const merge = (local, remote) => mergeSyncData(local, remote, callbacks.getSyncRetentionDays());
+  const midCycleEdits = createMidCycleEditGuard(merge);
+
   const engine = createSyncEngine({
     ...DAYGLANCE_CONFIG,
     appFolderName,
-    buildPayload:        callbacks.buildPayload,
+    buildPayload:        async () => midCycleEdits.noteBuilt(await callbacks.buildPayload()),
     buildBackupPayload:  callbacks.buildBackupPayload,
-    applyPayload:        callbacks.applyPayload,
-    mergePayloads:       (local, remote) => mergeSyncData(local, remote, callbacks.getSyncRetentionDays()),
+    applyPayload:        async (data, opts) =>
+      callbacks.applyPayload(midCycleEdits.reconcile(data, await callbacks.buildPayload()), opts),
+    mergePayloads:       merge,
     validateUploadPayload: (envelope) => validateUploadPayload(envelope, verifiedWriteGuard, {
       // The engine reports a refused upload as a quiet non-success — status
       // 'idle', nothing surfaced — and App.jsx drops an 'idle' that arrives while
