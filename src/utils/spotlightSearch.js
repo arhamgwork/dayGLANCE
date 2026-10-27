@@ -29,9 +29,14 @@
 // word matches as it always did. A result shows its title when the title
 // holds every word, and otherwise the first field (tag, notes, subtask)
 // holding a word the title lacks, so the row says why it matched.
+//
+// Notes are searched, and shown, as a note reads: a link to another task is
+// its label, never its dayglance://task?id=… address, which every such link
+// shares (taskLinksAsLabels).
 import { dateToString, extractTags } from './taskUtils.js';
 import { getProjectColor } from './colorUtils.js';
 import { asSearchQuery, queryMatchesFields, termMatches } from './searchQuery.js';
+import { taskLinksAsLabels } from './followUp.js';
 
 export const SPOTLIGHT_MAX_RESULTS = 50;
 /** Scheduled tasks older than this many years are not searched. */
@@ -74,7 +79,7 @@ export function searchDailyNotes(dailyNotes, query) {
   if (!dailyNotes || !q.include.length) return results;
   for (const [dateStr, note] of Object.entries(dailyNotes)) {
     if (!note || note.deleted) continue;
-    const text = note.text || '';
+    const text = taskLinksAsLabels(note.text || '');
     if (!queryMatchesFields(q, [text])) continue;
     const hits = (l) => q.include.filter(term => term.regex.test(l)).length;
     const line = text.split('\n').reduce((best, l) => (hits(l) > hits(best) ? l : best), '');
@@ -103,10 +108,11 @@ export function searchGoalsAndProjects({ goals = [], projects = [], areas = [], 
   const drawnGoals = goals.filter(g => g.status !== 'archived' && isVisibleForUser(g));
   const goalById = new Map(drawnGoals.map(g => [g.id, g]));
   const push = (item, source, sourceLabel, color) => {
-    if (!queryMatchesFields(q, [item.title, item.description])) return;
+    const description = item.description ? taskLinksAsLabels(item.description) : item.description;
+    if (!queryMatchesFields(q, [item.title, description])) return;
     const match = q.include.every(term => termMatches(term, item.title))
       ? { field: 'title', text: item.title }
-      : { field: 'notes', text: item.description };
+      : { field: 'notes', text: description };
     results.push({ task: { id: item.id, title: item.title, color }, source, sourceLabel, match, date: null });
   };
   for (const goal of drawnGoals) push(goal, 'goal', 'Goal', goal.color);
@@ -165,8 +171,9 @@ export function buildSpotlightResults({
     // Skip scheduled tasks older than the lookback window
     if (date && date < cutoffStr) return;
     const subtaskTitles = (task.subtasks || []).map(s => s.title);
+    const notes = task.notes ? taskLinksAsLabels(task.notes) : task.notes;
     // Every word somewhere in the task (the tags are part of the title).
-    if (!queryMatchesFields(q, [task.title, task.notes, ...subtaskTitles])) return;
+    if (!queryMatchesFields(q, [task.title, notes, ...subtaskTitles])) return;
     // Shown by its title when that holds every word; otherwise by the first
     // field holding a word the title lacks: tag, notes, subtask.
     const missing = q.include.filter(term => !termMatches(term, task.title));
@@ -175,7 +182,7 @@ export function buildSpotlightResults({
     const matchedSub = subtaskTitles.find(has);
     const match = !missing.length ? { field: 'title', text: task.title }
       : matchedTag ? { field: 'tag', text: '#' + matchedTag }
-        : has(task.notes) ? { field: 'notes', text: task.notes }
+        : has(notes) ? { field: 'notes', text: notes }
           : { field: 'subtask', text: matchedSub };
     results.push({ task, source, sourceLabel, match, date });
   };
