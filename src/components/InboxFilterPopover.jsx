@@ -1,11 +1,86 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { ChevronDown, ChevronRight, X } from 'lucide-react';
 import { useDayPlannerCtx } from '../context/DayPlannerContext.jsx';
 import { useFeaturesCtx } from '../context/FeaturesContext.jsx';
 import { extractTags } from '../utils/taskUtils.js';
 import { useTranslation } from 'react-i18next';
 import { notBucketed } from '../utils/bucketList.js';
+import { groupInboxProjects, projectIdsOf, selectionState, toggleProjectGroup } from '../utils/inboxProjectGroups.js';
+
+// Open or closed, remembered on this device per section and group, the way
+// the SCHED rail keeps its sections (#2232). Storage may be unavailable.
+const OPEN_KEY = (key) => `day-planner-inbox-filter-open-${key}`;
+function useRemembered(key, defaultOpen) {
+  const [open, setOpen] = useState(() => {
+    try {
+      const saved = localStorage.getItem(OPEN_KEY(key));
+      return saved === null ? defaultOpen : saved === 'true';
+    } catch { return defaultOpen; }
+  });
+  const toggle = () => setOpen((was) => {
+    try { localStorage.setItem(OPEN_KEY(key), String(!was)); } catch { /* not remembered */ }
+    return !was;
+  });
+  return [open, toggle];
+}
+
+/** A section of the popover (Status, Type, Projects, Tags): its header folds it. */
+const Section = ({ storageKey, title, count, textSecondary, hoverBg, children }) => {
+  const [open, toggle] = useRemembered(`section-${storageKey}`, true);
+  return (
+    <div data-inbox-filter-section={storageKey}>
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className={`w-full flex items-center justify-between -mx-1 px-1 py-0.5 mb-1.5 rounded ${hoverBg} transition-colors`}
+      >
+        <span className={`text-[10px] font-semibold uppercase tracking-wider ${textSecondary}`}>
+          {title}{count ? <span className="ml-1.5 text-blue-500">{count}</span> : null}
+        </span>
+        {open ? <ChevronDown size={12} className={textSecondary} /> : <ChevronRight size={12} className={textSecondary} />}
+      </button>
+      {open && children}
+    </div>
+  );
+};
+
+/**
+ * An area, a goal or the standalone projects: a chip that selects every
+ * project in it (filled when all are, outlined when some are), and a chevron
+ * that folds what it holds.
+ */
+const ProjectGroup = ({ storageKey, defaultOpen, label, ids, selected, onSelect, chip, textSecondary, hoverBg, labelClass = '', children }) => {
+  const { t } = useTranslation();
+  const [open, toggle] = useRemembered(storageKey, defaultOpen);
+  const state = selectionState(selected, ids);
+  return (
+    <div data-inbox-filter-group={storageKey}>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={open}
+          aria-label={t(open ? 'inbox.filter.collapseGroup' : 'inbox.filter.expandGroup', { name: label })}
+          className={`p-0.5 rounded ${hoverBg} ${textSecondary} transition-colors`}
+        >
+          {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        </button>
+        <button
+          type="button"
+          data-group-state={state}
+          onClick={() => onSelect(ids)}
+          title={t('inbox.filter.selectGroup', { name: label })}
+          className={`${chip(state)} ${labelClass}`}
+        >
+          {label}<span className="ml-1 opacity-70">{ids.length}</span>
+        </button>
+      </div>
+      {open && <div className="pl-5 pt-1.5 flex flex-col gap-1.5">{children}</div>}
+    </div>
+  );
+};
 
 /**
  * Popover for inbox filtering. Attach a ref to the trigger button and pass it
@@ -22,7 +97,7 @@ const InboxFilterPopover = ({ open, onClose, buttonRef }) => {
     inboxProjectFilter, setInboxProjectFilter,
   } = useDayPlannerCtx();
   const { t } = useTranslation();
-  const { goalsProjectsEnabled, projects } = useFeaturesCtx();
+  const { goalsProjectsEnabled, projects, goals, areas } = useFeaturesCtx();
 
   const popoverRef = useRef(null);
 
@@ -62,10 +137,12 @@ const InboxFilterPopover = ({ open, onClose, buttonRef }) => {
     return Array.from(tagSet).sort();
   }, [unscheduledTasks]);
 
-  const inboxProjects = useMemo(() => {
-    if (!goalsProjectsEnabled) return [];
-    return projects.filter(p => p.status !== 'archived' && p.status !== 'completed');
-  }, [projects, goalsProjectsEnabled]);
+  // Areas, their goals and the goals' projects, then standalone projects (#2232).
+  const projectGroups = useMemo(() => (goalsProjectsEnabled
+    ? groupInboxProjects({ projects: projects || [], goals: goals || [], areas: areas || [] })
+    : { areas: [], standalone: [], hasAreas: false }
+  ), [projects, goals, areas, goalsProjectsEnabled]);
+  const hasProjects = projectGroups.areas.length > 0 || projectGroups.standalone.length > 0;
 
   const isNonDefault =
     hideCompletedInbox ||
@@ -85,6 +162,7 @@ const InboxFilterPopover = ({ open, onClose, buttonRef }) => {
       prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
     );
   };
+  const toggleGroup = (ids) => setInboxProjectFilter(prev => toggleProjectGroup(prev, ids));
 
   const clearAll = () => {
     setHideCompletedInbox(false);
@@ -100,9 +178,43 @@ const InboxFilterPopover = ({ open, onClose, buttonRef }) => {
   const chipOn = darkMode ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white';
   const chipOff = darkMode ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-stone-100 text-stone-600 hover:bg-stone-200';
 
-  const SectionLabel = ({ children }) => (
-    <div className={`text-[10px] font-semibold uppercase tracking-wider ${textSecondary} mb-2`}>{children}</div>
+  // A group's chip: filled when every project in it is selected, outlined when some are.
+  const groupChip = (state) => `${chipBase} ${state === 'all' ? chipOn
+    : state === 'some' ? `${chipOff} ring-1 ring-inset ring-blue-500` : chipOff}`;
+  const themed = { textSecondary, hoverBg };
+  const projectChips = (list) => (
+    <div className="flex gap-1.5 flex-wrap">
+      {list.map(p => (
+        <button
+          key={p.id}
+          className={`${chipBase} ${inboxProjectFilter.includes(p.id) ? chipOn : chipOff}`}
+          onClick={() => toggleProject(p.id)}
+        >
+          {p.title}
+        </button>
+      ))}
+    </div>
   );
+  // A goal folds closed unless one of its projects is selected, so a long
+  // list opens as its goals; an area stays open.
+  const goalGroup = (goal) => {
+    const ids = projectIdsOf(goal);
+    return (
+      <ProjectGroup
+        key={goal.id}
+        storageKey={`goal-${goal.id}`}
+        defaultOpen={selectionState(inboxProjectFilter, ids) !== 'none'}
+        label={goal.title}
+        ids={ids}
+        selected={inboxProjectFilter}
+        onSelect={toggleGroup}
+        chip={groupChip}
+        {...themed}
+      >
+        {projectChips(goal.projects)}
+      </ProjectGroup>
+    );
+  };
 
   return createPortal(
     <>
@@ -133,10 +245,9 @@ const InboxFilterPopover = ({ open, onClose, buttonRef }) => {
           </div>
         </div>
 
-        <div className="p-3 flex flex-col gap-3">
+        <div className="p-3 flex flex-col gap-3 max-h-[70vh] overflow-y-auto">
           {/* Status */}
-          <div>
-            <SectionLabel>{t('common.status')}</SectionLabel>
+          <Section storageKey="status" title={t('common.status')} count={hideCompletedInbox ? 1 : 0} {...themed}>
             <div className="flex gap-1.5 flex-wrap">
               <button
                 className={`${chipBase} ${!hideCompletedInbox ? chipOn : chipOff}`}
@@ -151,12 +262,11 @@ const InboxFilterPopover = ({ open, onClose, buttonRef }) => {
                 {t('inbox.filter.incompleteOnly', { defaultValue: 'Incomplete only' })}
               </button>
             </div>
-          </div>
+          </Section>
 
           {/* Type */}
           {goalsProjectsEnabled && (
-            <div>
-              <SectionLabel>{t('common.type')}</SectionLabel>
+            <Section storageKey="type" title={t('common.type')} {...themed}>
               <div className="flex gap-1.5 flex-wrap">
                 <button
                   className={`${chipBase} ${!hideProjectTasksInbox ? chipOn : chipOff}`}
@@ -173,31 +283,52 @@ const InboxFilterPopover = ({ open, onClose, buttonRef }) => {
                   {t('sched.standalone')}
                 </button>
               </div>
-            </div>
+            </Section>
           )}
 
-          {/* Projects */}
-          {inboxProjects.length > 0 && (
-            <div>
-              <SectionLabel>{t('sched.projects')}</SectionLabel>
-              <div className="flex gap-1.5 flex-wrap">
-                {inboxProjects.map(p => (
-                  <button
-                    key={p.id}
-                    className={`${chipBase} ${inboxProjectFilter.includes(p.id) ? chipOn : chipOff}`}
-                    onClick={() => toggleProject(p.id)}
+          {/* Projects, by area and goal (#2232) */}
+          {hasProjects && (
+            <Section storageKey="projects" title={t('sched.projects')} count={inboxProjectFilter.length} {...themed}>
+              <div className="flex flex-col gap-1.5">
+                {projectGroups.areas.map(area => (projectGroups.hasAreas ? (
+                  <ProjectGroup
+                    key={area.id ?? 'no-area'}
+                    storageKey={`area-${area.id ?? 'none'}`}
+                    defaultOpen
+                    label={area.title ?? t('goals.noDefinedArea')}
+                    ids={projectIdsOf(area)}
+                    selected={inboxProjectFilter}
+                    onSelect={toggleGroup}
+                    chip={groupChip}
+                    labelClass="uppercase tracking-wide"
+                    {...themed}
                   >
-                    {p.title}
-                  </button>
-                ))}
+                    {area.goals.map(goalGroup)}
+                  </ProjectGroup>
+                ) : (
+                  <React.Fragment key="goals">{area.goals.map(goalGroup)}</React.Fragment>
+                )))}
+                {projectGroups.standalone.length > 0 && (
+                  <ProjectGroup
+                    storageKey="standalone"
+                    defaultOpen={projectGroups.areas.length === 0 || selectionState(inboxProjectFilter, projectGroups.standalone.map(p => p.id)) !== 'none'}
+                    label={t('sched.standalone')}
+                    ids={projectGroups.standalone.map(p => p.id)}
+                    selected={inboxProjectFilter}
+                    onSelect={toggleGroup}
+                    chip={groupChip}
+                    {...themed}
+                  >
+                    {projectChips(projectGroups.standalone)}
+                  </ProjectGroup>
+                )}
               </div>
-            </div>
+            </Section>
           )}
 
           {/* Tags */}
           {inboxTags.length > 0 && (
-            <div>
-              <SectionLabel>{t('sched.tags')}</SectionLabel>
+            <Section storageKey="tags" title={t('sched.tags')} count={inboxTagFilter.length} {...themed}>
               <div className="flex gap-1.5 flex-wrap">
                 {inboxTags.map(tag => (
                   <button
@@ -209,7 +340,7 @@ const InboxFilterPopover = ({ open, onClose, buttonRef }) => {
                   </button>
                 ))}
               </div>
-            </div>
+            </Section>
           )}
 
         </div>

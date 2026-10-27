@@ -1987,6 +1987,9 @@
       "incompleteOnly": "Somente incompletas",
       "projectTasks": "Tarefas de projetos",
       "projectTasksHint": "Tarefas vinculadas a um projeto",
+      "expandGroup": "Mostrar {{name}}",
+      "collapseGroup": "Ocultar {{name}}",
+      "selectGroup": "Todos os projetos de {{name}}",
       "standaloneHint": "Tarefas sem vínculo com projetos"
     },
     "noMatches": "Nenhum resultado",

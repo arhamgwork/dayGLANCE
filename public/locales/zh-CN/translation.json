@@ -1984,6 +1984,9 @@
       "incompleteOnly": "仅未完成",
       "projectTasks": "项目任务",
       "projectTasksHint": "已关联项目的任务",
+      "expandGroup": "展开{{name}}",
+      "collapseGroup": "折叠{{name}}",
+      "selectGroup": "{{name}}中的所有项目",
       "standaloneHint": "未关联任何项目的任务"
     },
     "noMatches": "无匹配项",

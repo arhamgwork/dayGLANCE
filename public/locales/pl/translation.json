@@ -2078,6 +2078,9 @@
       "incompleteOnly": "Tylko nieukończone",
       "projectTasks": "Zadania projektów",
       "projectTasksHint": "Zadania powiązane z projektem",
+      "expandGroup": "Pokaż {{name}}",
+      "collapseGroup": "Ukryj {{name}}",
+      "selectGroup": "Wszystkie projekty w {{name}}",
       "standaloneHint": "Zadania niepowiązane z żadnym projektem"
     },
     "noMatches": "Brak dopasowań",

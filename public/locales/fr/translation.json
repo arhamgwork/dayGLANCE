@@ -1987,6 +1987,9 @@
       "incompleteOnly": "Incomplètes uniquement",
       "projectTasks": "Tâches de projet",
       "projectTasksHint": "Tâches liées à un projet",
+      "expandGroup": "Afficher {{name}}",
+      "collapseGroup": "Masquer {{name}}",
+      "selectGroup": "Tous les projets de {{name}}",
       "standaloneHint": "Tâches qui ne sont liées à aucun projet"
     },
     "noMatches": "Aucun résultat",
