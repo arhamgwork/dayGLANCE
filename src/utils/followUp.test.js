@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   normalizeFollowUpTag, taskLink, findTaskLinks, doneDateOf, canFollowUp,
-  completionFollowUpDraft, resolveTaskRef, plainTitle,
+  completionFollowUpDraft, resolveTaskRef, peekNavigationTarget, plainTitle,
 } from './followUp.js';
 
 const projects = [
@@ -159,5 +159,38 @@ describe('resolveTaskRef', () => {
     expect(resolveTaskRef('nope', lists)).toBeNull();
     expect(resolveTaskRef('recurring-missing-2026-10-04', lists)).toBeNull();
     expect(resolveTaskRef('', lists)).toBeNull();
+  });
+});
+
+// #2231: the peek's "Go to task" goes where search goes (useNavigation
+// handleSpotlightSelect), in its shape.
+describe('peekNavigationTarget', () => {
+  const lists = {
+    tasks: [{ id: 's-1', title: 'Scheduled', date: '2026-10-04' }],
+    unscheduledTasks: [{ id: 'in-1', title: 'Inbox' }, { id: 'in-2', title: 'Shelved', archived: true }],
+    recurringTasks: [{ id: 'tmpl-1', title: 'Weekly ping', startTime: '09:00' }],
+    recycleBin: [{ id: 'gone-1', title: 'Deleted' }],
+  };
+  const target = (id) => peekNavigationTarget(resolveTaskRef(id, lists));
+
+  it('a scheduled task: its day', () => {
+    expect(target('s-1')).toMatchObject({ source: 'scheduled', task: { id: 's-1', date: '2026-10-04' } });
+  });
+
+  it('an occurrence of a series: that day, by the id its card carries', () => {
+    expect(target('recurring-tmpl-1-2026-09-28')).toMatchObject({
+      source: 'scheduled', task: { id: 'recurring-tmpl-1-2026-09-28', date: '2026-09-28' },
+    });
+  });
+
+  it('an Inbox task: its row, in the archive when it is archived', () => {
+    expect(target('in-1')).toMatchObject({ source: 'inbox', task: { id: 'in-1' } });
+    expect(target('in-2')).toMatchObject({ source: 'archived', task: { id: 'in-2' } });
+  });
+
+  it('nowhere for a deleted task, or one that is gone', () => {
+    expect(target('gone-1')).toBeNull();
+    expect(target('nope')).toBeNull();
+    expect(peekNavigationTarget({ where: 'calendar', task: { id: 'x' } })).toBeNull();
   });
 });

@@ -2724,6 +2724,7 @@
     "peekOn": "Planificada para el {{date}}",
     "peekDeleted": "En la papelera",
     "peekGone": "Esta tarea ya no está en dayGLANCE.",
+    "peekSaveAndShow": "Guardar e ir a la tarea",
     "peekShow": "Ir a la tarea"
   },
   "tagManager": {

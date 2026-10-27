@@ -2724,6 +2724,7 @@
     "peekOn": "Planeada para {{date}}",
     "peekDeleted": "Na reciclagem",
     "peekGone": "Esta tarefa já não está no dayGLANCE.",
+    "peekSaveAndShow": "Guardar e ir para a tarefa",
     "peekShow": "Ir para a tarefa"
   },
   "tagManager": {

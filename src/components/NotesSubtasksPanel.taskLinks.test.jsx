@@ -210,4 +210,29 @@ describe('the task peek', () => {
     expect(text).toContain('+4 more');
     delete globalThis.document;
   });
+  // #2231: offered with a task form open too, where it saves the form first
+  // and says so; never for a deleted task.
+  it('labels "Go to task" by what it does, and offers none for a deleted task', () => {
+    globalThis.document = { body: {} };
+    globalThis.window.addEventListener = noop;
+    globalThis.window.removeEventListener = noop;
+    const peek = (found, extra = {}) => {
+      let root;
+      act(() => {
+        root = create(
+          <I18nextProvider i18n={i18n}>
+            <TaskPeek found={found} onClose={noop} onShow={noop} darkMode={false} {...extra} />
+          </I18nextProvider>,
+          { createNodeMock: () => ({ focus: noop }) },
+        );
+      });
+      return JSON.stringify(root.toJSON());
+    };
+    const plain = peek({ task: ROOF, where: 'calendar' });
+    expect(plain).toContain('Go to task');
+    expect(plain).not.toContain('Save and go to task');
+    expect(peek({ task: ROOF, where: 'calendar' }, { savesForm: true })).toContain('Save and go to task');
+    expect(peek({ task: ROOF, where: 'deleted' }, { savesForm: true })).not.toContain('go to task');
+    delete globalThis.document;
+  });
 });

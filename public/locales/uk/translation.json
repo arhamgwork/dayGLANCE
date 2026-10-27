@@ -2837,6 +2837,7 @@
     "peekOn": "Заплановано на {{date}}",
     "peekDeleted": "У кошику",
     "peekGone": "Цього завдання вже немає в dayGLANCE.",
+    "peekSaveAndShow": "Зберегти й перейти до завдання",
     "peekShow": "Перейти до завдання"
   },
   "tagManager": {

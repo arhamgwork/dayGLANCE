@@ -114,7 +114,7 @@ import RecurringEditModal from './components/RecurringEditModal.jsx';
 import EditRecurrenceModal from './components/EditRecurrenceModal.jsx';
 import ReminderToasts from './components/ReminderToasts.jsx';
 import TaskPeek from './components/TaskPeek.jsx';
-import { FOLLOW_UP_TAG_KEY, PEEK_TASK_EVENT, canFollowUp, completionFollowUpDraft, doneDateOf, normalizeFollowUpTag, resolveTaskRef, taskLink } from './utils/followUp.js';
+import { FOLLOW_UP_TAG_KEY, PEEK_TASK_EVENT, canFollowUp, completionFollowUpDraft, doneDateOf, normalizeFollowUpTag, peekNavigationTarget, resolveTaskRef, taskLink } from './utils/followUp.js';
 import { buildLinkIndex, canLinkTask, findBacklinks, taskThread } from './utils/taskLinks.js';
 import ObsidianSyncToast from './components/ObsidianSyncToast.jsx';
 import { useSettingsLink } from './components/settings/settingsLink.js';
@@ -845,6 +845,20 @@ const DayPlanner = () => {
     window.addEventListener(PEEK_TASK_EVENT, onPeek);
     return () => window.removeEventListener(PEEK_TASK_EVENT, onPeek);
   }, []);
+  // The peek's "Go to task" (#2231), run after the render that follows it: a
+  // task form it saved has closed by then, and one whose save could not go
+  // through (an empty title, a recurring edit asking "this or all?") is still
+  // open, and stays where it is. Resolved again here, from the saved state.
+  const [peekGoTo, setPeekGoTo] = useState(null);
+  useEffect(() => {
+    if (!peekGoTo) return;
+    setPeekGoTo(null);
+    if (peekGoTo.fromForm && showAddTask) return;
+    const target = peekNavigationTarget(resolveTaskRef(peekGoTo.id, { tasks, unscheduledTasks, recurringTasks, recycleBin }));
+    if (target) handleSpotlightSelect(target);
+    // Runs on the request; the lists are read as that render left them.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [peekGoTo]);
   // The peeked task's whole thread (#2145): read only while the peek is open.
   const peekThread = useMemo(() => (peekTaskId == null ? null
     : taskThread(peekTaskId, buildLinkIndex({ tasks, unscheduledTasks }), { tasks, unscheduledTasks, recurringTasks, recycleBin })),
@@ -1722,6 +1736,7 @@ const DayPlanner = () => {
     calendarRef,
     closePlanner,
     openGoalsTarget,
+    setDesktopSpace,
   });
 
   const {
@@ -8176,18 +8191,13 @@ const DayPlanner = () => {
           thread={peekThread}
           darkMode={darkMode}
           onClose={() => setPeekTaskId(null)}
-          // Going to the task leaves the form behind: offered only without one.
-          onShow={showAddTask ? null : () => {
-            const found = resolveTaskRef(peekTaskId, { tasks, unscheduledTasks, recurringTasks, recycleBin });
+          // With a task form open, going to the task saves the form first, as
+          // its own Save would (#2231); the effect above goes once it closed.
+          savesForm={showAddTask}
+          onShow={() => {
+            if (showAddTask) document.querySelector('form[data-task-form]')?.requestSubmit();
+            setPeekGoTo({ id: peekTaskId, fromForm: showAddTask });
             setPeekTaskId(null);
-            if (!found) return;
-            if (found.task.date) {
-              setDesktopSpace('calendar');
-              setSelectedDate(new Date(found.task.date + 'T12:00:00'));
-              if (isMobile || isTablet) setMobileActiveTab('timeline');
-            } else if (isMobile || isTablet) {
-              setMobileActiveTab('inbox');
-            }
           }}
         />
       )}

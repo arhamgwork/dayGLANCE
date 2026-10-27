@@ -16,9 +16,10 @@ const civil = (date) => new Date(`${date}T12:00:00`);
  * follow-ups can be walked back, and so do the tasks that link here
  * (`backlinks`, #2145), so a chain can be walked forward too; a longer chain
  * shows whole (`thread`, utils/taskLinks.js taskThread). `onShow`, when
- * given, closes this and goes to the task where it lives.
+ * given, closes this and goes to the task where it lives; `savesForm` says
+ * it saves the open task form first, and the button says so (#2231).
  */
-export default function TaskPeek({ found, backlinks = [], thread = null, onClose, onShow, darkMode }) {
+export default function TaskPeek({ found, backlinks = [], thread = null, onClose, onShow, savesForm = false, darkMode }) {
   const { t } = useTranslation();
   const closeRef = useRef(null);
 
@@ -95,7 +96,7 @@ export default function TaskPeek({ found, backlinks = [], thread = null, onClose
               <div className="pt-1 flex justify-end">
                 <button type="button" onClick={onShow} data-task-peek-show
                   className="text-sm font-medium text-blue-500 hover:text-blue-400">
-                  {t('followUp.peekShow')}
+                  {savesForm ? t('followUp.peekSaveAndShow') : t('followUp.peekShow')}
                 </button>
               </div>
             )}

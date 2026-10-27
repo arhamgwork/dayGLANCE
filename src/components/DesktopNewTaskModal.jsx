@@ -72,6 +72,7 @@ const DesktopNewTaskModal = () => {
   return (
         <div className="fixed inset-0 bg-black/50 flex justify-center overflow-y-auto py-6 z-[80]" onClick={() => { setShowAddTask(false); setShowNewTaskDeadlinePicker(false); setMobileEditingTask(null); }}>
           <form
+            data-task-form
             className={`${cardBg} rounded-lg shadow-xl p-6 ${borderClass} border max-w-lg w-full mx-4 my-auto`}
             onClick={(e) => e.stopPropagation()}
             onSubmit={(e) => {
