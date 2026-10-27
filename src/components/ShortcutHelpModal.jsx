@@ -65,6 +65,7 @@ const ShortcutHelpModal = () => {
               return [
                 [isMac ? '⌘K' : 'Ctrl+K', t('shortcuts.searchTasks')],
                 ['/', t('shortcuts.filterByTag')],
+                ['#', t('shortcuts.manageTags')],
                 ['F', t('shortcuts.focusMode')],
                 ['G', t('shortcuts.goalsProjects')],
                 ['H', t('shortcuts.habitsShortcut')],

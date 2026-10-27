@@ -36,3 +36,10 @@ describe('ShortcutHelpModal view keys', () => {
     expect(keys(await render({ canShowViewCycler: false, schedOnlyCycler: false, hiddenViews: { desktop: [] } }))).toEqual([]);
   });
 });
+
+describe('ShortcutHelpModal app keys', () => {
+  it('lists # for the Tag manager, under / for the tag filter', async () => {
+    const html = await render({ canShowViewCycler: true, hiddenViews: { desktop: [] } });
+    expect(html).toMatch(/>\/<\/kbd><span[^>]*>Filter by tag<\/span>.*?>#<\/kbd><span[^>]*>Manage tags<\/span>/s);
+  });
+});

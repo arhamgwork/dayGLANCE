@@ -644,6 +644,7 @@ These are the ones worth knowing by heart:
 | `R` | Routines dashboard |
 | `H` | Habits |
 | `/` | Toggle tag filter |
+| `#` | Manage tags (rename, merge or remove a tag across tasks) |
 | `Ctrl/Cmd + Z` | Undo |
 | `Ctrl/Cmd + Shift + Z` / `Ctrl/Cmd + Y` | Redo |
 | `D` | Toggle dark mode |

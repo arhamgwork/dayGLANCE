@@ -3621,7 +3621,7 @@ const DayPlanner = () => {
     showHabitModal, showFramesModal, frameAdjustModal, showRescheduleModal,
     showDayDial, setShowDayDial,
     plannerProjectId,
-    showTagManager,
+    showTagManager, setShowTagManager,
     selectedDate, hoverPreviewTime, hoverPreviewDate,
     setNewTask, setShowAddTask, setHoverPreviewTime, setHoverPreviewDate,
     routinesEnabled, setRoutinesEnabled, openRoutinesDashboardRef,

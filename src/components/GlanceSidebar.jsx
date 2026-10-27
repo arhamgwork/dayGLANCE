@@ -217,6 +217,21 @@ const GlanceSidebar = ({ variant = 'desktop' }) => {
                   )}
                 </div>
               </div>
+              {/* Rename, merge or remove tags across tasks (#2136). At the top,
+                  above the list, with its key: at the foot of a long list it
+                  went unfound. */}
+              {setShowTagManager && (
+                <button
+                  type="button"
+                  data-manage-tags
+                  onClick={() => { setShowMobileTagFilter(false); setShowTagManager(true); }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 border-b text-sm text-blue-500 hover:text-blue-600 ${borderClass}`}
+                >
+                  <Hash size={12} />
+                  <span className="flex-1 text-left">{t('tagManager.manage')}</span>
+                  {isDesktop && <kbd className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${darkMode ? 'bg-white/10 text-gray-400' : 'bg-stone-100 text-stone-500'}`}>#</kbd>}
+                </button>
+              )}
               <div className="py-1 max-h-[300px] overflow-y-auto">
                 {filterableTags.map(tag => {
                   const highlightDates = effectiveViewMode === 'sched' && weekViewDates.length ? weekViewDates : visibleDates;
@@ -248,18 +263,6 @@ const GlanceSidebar = ({ variant = 'desktop' }) => {
                   );
                 })}
               </div>
-              {/* Rename, merge or remove tags across tasks (#2136). */}
-              {setShowTagManager && (
-                <button
-                  type="button"
-                  data-manage-tags
-                  onClick={() => { setShowMobileTagFilter(false); setShowTagManager(true); }}
-                  className={`w-full flex items-center gap-2 px-3 py-2 border-t text-sm text-blue-500 hover:text-blue-600 ${borderClass}`}
-                >
-                  <Hash size={12} />
-                  {t('tagManager.manage')}
-                </button>
-              )}
             </div>
           </>
           );
