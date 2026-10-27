@@ -9,7 +9,7 @@
 // projects and areas (#2131).
 //
 // Goals and projects match on their title, then their notes (`description`);
-// areas on their title. Notes kept in a linked Obsidian note live in the
+// areas on their name (an area's `name`; goals and projects have `title`). Notes kept in a linked Obsidian note live in the
 // vault, not the record, and are not searched (#1672). They match only those the Goals & Projects space draws a card or a filter for:
 // not archived, visible to this user, and for a project, standalone or under
 // a goal that is itself drawn. Selecting one opens the space on it, so a
@@ -122,7 +122,9 @@ export function searchGoalsAndProjects({ goals = [], projects = [], areas = [], 
     if (project.goalId && !goal) continue;
     push(project, 'project', 'Project', getProjectColor(project, goal));
   }
-  for (const area of areas) push(area, 'area', 'Area', area.color);
+  // An area is named by `name`, not `title` (useGoalsProjects addArea): read
+  // as a title it never matched, and its row had no title.
+  for (const area of areas) push({ ...area, title: area.name }, 'area', 'Area', area.color);
   return results;
 }
 
