@@ -64,6 +64,7 @@ export default function useKeyboardShortcuts({
   // an open Project Planner owns its keys too (arrows, Enter)
   plannerProjectId = null,
   showTagManager = false,
+  setShowTagManager = () => {},
   // bucket list ('u')
   showBucketList, setShowBucketList,
   // new task ('n' / 'i')
@@ -312,6 +313,17 @@ export default function useKeyboardShortcuts({
       if (e.key === '/' && noModifiers && (isMobile || tabletActiveTab === 'glance')) {
         e.preventDefault();
         setShowMobileTagFilter(prev => !prev);
+      }
+
+      // '#' opens the Tag manager (rename, merge or remove tags across tasks,
+      // #2136), which was found only at the foot of the tag filter. '#' is
+      // already "tag" in a task title. Read from the character, so it works
+      // on any layout; Alt is allowed, as some Mac layouts type it with
+      // Option+3. Not a calendar shortcut: it works in the Goals space too.
+      if (e.key === '#' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        setShowMobileTagFilter(false);
+        setShowTagManager(true);
       }
 
       // 'b' to toggle backup menu

@@ -268,3 +268,43 @@ describe('isTextEntryTarget', () => {
     expect(isTextEntryTarget(null)).toBe(false);
   });
 });
+
+// The Tag manager was found only at the foot of the tag filter (a user wrote
+// in, 2026-10-27); '#' opens it from anywhere. 't' stays "today".
+describe('useKeyboardShortcuts — the # key', () => {
+  it('opens the Tag manager and closes the tag filter it would sit under', () => {
+    const p = useMounted({ setShowTagManager: vi.fn() });
+    const e = press('#');
+    expect(p.setShowTagManager).toHaveBeenCalledWith(true);
+    expect(p.setShowMobileTagFilter).toHaveBeenCalledWith(false);
+    expect(e.preventDefault).toHaveBeenCalled();
+  });
+
+  it('works in the Goals space too: tags are not a calendar thing', () => {
+    expect(isCalendarOnlyShortcut({ key: '#', ctrlKey: false, metaKey: false, altKey: false })).toBe(false);
+    const p = useMounted({ setShowTagManager: vi.fn(), showGoalsDashboard: true });
+    press('#');
+    expect(p.setShowTagManager).toHaveBeenCalledWith(true);
+  });
+
+  it('takes Option on a Mac layout that types # with it, never Ctrl or Cmd', () => {
+    const p = useMounted({ setShowTagManager: vi.fn() });
+    press('#', { altKey: true });
+    expect(p.setShowTagManager).toHaveBeenCalledTimes(1);
+    press('#', { ctrlKey: true });
+    press('#', { metaKey: true });
+    expect(p.setShowTagManager).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves a # typed in a field, or behind a modal, alone; t is still today', () => {
+    const p = useMounted({ setShowTagManager: vi.fn() });
+    press('#', { target: { tagName: 'INPUT' } });
+    expect(p.setShowTagManager).not.toHaveBeenCalled();
+    press('t');
+    expect(p.goToToday).toHaveBeenCalledTimes(1);
+    expect(p.setShowTagManager).not.toHaveBeenCalled();
+    const behind = useMounted({ setShowTagManager: vi.fn(), showSettings: true });
+    press('#');
+    expect(behind.setShowTagManager).not.toHaveBeenCalled();
+  });
+});
