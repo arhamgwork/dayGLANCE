@@ -2722,6 +2722,7 @@
     "peekOn": "计划于 {{date}}",
     "peekDeleted": "在回收站中",
     "peekGone": "此任务已不在 dayGLANCE 中。",
+    "peekSaveAndShow": "保存并前往任务",
     "peekShow": "前往任务"
   },
   "tagManager": {

@@ -44,4 +44,28 @@ describe('handleSpotlightSelect', () => {
     expect(openGoalsTarget.mock.calls).toEqual([['goal', 'g1'], ['project', 'p1'], ['area', 'a1']]);
     expect(closePlanner).toHaveBeenCalledTimes(3);
   });
+
+  // #2231: the calendar and the Inbox are hidden and inert in the Goals &
+  // Projects space, so a result that lives there leaves it; a goal, project or
+  // area result is the Goals space and stays.
+  it('leaves the Goals space for a result on the calendar or in the Inbox', () => {
+    vi.useFakeTimers();
+    const setDesktopSpace = vi.fn();
+    const { handleSpotlightSelect } = useNavigation({
+      visibleDays: 1, effectiveViewMode: 'multi',
+      selectedDate: new Date(2026, 9, 19), setSelectedDate: vi.fn(), setShowMonthView: vi.fn(),
+      setShowSpotlight: vi.fn(), isMobile: false, setMobileActiveTab: vi.fn(), setTabletActiveTab: vi.fn(),
+      setInboxProjectFilter: vi.fn(), setInboxArchivedExpanded: vi.fn(), setDailyNotesModalDate: vi.fn(),
+      calendarRef: { current: null }, setDesktopSpace,
+    });
+
+    handleSpotlightSelect({ source: 'scheduled', task: { id: 's1', date: '2026-10-20' } });
+    handleSpotlightSelect({ source: 'inbox', task: { id: 'i1' } });
+    expect(setDesktopSpace.mock.calls).toEqual([['calendar'], ['calendar']]);
+
+    setDesktopSpace.mockClear();
+    handleSpotlightSelect({ source: 'project', task: { id: 'p1' } });
+    expect(setDesktopSpace).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
 });

@@ -2725,6 +2725,7 @@
     "peekOn": "Prévue le {{date}}",
     "peekDeleted": "Dans la corbeille",
     "peekGone": "Cette tâche n’est plus dans dayGLANCE.",
+    "peekSaveAndShow": "Enregistrer et aller à la tâche",
     "peekShow": "Aller à la tâche"
   },
   "tagManager": {

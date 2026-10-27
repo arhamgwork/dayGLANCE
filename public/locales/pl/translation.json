@@ -2832,6 +2832,7 @@
     "peekOn": "Zaplanowane na {{date}}",
     "peekDeleted": "W koszu",
     "peekGone": "Tego zadania nie ma już w dayGLANCE.",
+    "peekSaveAndShow": "Zapisz i przejdź do zadania",
     "peekShow": "Przejdź do zadania"
   },
   "tagManager": {

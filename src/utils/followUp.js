@@ -144,3 +144,20 @@ export function resolveTaskRef(id, { tasks = [], unscheduledTasks = [], recurrin
   if (deleted) return { task: deleted, where: 'deleted' };
   return null;
 }
+
+/**
+ * Where the peek's "Go to task" takes a resolved task (#2231), in the shape
+ * search's navigation takes (useNavigation handleSpotlightSelect), so both
+ * go the same way: the day it is on, scrolled to and highlighted, or its row
+ * in the Inbox. An occurrence of a series is shown on its own day (its id is
+ * the card's). Null where there is nowhere to go: a deleted task.
+ */
+export function peekNavigationTarget(found) {
+  const task = found?.task;
+  if (!task) return null;
+  if (found.where === 'calendar' || found.where === 'recurring') {
+    return task.date ? { task, source: 'scheduled' } : null;
+  }
+  if (found.where === 'inbox') return { task, source: task.archived ? 'archived' : 'inbox' };
+  return null;
+}

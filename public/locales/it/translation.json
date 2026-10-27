@@ -2727,6 +2727,7 @@
     "peekOn": "Pianificata per il {{date}}",
     "peekDeleted": "Nel cestino",
     "peekGone": "Questa attività non è più in dayGLANCE.",
+    "peekSaveAndShow": "Salva e vai all'attività",
     "peekShow": "Vai all'attività"
   },
   "tagManager": {
