@@ -1380,6 +1380,7 @@
     "resultsCount_one": "{{count}} result",
     "resultsCount_other": "{{count}} results",
     "typeToSearch": "Type to search...",
+    "syntaxHint": "Several words find tasks with all of them · \"exact phrase\" · * any text · ? one character · -word leaves out",
     "noResults": "No results found",
     "groupToday": "Today",
     "groupThisWeek": "This week",

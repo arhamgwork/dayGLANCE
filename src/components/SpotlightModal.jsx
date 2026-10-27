@@ -61,7 +61,11 @@ const SpotlightModal = () => {
         {/* Results */}
         <div className="max-h-[50vh] overflow-y-auto">
           {!spotlightQuery.trim() ? (
-            <div className={`px-4 py-8 text-center text-sm ${textSecondary}`}>{t('spotlight.typeToSearch')}</div>
+            <div className={`px-4 py-8 text-center text-sm ${textSecondary}`}>
+              {t('spotlight.typeToSearch')}
+              {/* The query language (utils/searchQuery.js, #2235). */}
+              <div data-spotlight-syntax className="mt-2 text-xs opacity-75">{t('spotlight.syntaxHint')}</div>
+            </div>
           ) : spotlightResults.length === 0 ? (
             <div className={`px-4 py-8 text-center text-sm ${textSecondary}`}>{t('spotlight.noResults')}</div>
           ) : (() => {

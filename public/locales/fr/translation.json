@@ -1380,6 +1380,7 @@
     "resultsCount_one": "{{count}} résultat",
     "resultsCount_other": "{{count}} résultats",
     "typeToSearch": "Tapez pour rechercher…",
+    "syntaxHint": "Plusieurs mots trouvent les tâches qui les contiennent tous · \"expression exacte\" · * n’importe quel texte · ? un caractère · -mot exclut",
     "noResults": "Aucun résultat",
     "groupToday": "Aujourd'hui",
     "groupThisWeek": "Cette semaine",

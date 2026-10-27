@@ -1417,6 +1417,7 @@
     "resultsCount_many": "{{count}} wyników",
     "resultsCount_other": "{{count}} wyniku",
     "typeToSearch": "Wpisz, aby wyszukać...",
+    "syntaxHint": "Kilka słów znajduje zadania zawierające wszystkie · \"dokładna fraza\" · * dowolny tekst · ? jeden znak · -słowo wyklucza",
     "noResults": "Brak wyników",
     "groupToday": "Dzisiaj",
     "groupThisWeek": "W tym tygodniu",

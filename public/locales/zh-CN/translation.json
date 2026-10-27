@@ -1380,6 +1380,7 @@
     "resultsCount_one": "{{count}} 个结果",
     "resultsCount_other": "{{count}} 个结果",
     "typeToSearch": "键入以搜索...",
+    "syntaxHint": "多个关键词：查找同时包含所有关键词的任务 · \"精确短语\" · * 任意文字 · ? 单个字符 · -关键词 排除",
     "noResults": "没有找到结果",
     "groupToday": "今天",
     "groupThisWeek": "本周",
