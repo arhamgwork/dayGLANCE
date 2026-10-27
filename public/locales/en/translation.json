@@ -1545,6 +1545,7 @@
     "whatsInRoutine": "What’s in today’s routine?",
     "everyDay": "Every Day",
     "done": "Done",
+    "allDone": "All done for today",
     "forOwner": "Routines for",
     "unassignedHint": "Some routines aren't assigned to anyone yet. Claim them as yours so they stay tied to you across devices.",
     "claim": "Claim",

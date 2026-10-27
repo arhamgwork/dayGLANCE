@@ -1545,6 +1545,7 @@
     "whatsInRoutine": "Que contient la routine d'aujourd'hui ?",
     "everyDay": "Chaque jour",
     "done": "Terminé",
+    "allDone": "Tout est fait pour aujourd’hui",
     "forOwner": "Routines pour",
     "unassignedHint": "Certaines routines ne sont encore attribuées à personne. Attribuez-les-vous afin qu’elles restent associées à votre profil sur tous vos appareils.",
     "claim": "M’attribuer",
