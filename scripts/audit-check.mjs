@@ -68,6 +68,12 @@ const ACK = {
     reason: 'Quadratic selector parsing can exhaust CPU. Tailwind 3 runs at build time over our own stylesheets, never over outside input. The fix is 7.1.6, a major above the ^6 tailwindcss 3 depends on; revisit with the tailwind 4 upgrade.',
     review: '2026-12-31',
   },
+  // Published 2026-10-28, every release affected (latest is 4.3.1, from 2023).
+  'GHSA-gcqx-w48m-w2h4': {
+    disposition: 'accept', pkg: 'deepmerge (via vite-plugin-pwa: workbox-build, @rollup/plugin-node-resolve)',
+    reason: 'mergeObject() can return objects with a poisoned prototype. Only the PWA build uses it, merging rollup\'s own resolver options on the build machine, never outside input; `npm ls --omit=dev` finds none. No patched version (all >=4.2.0 <=4.3.1); npm\'s only offer is vite-plugin-pwa 0.2.1, a major downgrade.',
+    review: '2026-12-31',
+  },
   'GHSA-hp3w-g68c-fv3c': {
     disposition: 'accept', pkg: 'sprintf-js (via electron-builder: @electron/get, global-agent, roarr)',
     reason: 'Unbounded precision specifiers in a format string can hang the process. Only the desktop packager\'s logger uses it, on the build machine, with its own format strings. No patched version (every release affected).',
