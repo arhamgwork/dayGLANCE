@@ -26,17 +26,56 @@ const peekTask = (e, id) => {
 
 // Render formatted text with URLs, **bold**, *italic*, __underline__, and
 // [links](dayglance://task?id=…) to other tasks
+// A Markdown table's row: its cells, trimmed. The outer pipes are optional,
+// and \| is a pipe inside a cell.
+const splitTableRow = (line) => {
+  let row = line.trim();
+  if (row.startsWith('|')) row = row.slice(1);
+  if (row.endsWith('|') && !row.endsWith('\\|')) row = row.slice(0, -1);
+  return row.split(/(?<!\\)\|/).map((cell) => cell.trim().replace(/\\\|/g, '|'));
+};
+const TABLE_DELIMITER_CELL = /^:?-+:?$/;
+
+/**
+ * The Markdown table starting at `lines[i]`, if one does (#2247): a header
+ * row holding a pipe, then a delimiter row of dashes (`---`, `:--`, `:-:`,
+ * `--:` for left, center, right) with as many cells, then the body rows that
+ * follow, up to a line with no pipe. A body row is padded or cut to the
+ * header's width. Null when `lines[i]` does not start a table.
+ *
+ * @returns {{ header: string[], align: Array<'left'|'center'|'right'|null>, rows: string[][], next: number } | null}
+ */
+export const markdownTableAt = (lines, i) => {
+  const head = lines[i];
+  const delimiter = lines[i + 1];
+  if (!head || !head.includes('|') || !delimiter || !/^[\s|:-]+$/.test(delimiter) || !delimiter.includes('-')) return null;
+  const header = splitTableRow(head);
+  const marks = splitTableRow(delimiter);
+  if (marks.length !== header.length || !marks.every((c) => TABLE_DELIMITER_CELL.test(c))) return null;
+  const align = marks.map((c) => (c.startsWith(':') && c.endsWith(':') ? 'center' : c.endsWith(':') ? 'right' : c.startsWith(':') ? 'left' : null));
+  const rows = [];
+  let next = i + 2;
+  while (next < lines.length && lines[next].includes('|') && lines[next].trim()) {
+    const cells = splitTableRow(lines[next]).slice(0, header.length);
+    while (cells.length < header.length) cells.push('');
+    rows.push(cells);
+    next += 1;
+  }
+  return { header, align, rows, next };
+};
+
 export const renderFormattedText = (text) => {
   if (!text) return null;
 
   let gk = 0; // global key counter
 
-  // Inline formatting: `code`, **bold**, *italic*, __underline__, URLs
+  // Inline formatting: `code`, **bold**, *italic*, __underline__,
+  // ~~strikethrough~~, URLs
   const renderInline = (str) => {
     if (!str) return null;
     const parts = [];
     let last = 0;
-    const re = /(`([^`]+)`)|\[([^\]\n]+)\]\(dayglance:\/\/task\?id=([^)\s]+)\)|\*\*(.+?)\*\*|\*(.+?)\*|__(.+?)__|(https?:\/\/[^\s<>"{}|\\^`[\]]+)/g;
+    const re = /(`([^`]+)`)|\[([^\]\n]+)\]\(dayglance:\/\/task\?id=([^)\s]+)\)|\*\*(.+?)\*\*|\*(.+?)\*|__(.+?)__|~~(.+?)~~|(https?:\/\/[^\s<>"{}|\\^`[\]]+)/g;
     let m;
     while ((m = re.exec(str)) !== null) {
       if (m.index > last) parts.push(str.slice(last, m.index));
@@ -59,11 +98,13 @@ export const renderFormattedText = (text) => {
       } else if (m[7]) {
         parts.push(<span key={gk++} className="underline">{m[7]}</span>);
       } else if (m[8]) {
+        parts.push(<s key={gk++}>{m[8]}</s>);
+      } else if (m[9]) {
         parts.push(
-          <a key={gk++} href={m[8]} target="_blank" rel="noopener noreferrer"
+          <a key={gk++} href={m[9]} target="_blank" rel="noopener noreferrer"
             className="text-blue-400 hover:text-blue-300 underline break-all"
             onClick={(e) => e.stopPropagation()}
-          >{m[8]}</a>
+          >{m[9]}</a>
         );
       }
       last = m.index + m[0].length;
@@ -97,7 +138,39 @@ export const renderFormattedText = (text) => {
     }
 
     const lines = seg.c.split('\n');
-    for (const line of lines) {
+    for (let li = 0; li < lines.length; li++) {
+      const line = lines[li];
+
+      // Table (#2247): several lines, drawn as one, scrolling sideways when wide.
+      const table = markdownTableAt(lines, li);
+      if (table) {
+        const cellStyle = (i) => ({ borderColor: 'rgba(128,128,128,0.35)', textAlign: table.align[i] || 'left' });
+        out.push(
+          <div key={gk++} data-note-table className="overflow-x-auto my-1">
+            <table className="text-sm border-collapse whitespace-normal">
+              <thead>
+                <tr style={{ background: 'rgba(128,128,128,0.12)' }}>
+                  {table.header.map((cell, i) => (
+                    <th key={i} className="border px-2 py-1 font-semibold" style={cellStyle(i)}>{renderInline(cell)}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {table.rows.map((row, r) => (
+                  <tr key={r}>
+                    {row.map((cell, i) => (
+                      <td key={i} className="border px-2 py-1 align-top" style={cellStyle(i)}>{renderInline(cell)}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+        li = table.next - 1;
+        continue;
+      }
+
       // Header: # through ######
       const hm = line.match(/^(#{1,6})\s+(.+)$/);
       if (hm) {
