@@ -58,6 +58,11 @@ function renderNoteContent(text, onWikilinkClick, darkMode, t) {
   });
 }
 
+// A blur because the user switched to another app or window, not because
+// they clicked elsewhere here: the editor keeps its place for their return.
+// (The window has already lost focus when the editor's blur arrives.)
+const leftTheWindow = () => typeof document !== 'undefined' && typeof document.hasFocus === 'function' && !document.hasFocus();
+
 const NotesSubtasksPanel = ({
   task,
   isInbox,
@@ -451,6 +456,10 @@ const NotesSubtasksPanel = ({
   const handleNotesBlur = () => {
     setPicker(null);
     if (localNotes !== ownNotes) updateTaskNotes(task.id, localNotes, isInbox);
+    // Leaving the note shows it formatted, as Shift+Enter does and as the
+    // linked note's editor already did (#2247): it used to stay raw until the
+    // panel was reopened. An empty note stays open for typing.
+    if (localNotes && !leftTheWindow()) setIsEditingNotes(false);
   };
 
   // Called from the add-subtask input's Enter keydown and nothing else.
@@ -595,7 +604,7 @@ const NotesSubtasksPanel = ({
                     onBlur={() => {
                       const text = linkedNoteTextsRef.current[noteName] ?? '';
                       saveLinkedNote(noteName, text);
-                      if (text) setLinkedNoteEditing(prev => ({ ...prev, [noteName]: false }));
+                      if (text && !leftTheWindow()) setLinkedNoteEditing(prev => ({ ...prev, [noteName]: false }));
                     }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && e.shiftKey) {
