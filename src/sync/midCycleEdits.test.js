@@ -135,6 +135,25 @@ describe('#2233: an edit made while a WebDAV/folder cycle is in flight', () => {
     expect(byId(d.live.tasks, 'a')).toMatchObject({ completed: true, lastModified: T2 });
   });
 
+  // The reporter's other case (2026-10-28): "schedule to next free slot" in the
+  // Planner undone. A move between lists: the task leaves the Inbox and joins
+  // the scheduled list with the stamp it had (stampTimestamps leaves a row new
+  // to a list as it is), so the re-merge meets one id in both lists at an
+  // equal stamp, which the merge's cross-list rule settles on the scheduled one.
+  it('a task scheduled out of the Inbox during the upload stays scheduled, once', async () => {
+    const inboxB = { ...task('b'), date: undefined, startTime: undefined };
+    const local = { tasks: [task('a')], unscheduledTasks: [inboxB] };
+    const d = device({ local, remote: envelope({ tasks: [task('a', { title: 'a renamed', lastModified: T1 })], unscheduledTasks: [inboxB] }) });
+    await d.syncWithEditDuring((dev) => {
+      const moving = dev.live.unscheduledTasks.find((t) => t.id === 'b');
+      dev.live.unscheduledTasks = dev.live.unscheduledTasks.filter((t) => t.id !== 'b');
+      dev.live.tasks = [...dev.live.tasks, { ...moving, date: '2026-10-27', startTime: '14:00' }];
+    });
+    expect(byId(d.live.tasks, 'a').title).toBe('a renamed');
+    expect(byId(d.live.tasks, 'b')).toMatchObject({ date: '2026-10-27', startTime: '14:00' });
+    expect(byId(d.live.unscheduledTasks, 'b')).toBeUndefined();
+  });
+
   it('a deletion from the remote still lands when another task was edited mid-cycle', async () => {
     const local = { tasks: [task('a'), task('b')], unscheduledTasks: [], deletedTaskIds: {} };
     const d = device({ local, remote: envelope({ tasks: [task('b')], unscheduledTasks: [], deletedTaskIds: { a: T1 } }) });
