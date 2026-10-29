@@ -1,5 +1,7 @@
 # dayGLANCE
 
+> **About this fork:** a personal modification of [dayGLANCE](https://github.com/krelltunez/dayglance) by krelltunez (MIT License, original copyright kept in [LICENSE](LICENSE)). It adds a voice day planner: one big mic button, speak a messy list of tasks, and the app splits them, guesses durations, fits them around a fixed routine (wake, sleep, meals; Settings › Notifications › Day planner), shows a plan to approve with one tap, then sets an exact Android alarm for each task that reads it out loud. Works offline without an AI key (built-in parser) and without Google Play Services. Build the `github` flavor (`assembleGithubDebug`) for a version without the Play billing wall.
+
 **Your day, at a glance.** A privacy-first day planner with visual time-blocking, deep integrations, and zero lock-in. Use it free at [dayglance.app](https://dayglance.app) or self-host it on your own server. Your data stays on your device, and nothing is ever sent to a server unless you choose to sync it yourself.
 
 Part of the **GLANCE family**: focused, standalone apps connected through a shared intent protocol. See also dayGLANCE (today), [lastGLANCE](https://github.com/krelltunez/lastGLANCE) (recent upkeep), and [lifeGLANCE](https://github.com/krelltunez/lifeGLANCE) (your whole timeline).
