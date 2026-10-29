@@ -118,6 +118,12 @@ class ReminderReceiver : BroadcastReceiver() {
 
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(notifId, builder.build())
+
+        // Day planner: say it out loud, e.g. "Call mom. Starting now".
+        if (intent.getBooleanExtra(EXTRA_SPEAK, false)) {
+            val spoken = if (body.isBlank()) title else "$title. $body"
+            ReminderSpeaker.speak(context, spoken, goAsync())
+        }
     }
 
     companion object {
@@ -127,5 +133,6 @@ class ReminderReceiver : BroadcastReceiver() {
         const val EXTRA_BODY = "reminder_body"
         const val EXTRA_TYPE = "reminder_type"
         const val EXTRA_IS_CALENDAR = "reminder_is_calendar"
+        const val EXTRA_SPEAK = "reminder_speak"
     }
 }

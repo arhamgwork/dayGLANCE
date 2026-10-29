@@ -503,12 +503,33 @@ class NotificationBridge(private val context: Context) {
             putExtra(ReminderReceiver.EXTRA_BODY, r.getString("body"))
             putExtra(ReminderReceiver.EXTRA_TYPE, r.getString("type"))
             putExtra(ReminderReceiver.EXTRA_IS_CALENDAR, r.getBoolean("isCalendarEvent"))
+            putExtra(ReminderReceiver.EXTRA_SPEAK, r.optBoolean("speak", false))
         }
         val pi = PendingIntent.getBroadcast(
             context, id.hashCode(), intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        scheduleAlarm(pi, r.getLong("triggerAtMillis"))
+        if (r.optBoolean("speak", false)) {
+            scheduleAlarmClock(pi, r.getLong("triggerAtMillis"))
+        } else {
+            scheduleAlarm(pi, r.getLong("triggerAtMillis"))
+        }
+    }
+
+    /**
+     * Day planner alarms: setAlarmClock is the one AlarmManager call Doze never
+     * defers or rate-limits, and the system shows it as an upcoming alarm on the
+     * lock screen. Falls back to [scheduleAlarm] when exact alarms are denied.
+     */
+    private fun scheduleAlarmClock(pi: PendingIntent, triggerAtMillis: Long) {
+        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !am.canScheduleExactAlarms()) {
+            scheduleAlarm(pi, triggerAtMillis)
+            return
+        }
+        runCatching {
+            am.setAlarmClock(AlarmManager.AlarmClockInfo(triggerAtMillis, tapPendingIntent()), pi)
+        }.onFailure { scheduleAlarm(pi, triggerAtMillis) }
     }
 
     companion object {

@@ -10,6 +10,7 @@ import { isNativeAndroid, isNativeApp, nativeShowNotification, nativeShowTaskNot
 // sounds and notifications don't fire twice (once per renderer process).
 import { isTrayMode } from '../utils/trayMode.js';
 import { writeItem } from '../utils/storageWrites.js';
+import { loadDayRoutine } from '../utils/dayRoutine.js';
 
 // Pure local helpers
 const timeToMinutes = (time) => {
@@ -305,7 +306,15 @@ export default function useReminderEngine({
     if (reminderSettings.enabled) {
       const todayRegular = tasks.filter(t => t.date === todayStr && !t.completed && isVisibleForUser(t));
       const todayRecurring = expandedRecurringTasks.filter(t => t.date === todayStr && isVisibleForUser(t));
-      const allTodayTasks = [...todayRegular, ...todayRecurring];
+      // Tomorrow's one-off tasks too, so a day planned the night before rings
+      // in the morning even if the app is never opened in between.
+      const tomorrowMidnight = new Date(todayMidnight);
+      tomorrowMidnight.setDate(tomorrowMidnight.getDate() + 1);
+      const tomorrowStr = dateToString(tomorrowMidnight);
+      const tomorrowRegular = tasks.filter(t => t.date === tomorrowStr && !t.completed && isVisibleForUser(t));
+      const allTodayTasks = [...todayRegular, ...todayRecurring, ...tomorrowRegular];
+      // Day planner: the alarm reads the task out loud (Android).
+      const speak = loadDayRoutine().speakAlarms;
 
       for (const task of allTodayTasks) {
         if (task.completed) continue;
@@ -313,8 +322,9 @@ export default function useReminderEngine({
         const catSettings = reminderSettings.categories?.[category];
         if (!catSettings) continue;
         const points = getReminderPoints(task, catSettings, reminderSettings.morningReminderTime);
+        const dayStart = task.date === tomorrowStr ? tomorrowMidnight : todayMidnight;
         for (const point of points) {
-          const triggerAtMillis = todayMidnight.getTime() + point.triggerMin * 60 * 1000;
+          const triggerAtMillis = dayStart.getTime() + point.triggerMin * 60 * 1000;
           if (triggerAtMillis <= now) continue;
           futureReminders.push({
             id: point.key,
@@ -326,6 +336,7 @@ export default function useReminderEngine({
             type: point.type,
             isCalendarEvent: !!(task.imported && !task.isTaskCalendar),
             triggerAtMillis,
+            speak: speak && point.type === 'start',
           });
         }
       }
