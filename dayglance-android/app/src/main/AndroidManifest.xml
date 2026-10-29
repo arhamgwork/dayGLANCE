@@ -45,7 +45,7 @@
          knownSigner needs Android 12; below it the permission is signature-only
          and the launcher stays in demo mode. -->
     <permission
-        android:name="com.dayglance.permission.LAUNCHER"
+        android:name="${launcherPermission}"
         android:label="@string/launcher_permission_label"
         android:description="@string/launcher_permission_description"
         android:protectionLevel="signature|knownSigner"
@@ -379,13 +379,13 @@
              with the automation receiver below but not its opt-in toggle. -->
         <provider
             android:name=".launcher.LauncherProvider"
-            android:authorities="com.dayglance.app.launcher"
+            android:authorities="${launcherAuthority}"
             android:exported="true"
-            android:readPermission="com.dayglance.permission.LAUNCHER" />
+            android:readPermission="${launcherPermission}" />
         <receiver
             android:name=".launcher.LauncherIntentReceiver"
             android:exported="true"
-            android:permission="com.dayglance.permission.LAUNCHER">
+            android:permission="${launcherPermission}">
             <intent-filter>
                 <action android:name="com.dayglance.app.launcher.CREATE" />
                 <action android:name="com.dayglance.app.launcher.COMPLETE" />
