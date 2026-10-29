@@ -23,6 +23,7 @@ export const SECTION_SEARCH = {
   inbox: ['settings.inbox', 'settings.inboxAutoArchive', 'settings.binAutoEmpty'],
   followUpTag: ['followUp.settingTitle', 'followUp.settingLabel'],
   experimental: ['settings.experimental', 'settings.enableJobo', 'settings.enableAspire'],
+  dayPlanner: ['dayPlanner.title', 'dayPlanner.wake', 'dayPlanner.sleep', 'dayPlanner.firstMeal', 'dayPlanner.mealCount', 'dayPlanner.speakAlarms'],
   notifications: ['settings.notifications', 'reminders.title', 'weeklyReview.title', 'reminders.hyperGlanceSessions', 'reminders.scheduledTasks', 'reminders.calendarEvents', 'reminders.morningReminderAt'],
   ai: ['settings.aiFeatures', 'settings.aiProvider', 'settings.aiApiKey', 'settings.aiModel'],
   cloudSync: ['settings.cloudSync', 'sync.form.encryptionTitle', 'sync.form.webdavTitle', 'sync.form.vaultTitle', 'icloudSync.title'],

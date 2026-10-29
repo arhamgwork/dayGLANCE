@@ -15,7 +15,9 @@ import org.json.JSONObject
  */
 object LauncherSnapshotRows {
 
-    const val AUTHORITY = "com.dayglance.app.launcher"
+    // Per flavor (app/build.gradle.kts): the Play build keeps the launcher
+    // contract's name; the sideload build has its own so both can install.
+    val AUTHORITY: String = com.dayglance.app.BuildConfig.LAUNCHER_AUTHORITY
 
     val COLLECTIONS: Set<String> = setOf("tasks", "goals", "projects", "routines", "frames", "weather", "dayShape", "meta")
 

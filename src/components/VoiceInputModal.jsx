@@ -7,6 +7,8 @@ import ClockTimePicker from './ClockTimePicker.jsx';
 import { supportsTranscription, PROVIDER_LABELS } from '../ai.js';
 import { renderTitle } from '../utils/textFormatting.jsx';
 import { voiceUsesAI } from '../utils/voiceAI.js';
+import useDayRoutine from '../hooks/useDayRoutine.js';
+import { routineSummary } from '../utils/dayPlanner.js';
 
 const VoiceInputModal = () => {
   const { t } = useTranslation();
@@ -30,6 +32,9 @@ const VoiceInputModal = () => {
     voiceParseWithAI, voiceApplyAllChanges,
     aiConfig,
   } = useFeaturesCtx();
+  const [routine] = useDayRoutine();
+  // A day plan: the planner gave times, and approving sets an alarm for each.
+  const planning = routine.autoPlan && !!voiceParsedTasks?.some(task => task.date && task.time);
 
   const priorityLabels = [
     t('voice.priorities.none', { defaultValue: 'None' }),
@@ -205,6 +210,13 @@ const VoiceInputModal = () => {
                     </p>
                   )}
 
+                  {/* The fixed routine the plan was built around */}
+                  {planning && (
+                    <p className={`text-xs ${textSecondary} mb-3`}>
+                      🔒 {routineSummary(routine).map(b => `${b.kind === 'meal' ? b.name : t(`dayPlanner.block.${b.kind}`, { defaultValue: b.name })} ${b.time}`).join(' · ')}
+                    </p>
+                  )}
+
                   {/* Parsed new tasks preview */}
                   {voiceParsedTasks && voiceParsedTasks.length > 0 && (
                   <div className="space-y-3">
@@ -288,6 +300,8 @@ const VoiceInputModal = () => {
                                     </span>
                                   )}
                                   {!task.date && <span className="italic">→ {t('common.toInbox')}</span>}
+                                  {task.unplaced && <span className="text-amber-500">{t('dayPlanner.noRoom', { defaultValue: 'no free time that day' })}</span>}
+                                  {planning && task.date && task.time && <span title={t('dayPlanner.alarmSet', { defaultValue: 'Alarm' })}>⏰</span>}
                                 </div>
                               </div>
                               <div className="flex items-center gap-1">
@@ -406,6 +420,7 @@ const VoiceInputModal = () => {
                             ? t('voice.applyEdit', { defaultValue: 'Apply Edit' })
                             : t('voice.applyEdits', { count: editCount, defaultValue: 'Apply Edits ({{count}})' });
                         }
+                        if (planning) return t('dayPlanner.approve', { count: newCount, defaultValue: 'Approve plan & set alarms ({{count}})' });
                         return newCount === 1
                           ? t('voice.addTask', { defaultValue: 'Add Task' })
                           : t('voice.addAll', { count: newCount, defaultValue: 'Add All ({{count}})' });

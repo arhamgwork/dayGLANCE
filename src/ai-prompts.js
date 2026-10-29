@@ -168,6 +168,9 @@ Rules:
 - If the transcript mentions multiple tasks/edits, return all of them
 - Be smart about splitting: "call mom and pick up groceries" = 2 new tasks
 - But "buy milk and eggs" = 1 task (single errand)
+- The transcript may be a messy, rambling list with filler words ("um", "I need to", "oh and"); drop the filler and keep only real tasks
+- Always give each new task a realistic "duration" estimate (e.g. a phone call 15, groceries 45, gym 60, laundry 45) unless the user said one
+- Leave "time" null unless the user said a time: the app fits untimed tasks into free slots itself. Leave "date" null unless a day was said
 - Infer reasonable tags from context (e.g. "gym" → "fitness")
 - For edits, match "taskMatch" against the existing tasks listed above — use a distinctive substring of the task title
 - Interpret relative dates ("tomorrow", "next Monday") relative to today (${todayDate})

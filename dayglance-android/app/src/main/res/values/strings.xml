@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">dayGLANCE</string>
+    <string name="app_name">Day Planner</string>
     <string name="launcher_permission_label">Read dayGLANCE data for GLANCElauncher</string>
     <string name="launcher_refresh_notification">Refreshing for GLANCElauncher</string>
     <string name="launcher_permission_description">Lets GLANCElauncher read the day\'s tasks, goals, projects, routines and frames, and send it tasks to create or complete.</string>

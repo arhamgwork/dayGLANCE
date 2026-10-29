@@ -2921,5 +2921,29 @@
       "tagRemoved": "Usunięto #{{from}}",
       "subtasksReordered": "Zmieniono kolejność podzadań w „{{title}}”"
     }
+  },
+  "dayPlanner": {
+    "title": "Planer dnia",
+    "autoPlan": "Planuj podyktowane zadania w moim dniu",
+    "hint": "Wypowiedz listę zadań; aplikacja dopasuje je do Twojej rutyny i ustawi alarm dla każdego.",
+    "wake": "Pobudka",
+    "sleep": "Sen",
+    "firstMeal": "Śniadanie",
+    "mealCount": "Posiłki dziennie",
+    "mealGap": "Godziny między posiłkami",
+    "mealMinutes": "Minuty na posiłek",
+    "buffer": "Przerwa między zadaniami (min)",
+    "speakAlarms": "Czytaj zadanie na głos, gdy dzwoni alarm",
+    "fab": "Podyktuj zadania",
+    "noRoom": "brak wolnego czasu tego dnia",
+    "alarmSet": "Alarm budzika",
+    "approve_one": "Zatwierdź plan i ustaw alarm",
+    "approve_few": "Zatwierdź plan i ustaw alarmy ({{count}})",
+    "approve_many": "Zatwierdź plan i ustaw alarmy ({{count}})",
+    "approve_other": "Zatwierdź plan i ustaw alarmy ({{count}})",
+    "block": {
+      "wake": "Pobudka",
+      "sleep": "Sen"
+    }
   }
 }

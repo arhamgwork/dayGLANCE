@@ -16,6 +16,11 @@
          expedited jobs and this permission is unused. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- Day planner: every planned task rings as a real alarm. USE_EXACT_ALARM
+         is granted at install (no Settings trip on Android 14+, where
+         SCHEDULE_EXACT_ALARM starts denied). Sideloaded builds only; Play
+         restricts it to alarm-clock apps. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Focus mode: Do Not Disturb control (requires user to grant DND access in system settings) -->
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
@@ -40,7 +45,7 @@
          knownSigner needs Android 12; below it the permission is signature-only
          and the launcher stays in demo mode. -->
     <permission
-        android:name="com.dayglance.permission.LAUNCHER"
+        android:name="${launcherPermission}"
         android:label="@string/launcher_permission_label"
         android:description="@string/launcher_permission_description"
         android:protectionLevel="signature|knownSigner"
@@ -60,6 +65,10 @@
         <package android:name="com.coloros.alarmclock" />
         <package android:name="com.huawei.deskclock" />
         <package android:name="com.hihonor.deskclock" />
+        <!-- Day planner: spoken alarms bind the installed text-to-speech engine. -->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
     </queries>
 
     <application
@@ -370,13 +379,13 @@
              with the automation receiver below but not its opt-in toggle. -->
         <provider
             android:name=".launcher.LauncherProvider"
-            android:authorities="com.dayglance.app.launcher"
+            android:authorities="${launcherAuthority}"
             android:exported="true"
-            android:readPermission="com.dayglance.permission.LAUNCHER" />
+            android:readPermission="${launcherPermission}" />
         <receiver
             android:name=".launcher.LauncherIntentReceiver"
             android:exported="true"
-            android:permission="com.dayglance.permission.LAUNCHER">
+            android:permission="${launcherPermission}">
             <intent-filter>
                 <action android:name="com.dayglance.app.launcher.CREATE" />
                 <action android:name="com.dayglance.app.launcher.COMPLETE" />

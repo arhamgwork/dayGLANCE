@@ -109,10 +109,20 @@ android {
         create("play") {
             dimension = "distribution"
             buildConfigField("boolean", "BILLING_ENABLED", "true")
+            manifestPlaceholders["launcherAuthority"] = "com.dayglance.app.launcher"
+            manifestPlaceholders["launcherPermission"] = "com.dayglance.permission.LAUNCHER"
+            buildConfigField("String", "LAUNCHER_AUTHORITY", "\"com.dayglance.app.launcher\"")
         }
+        // Sideload build (Day Planner): its own package, provider authority and
+        // permission, so it installs beside the store dayGLANCE. Android refuses
+        // a second app that declares the same authority or permission.
         create("github") {
             dimension = "distribution"
+            applicationId = "app.dayplanner.voice"
             buildConfigField("boolean", "BILLING_ENABLED", "false")
+            manifestPlaceholders["launcherAuthority"] = "app.dayplanner.voice.launcher"
+            manifestPlaceholders["launcherPermission"] = "app.dayplanner.voice.permission.LAUNCHER"
+            buildConfigField("String", "LAUNCHER_AUTHORITY", "\"app.dayplanner.voice.launcher\"")
         }
     }
 }

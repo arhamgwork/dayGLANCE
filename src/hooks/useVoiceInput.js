@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import i18n from 'i18next';
 import { aiTranscribe, aiJSON } from '../ai.js';
 import { voiceParseSystemPrompt, voiceParseUserPrompt } from '../ai-prompts.js';
@@ -12,6 +12,8 @@ import { parseTranscriptTasks } from '../utils/voiceQuickAdd.js';
 import { normalizeVoiceParseResult } from '../utils/voiceParseResult.js';
 import { voiceUsesAI, voiceTranscribesWithAI } from '../utils/voiceAI.js';
 import { speechRecognitionLocale } from '../utils/localeFormatting.js';
+import { loadDayRoutine } from '../utils/dayRoutine.js';
+import { planDay, parseTranscriptToPlan } from '../utils/dayPlanner.js';
 
 /**
  * Voice input pipeline — extracted from App.jsx (see "App.jsx — Ongoing
@@ -48,9 +50,26 @@ export default function useVoiceInput({
   setVoiceMicError,
   voiceRecorderRef, voiceAudioChunksRef, voiceAutoStartRef,
   voiceAllTagsRef, voiceBuildTaskContextRef, voiceResolveTaskMatchRef,
+  setReminderSettings,
 }) {
   // Always-fresh tag list for the inline parse in voiceStopRecording.
   voiceAllTagsRef.current = allTags;
+  // Always-fresh schedule for the day planner, read at parse time.
+  const plannerTasksRef = useRef(tasks);
+  plannerTasksRef.current = tasks;
+
+  // Day planner (Settings › Notifications › Day planner): when on, a voice
+  // dump is split into many tasks even without AI, and every task without a
+  // spoken time gets a slot around the routine before the preview shows it.
+  const planParsed = (list) => {
+    const routine = loadDayRoutine();
+    if (!routine.autoPlan) return list;
+    // Shown in the order of the day: dated + timed first, unplaced last.
+    const key = (t) => (t.date && t.time ? `0${t.date}T${t.time}` : t.date ? `1${t.date}` : '2');
+    return planDay(list, { routine, existingTasks: plannerTasksRef.current, now: new Date() })
+      .sort((a, b) => key(a).localeCompare(key(b)));
+  };
+  const offlineParse = (text) => (loadDayRoutine().autoPlan ? parseTranscriptToPlan(text) : parseTranscriptTasks(text));
 
   // ── Capability matrix ──────────────────────────────────────────────────────
   // Transcription (speech → text), in priority order:
@@ -79,7 +98,7 @@ export default function useVoiceInput({
     const trimmed = (text || '').trim();
     if (!trimmed) return;
     if (!canAIParse) {
-      setVoiceParsedTasks(parseTranscriptTasks(trimmed));
+      setVoiceParsedTasks(planParsed(offlineParse(trimmed)));
       setVoiceParsedEdits([]);
       return;
     }
@@ -97,7 +116,7 @@ export default function useVoiceInput({
       // below — deterministic parse plus a visible notice — instead of being
       // read as "nothing to do" (see voiceParseResult.js for the report).
       const { newTasks, edits } = normalizeVoiceParseResult(result);
-      setVoiceParsedTasks(newTasks.map(t => ({ ...t, title: cap(t.title) })));
+      setVoiceParsedTasks(planParsed(newTasks.map(t => ({ ...t, title: cap(t.title) }))));
       setVoiceParsedEdits(edits.map(edit => {
         const match = voiceResolveTaskMatchRef.current(edit.taskMatch);
         return { ...edit, resolvedTask: match?.task || null, source: match?.source || null };
@@ -109,7 +128,7 @@ export default function useVoiceInput({
       setVoiceParseError(parseErr?.code === 'VOICE_PARSE_SHAPE'
         ? i18n.t('voice.aiUnexpectedShape', { defaultValue: "The AI replied in a format the app couldn't read." })
         : parseErr.message);
-      setVoiceParsedTasks(parseTranscriptTasks(trimmed));
+      setVoiceParsedTasks(planParsed(offlineParse(trimmed)));
       setVoiceParsedEdits([]);
     }
     setVoiceIsParsing(false);
@@ -598,6 +617,20 @@ export default function useVoiceInput({
           }
         }
       }
+    }
+
+    // A planned day means alarms: switch on the at-start reminder for
+    // scheduled tasks, which the reminder engine hands to AlarmManager.
+    if (hasNewTasks && setReminderSettings && loadDayRoutine().autoPlan &&
+        voiceParsedTasks.some(p => p.date && p.time)) {
+      setReminderSettings(prev => ({
+        ...prev,
+        enabled: true,
+        categories: {
+          ...prev.categories,
+          scheduledTasks: { ...prev.categories?.scheduledTasks, atStart: true },
+        },
+      }));
     }
 
     setShowVoiceInput(false);

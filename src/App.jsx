@@ -99,6 +99,7 @@ import AutoBackupSettingsForm from './components/AutoBackupSettingsForm.jsx';
 import SettingsModal from './components/SettingsModal.jsx';
 import HelpLinks from './components/HelpLinks.jsx';
 import VoiceInputModal from './components/VoiceInputModal.jsx';
+import VoicePlanFab from './components/VoicePlanFab.jsx';
 import WeeklyReviewModal from './components/WeeklyReviewModal.jsx';
 import WeeklyReviewReminderCard from './components/WeeklyReviewReminderCard.jsx';
 import IncompleteTasksModal from './components/IncompleteTasksModal.jsx';
@@ -6091,6 +6092,7 @@ const DayPlanner = () => {
     setVoiceMicError,
     voiceRecorderRef, voiceAudioChunksRef, voiceAutoStartRef,
     voiceAllTagsRef, voiceBuildTaskContextRef, voiceResolveTaskMatchRef,
+    setReminderSettings,
   });
 
   // Archiving/unarchiving IS a modification, so it must bump lastModified — the
@@ -9203,6 +9205,7 @@ const DayPlanner = () => {
 
       {/* Voice Input Modal (Phase 1) */}
       <VoiceInputModal />
+      <VoicePlanFab />
       {/* GTD Frames Modal (Desktop/Tablet) */}
       {showFramesModal && !isMobile && <FramesModal />}
 
