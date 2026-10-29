@@ -6091,6 +6091,7 @@ const DayPlanner = () => {
     setVoiceMicError,
     voiceRecorderRef, voiceAudioChunksRef, voiceAutoStartRef,
     voiceAllTagsRef, voiceBuildTaskContextRef, voiceResolveTaskMatchRef,
+    setReminderSettings,
   });
 
   // Archiving/unarchiving IS a modification, so it must bump lastModified — the
