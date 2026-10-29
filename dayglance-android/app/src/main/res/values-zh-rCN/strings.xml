@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">dayGLANCE</string>
+    <string name="app_name">Day Planner</string>
     <string name="widget_description">一览今日日程</string>
     <string name="widget_upnext_description">详细显示下一个计划任务</string>
     <string name="widget_goal_description">显示固定目标及其项目进度</string>
