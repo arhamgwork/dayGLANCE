@@ -2802,5 +2802,27 @@
       "tagRemoved": "Removed #{{from}}",
       "subtasksReordered": "Reordered the subtasks of \"{{title}}\""
     }
+  },
+  "dayPlanner": {
+    "title": "Day planner",
+    "autoPlan": "Plan my voice dumps into my day",
+    "hint": "Speak a list of tasks; the app fits them around your routine and sets an alarm for each.",
+    "wake": "Wake up",
+    "sleep": "Sleep",
+    "firstMeal": "Breakfast",
+    "mealCount": "Meals per day",
+    "mealGap": "Hours between meals",
+    "mealMinutes": "Minutes per meal",
+    "buffer": "Break between tasks (min)",
+    "speakAlarms": "Read the task out loud when its alarm rings",
+    "fab": "Speak your tasks",
+    "noRoom": "no free time that day",
+    "alarmSet": "Alarm",
+    "approve_one": "Approve plan & set alarm",
+    "approve_other": "Approve plan & set alarms ({{count}})",
+    "block": {
+      "wake": "Wake up",
+      "sleep": "Sleep"
+    }
   }
 }

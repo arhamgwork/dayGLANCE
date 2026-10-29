@@ -2804,5 +2804,27 @@
       "tagRemoved": "#{{from}} rimosso",
       "subtasksReordered": "Sottoattività di «{{title}}» riordinate"
     }
+  },
+  "dayPlanner": {
+    "title": "Pianificatore della giornata",
+    "autoPlan": "Pianifica le attività dettate nella mia giornata",
+    "hint": "Detta un elenco di attività; l’app le inserisce attorno alla tua routine e imposta una sveglia per ciascuna.",
+    "wake": "Sveglia",
+    "sleep": "Dormire",
+    "firstMeal": "Colazione",
+    "mealCount": "Pasti al giorno",
+    "mealGap": "Ore tra i pasti",
+    "mealMinutes": "Minuti per pasto",
+    "buffer": "Pausa tra le attività (min)",
+    "speakAlarms": "Leggi l’attività ad alta voce quando suona la sveglia",
+    "fab": "Detta le tue attività",
+    "noRoom": "nessun tempo libero quel giorno",
+    "alarmSet": "Allarme",
+    "approve_one": "Approva il piano e imposta la sveglia",
+    "approve_other": "Approva il piano e imposta le sveglie ({{count}})",
+    "block": {
+      "wake": "Sveglia",
+      "sleep": "Dormire"
+    }
   }
 }

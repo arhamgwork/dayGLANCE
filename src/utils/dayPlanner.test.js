@@ -41,6 +41,10 @@ describe('splitTranscript', () => {
     expect(splitTranscript('buy milk and eggs and call the dentist')).toEqual(['buy milk and eggs', 'call the dentist']);
   });
 
+  it('splits off a named appointment', () => {
+    expect(splitTranscript('clean the kitchen and dentist at 3pm')).toEqual(['clean the kitchen', 'dentist at 3pm']);
+  });
+
   it('does not break dotted times', () => {
     expect(splitTranscript('dentist at 3.30 p.m. tomorrow')).toHaveLength(1);
   });

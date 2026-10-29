@@ -2802,5 +2802,27 @@
       "tagRemoved": "#{{from}} quitada",
       "subtasksReordered": "Subtareas de «{{title}}» reordenadas"
     }
+  },
+  "dayPlanner": {
+    "title": "Planificador del día",
+    "autoPlan": "Planificar mis tareas dictadas en mi día",
+    "hint": "Di una lista de tareas; la app las encaja alrededor de tu rutina y pone una alarma para cada una.",
+    "wake": "Despertar",
+    "sleep": "Dormir",
+    "firstMeal": "Desayuno",
+    "mealCount": "Comidas al día",
+    "mealGap": "Horas entre comidas",
+    "mealMinutes": "Minutos por comida",
+    "buffer": "Pausa entre tareas (min)",
+    "speakAlarms": "Leer la tarea en voz alta cuando suene la alarma",
+    "fab": "Dicta tus tareas",
+    "noRoom": "no hay tiempo libre ese día",
+    "alarmSet": "Alarma",
+    "approve_one": "Aprobar plan y poner alarma",
+    "approve_other": "Aprobar plan y poner alarmas ({{count}})",
+    "block": {
+      "wake": "Despertar",
+      "sleep": "Dormir"
+    }
   }
 }

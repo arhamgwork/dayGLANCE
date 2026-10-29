@@ -33,8 +33,11 @@ const TASK_VERBS = [
   'plan', 'book', 'schedule', 'check', 'update', 'file', 'print', 'sign', 'submit', 'renew',
   'organize', 'organise', 'sort', 'pack', 'unpack', 'exercise', 'stretch', 'meditate', 'shower',
   'nap', 'rest', 'play', 'help', 'ask', 'tell', 'remind', 'cancel', 'upload', 'download', 'back',
+  // Things people name on their own as a task: "…and dentist at 3".
+  'dentist', 'doctor', 'appointment', 'meeting', 'haircut', 'class', 'lesson', 'interview',
+  'gym', 'groceries', 'laundry', 'homework', 'dishes', 'workout', 'standup', 'lunch with', 'dinner with',
 ];
-const VERB_ALT = TASK_VERBS.map((v) => v.replace('-', '\\-')).join('|');
+const VERB_ALT = TASK_VERBS.map((v) => v.replace('-', '\\-').replace(' ', '\\s+')).join('|');
 
 // Spoken filler that starts a chunk: "I need to", "I have to", "gotta", "then"…
 const LEAD_RE = /^\s*(?:(?:and|also|then|plus|oh|um|uh|so|okay|ok)\b[,\s]*)*(?:(?:i\s+)?(?:need|have|want|got|must|should)\s+to\s+|i\s+(?:must|should)\s+|i\s+gotta\s+|gotta\s+|don'?t\s+forget\s+to\s+|remember\s+to\s+|remind\s+me\s+to\s+)?/i;

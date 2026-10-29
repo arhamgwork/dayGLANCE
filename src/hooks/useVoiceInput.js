@@ -64,7 +64,10 @@ export default function useVoiceInput({
   const planParsed = (list) => {
     const routine = loadDayRoutine();
     if (!routine.autoPlan) return list;
-    return planDay(list, { routine, existingTasks: plannerTasksRef.current, now: new Date() });
+    // Shown in the order of the day: dated + timed first, unplaced last.
+    const key = (t) => (t.date && t.time ? `0${t.date}T${t.time}` : t.date ? `1${t.date}` : '2');
+    return planDay(list, { routine, existingTasks: plannerTasksRef.current, now: new Date() })
+      .sort((a, b) => key(a).localeCompare(key(b)));
   };
   const offlineParse = (text) => (loadDayRoutine().autoPlan ? parseTranscriptToPlan(text) : parseTranscriptTasks(text));
 

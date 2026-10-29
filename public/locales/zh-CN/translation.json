@@ -2799,5 +2799,26 @@
       "tagRemoved": "已移除 #{{from}}",
       "subtasksReordered": "已调整“{{title}}”的子任务顺序"
     }
+  },
+  "dayPlanner": {
+    "title": "日程规划",
+    "autoPlan": "把语音说出的任务排进我的一天",
+    "hint": "说出一串任务，应用会围绕你的作息安排它们，并为每个任务设置闹钟。",
+    "wake": "起床",
+    "sleep": "睡觉",
+    "firstMeal": "早餐",
+    "mealCount": "每天餐数",
+    "mealGap": "两餐间隔（小时）",
+    "mealMinutes": "每餐时长（分钟）",
+    "buffer": "任务间休息（分钟）",
+    "speakAlarms": "闹钟响起时朗读任务",
+    "fab": "说出你的任务",
+    "noRoom": "当天没有空闲时间",
+    "alarmSet": "闹钟",
+    "approve_other": "确认计划并设置闹钟（{{count}}）",
+    "block": {
+      "wake": "起床",
+      "sleep": "睡觉"
+    }
   }
 }

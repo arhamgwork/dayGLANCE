@@ -2802,5 +2802,27 @@
       "tagRemoved": "#{{from}} entfernt",
       "subtasksReordered": "Unteraufgaben von „{{title}}“ neu geordnet"
     }
+  },
+  "dayPlanner": {
+    "title": "Tagesplaner",
+    "autoPlan": "Gesprochene Aufgaben in meinen Tag einplanen",
+    "hint": "Sprich eine Liste von Aufgaben; die App plant sie um deine Routine herum und stellt für jede einen Wecker.",
+    "wake": "Aufstehen",
+    "sleep": "Schlafen",
+    "firstMeal": "Frühstück",
+    "mealCount": "Mahlzeiten pro Tag",
+    "mealGap": "Stunden zwischen Mahlzeiten",
+    "mealMinutes": "Minuten pro Mahlzeit",
+    "buffer": "Pause zwischen Aufgaben (Min.)",
+    "speakAlarms": "Aufgabe beim Klingeln laut vorlesen",
+    "fab": "Aufgaben einsprechen",
+    "noRoom": "an diesem Tag keine freie Zeit",
+    "alarmSet": "Wecker",
+    "approve_one": "Plan bestätigen und Wecker stellen",
+    "approve_other": "Plan bestätigen und Wecker stellen ({{count}})",
+    "block": {
+      "wake": "Aufstehen",
+      "sleep": "Schlafen"
+    }
   }
 }
